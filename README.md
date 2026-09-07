@@ -1,4 +1,4 @@
-# Jindiao（金调）
+# Jindiao（尽调）
 
 基于 openJiuwen agent-Core AgentTeams 与 DeepSearch 的单机高代码企业信用与风控尽调应用。系统先共享采集并冻结企业事实，再让一个真实调查 Agent 或一个真实调查团队在同一证据快照上完成固定核查，最后由确定性规则生成完整 Result 与 Markdown 报告。
 
