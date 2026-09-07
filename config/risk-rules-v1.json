@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "version": "v1",
+  "pass_upper_exclusive": 20,
+  "reject_lower_inclusive": 80,
+  "rules": [
+    {
+      "rule_id": "admission.dishonest_subject",
+      "category": "admission",
+      "description": "企业存在失信被执行人记录",
+      "points": 80,
+      "conditions": [
+        {"field": "risk_class", "operator": "equals", "value": "admission"},
+        {"field": "claim", "operator": "contains", "value": "失信"}
+      ]
+    },
+    {
+      "rule_id": "admission.consumption_restriction",
+      "category": "admission",
+      "description": "企业存在限制高消费记录",
+      "points": 80,
+      "conditions": [
+        {"field": "risk_class", "operator": "equals", "value": "admission"},
+        {"field": "claim", "operator": "contains", "value": "限制高消费"}
+      ]
+    },
+    {
+      "rule_id": "attention.unresolved_execution",
+      "category": "attention",
+      "description": "企业存在未结被执行记录",
+      "points": 20,
+      "conditions": [
+        {"field": "risk_class", "operator": "equals", "value": "attention"},
+        {"field": "claim", "operator": "contains", "value": "被执行"}
+      ]
+    },
+    {
+      "rule_id": "attention.operation_abnormal",
+      "category": "attention",
+      "description": "企业存在未移出经营异常记录",
+      "points": 25,
+      "conditions": [
+        {"field": "risk_class", "operator": "equals", "value": "attention"},
+        {"field": "claim", "operator": "contains", "value": "经营异常"}
+      ]
+    },
+    {
+      "rule_id": "attention.administrative_penalty",
+      "category": "attention",
+      "description": "企业存在行政处罚记录",
+      "points": 10,
+      "conditions": [
+        {"field": "risk_class", "operator": "equals", "value": "attention"},
+        {"field": "claim", "operator": "contains", "value": "行政处罚"}
+      ]
+    },
+    {
+      "rule_id": "attention.profit_decline",
+      "category": "attention",
+      "description": "近三年净利润持续下降或转亏",
+      "points": 10,
+      "conditions": [
+        {"field": "risk_class", "operator": "equals", "value": "attention"},
+        {"field": "claim", "operator": "contains", "value": "利润"},
+        {"field": "claim", "operator": "contains", "value": "下降"}
+      ]
+    },
+    {
+      "rule_id": "attention.unresolved_conflict",
+      "category": "attention",
+      "description": "跨来源事实冲突尚未解决",
+      "points": 20,
+      "conditions": [
+        {"field": "risk_class", "operator": "equals", "value": "attention"},
+        {"field": "status", "operator": "equals", "value": "unconfirmed"},
+        {"field": "claim", "operator": "contains", "value": "不一致"}
+      ]
+    }
+  ]
+}

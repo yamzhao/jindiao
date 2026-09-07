@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["subject_id", "source_status", "evidence", "coverage"],
+  "properties": {
+    "subject_id": {"type": "string", "minLength": 1},
+    "source_status": {
+      "enum": ["verified_records", "verified_empty", "capability_absent", "source_error", "degraded_mock"]
+    },
+    "evidence": {"type": "array", "items": {"type": "object"}},
+    "coverage": {"type": "object"}
+  },
+  "additionalProperties": false
+}

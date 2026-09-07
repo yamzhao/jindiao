@@ -1,0 +1,467 @@
+{
+  "schema_version": 1,
+  "routes": {
+    "governance": {
+      "preferred_tool_names": [
+        "get_company_registration_info",
+        "get_registration_snapshot",
+        "get_shareholder_info",
+        "get_share_structure",
+        "get_equity_ratio",
+        "get_actual_controller",
+        "get_beneficial_owners",
+        "get_change_records",
+        "get_branches",
+        "get_external_investments",
+        "get_controlled_companies",
+        "get_relation_graph"
+      ],
+      "submodules": [
+        {
+          "submodule_id": "registration",
+          "title": "工商登记信息",
+          "section_id": "company-profile",
+          "preferred_tool_names": ["get_company_registration_info", "get_registration_snapshot"],
+          "mock_keys": ["company"]
+        },
+        {
+          "submodule_id": "shareholders",
+          "title": "股东信息",
+          "section_id": "company-profile",
+          "preferred_tool_names": ["get_shareholder_info", "get_share_structure", "get_equity_ratio"],
+          "mock_keys": ["shareholders"]
+        },
+        {
+          "submodule_id": "executives",
+          "title": "高管任职",
+          "section_id": "company-profile",
+          "preferred_tool_names": ["get_company_staff", "get_key_personnel", "get_main_personnel", "get_registration_snapshot"],
+          "mock_keys": ["executives"]
+        },
+        {
+          "submodule_id": "external_investments",
+          "title": "对外投资",
+          "section_id": "company-profile",
+          "preferred_tool_names": ["get_external_investments", "get_controlled_companies"],
+          "mock_keys": ["outbound_investments"]
+        },
+        {
+          "submodule_id": "branches",
+          "title": "分支机构",
+          "section_id": "company-profile",
+          "preferred_tool_names": ["get_branches"],
+          "mock_keys": ["branches"]
+        },
+        {
+          "submodule_id": "registration_changes",
+          "title": "工商变更",
+          "section_id": "company-profile",
+          "preferred_tool_names": ["get_change_records", "get_registration_snapshot"],
+          "mock_keys": ["registration_changes"]
+        },
+        {
+          "submodule_id": "beneficial_owners",
+          "title": "受益所有人",
+          "section_id": "related-parties",
+          "preferred_tool_names": ["get_beneficial_owners", "get_actual_controller"],
+          "mock_keys": ["beneficial_owners", "ultimate_controller"]
+        },
+        {
+          "submodule_id": "actual_controller",
+          "title": "疑似实际控制人",
+          "section_id": "related-parties",
+          "preferred_tool_names": ["get_actual_controller", "get_beneficial_owners"],
+          "mock_keys": ["ultimate_controller"]
+        },
+        {
+          "submodule_id": "legal_representative_investments",
+          "title": "法人对外投资",
+          "section_id": "related-parties",
+          "preferred_tool_names": ["get_legal_representative_investments", "get_external_investments", "get_relation_graph"],
+          "mock_keys": ["outbound_investments"]
+        },
+        {
+          "submodule_id": "legal_representative_roles",
+          "title": "法人对外任职",
+          "section_id": "related-parties",
+          "preferred_tool_names": ["get_legal_representative_roles", "get_relation_graph"],
+          "mock_keys": []
+        }
+      ],
+      "keywords": [
+        "股东",
+        "股权",
+        "对外投资",
+        "分支机构",
+        "变更",
+        "主要人员",
+        "shareholder",
+        "equity",
+        "controller",
+        "registration"
+      ]
+    },
+    "judicial": {
+      "preferred_tool_names": [
+        "get_risk_overview",
+        "get_risk_detail",
+        "get_judicial_case",
+        "get_judicial_documents",
+        "get_lawsuit_detail",
+        "get_case_filing_info",
+        "get_court_notice",
+        "get_hearing_notice",
+        "get_service_notice",
+        "get_judicial_auction",
+        "get_terminated_cases",
+        "get_default_event_info",
+        "get_public_exhortation"
+      ],
+      "submodules": [
+        {
+          "submodule_id": "consumption_restrictions",
+          "title": "限制高消费",
+          "section_id": "judicial-risk",
+          "preferred_tool_names": ["get_risk_overview", "get_risk_detail"],
+          "mock_keys": ["restrictions_on_high_consumption"]
+        },
+        {
+          "submodule_id": "dishonest_enforcement",
+          "title": "失信被执行",
+          "section_id": "judicial-risk",
+          "preferred_tool_names": ["get_risk_overview", "get_risk_detail", "get_default_event_info"],
+          "mock_keys": ["dishonest_records"]
+        },
+        {
+          "submodule_id": "executions",
+          "title": "企业被执行",
+          "section_id": "judicial-risk",
+          "preferred_tool_names": ["get_risk_overview", "get_risk_detail", "get_terminated_cases"],
+          "mock_keys": ["executions"]
+        },
+        {
+          "submodule_id": "judicial_documents",
+          "title": "裁判文书",
+          "section_id": "judicial-risk",
+          "preferred_tool_names": ["get_judicial_documents", "get_judicial_case", "get_lawsuit_detail"],
+          "mock_keys": ["judgments"]
+        },
+        {
+          "submodule_id": "hearing_notices",
+          "title": "开庭公告",
+          "section_id": "judicial-risk",
+          "preferred_tool_names": ["get_hearing_notice", "get_judicial_case"],
+          "mock_keys": ["hearing_notices"]
+        },
+        {
+          "submodule_id": "filing_notices",
+          "title": "立案公告",
+          "section_id": "judicial-risk",
+          "preferred_tool_names": ["get_case_filing_info"],
+          "mock_keys": ["filing_notices"]
+        },
+        {
+          "submodule_id": "court_notices",
+          "title": "法院公告",
+          "section_id": "judicial-risk",
+          "preferred_tool_names": ["get_court_notice", "get_service_notice"],
+          "mock_keys": ["court_notices"]
+        },
+        {
+          "submodule_id": "judicial_auctions",
+          "title": "司法拍卖",
+          "section_id": "judicial-risk",
+          "preferred_tool_names": ["get_judicial_auction"],
+          "mock_keys": ["judicial_auctions"]
+        },
+        {
+          "submodule_id": "commercial_bribery",
+          "title": "行贿违法",
+          "section_id": "judicial-risk",
+          "preferred_tool_names": ["get_public_exhortation", "get_judicial_documents"],
+          "mock_keys": ["commercial_bribery"]
+        }
+      ],
+      "keywords": [
+        "裁判",
+        "诉讼",
+        "被执行",
+        "失信",
+        "限制高消费",
+        "开庭",
+        "法院公告",
+        "judicial",
+        "lawsuit",
+        "court",
+        "risk"
+      ]
+    },
+    "operations": {
+      "preferred_tool_names": [
+        "get_annual_reports",
+        "get_financial_summary",
+        "get_financial_main_indicators",
+        "get_financial_data",
+        "get_income_statement",
+        "get_balance_sheet",
+        "get_cash_flow_statement",
+        "get_administrative_penalty",
+        "get_administrative_license",
+        "get_random_check",
+        "get_spot_check_info",
+        "get_bidding_info",
+        "get_taxpayer_info",
+        "get_import_export_credit",
+        "get_patent_info",
+        "get_software_copyright_info",
+        "get_trademark_info",
+        "get_recruitment_info",
+        "get_qualifications"
+      ],
+      "submodules": [
+        {
+          "submodule_id": "liquidation",
+          "title": "清算信息",
+          "section_id": "operational-risk",
+          "preferred_tool_names": ["get_liquidation_info"],
+          "mock_keys": ["liquidation_records"]
+        },
+        {
+          "submodule_id": "simple_deregistration",
+          "title": "简易注销",
+          "section_id": "operational-risk",
+          "preferred_tool_names": ["get_simple_deregistration"],
+          "mock_keys": ["simple_deregistrations"]
+        },
+        {
+          "submodule_id": "serious_violations",
+          "title": "严重违法",
+          "section_id": "operational-risk",
+          "preferred_tool_names": ["get_serious_illegal_info", "get_risk_detail"],
+          "mock_keys": ["serious_violations"]
+        },
+        {
+          "submodule_id": "operation_abnormalities",
+          "title": "经营异常",
+          "section_id": "operational-risk",
+          "preferred_tool_names": ["get_business_abnormal_info", "get_risk_detail"],
+          "mock_keys": ["abnormal_operations"]
+        },
+        {
+          "submodule_id": "tax_negative_records",
+          "title": "税务负面",
+          "section_id": "operational-risk",
+          "preferred_tool_names": ["get_taxpayer_info", "get_risk_detail"],
+          "mock_keys": ["tax_negative_records"]
+        },
+        {
+          "submodule_id": "environmental_penalties",
+          "title": "环保处罚",
+          "section_id": "operational-risk",
+          "preferred_tool_names": ["get_environmental_penalty", "get_administrative_penalty"],
+          "mock_keys": ["environmental_penalties"]
+        },
+        {
+          "submodule_id": "administrative_penalties",
+          "title": "行政处罚",
+          "section_id": "operational-risk",
+          "preferred_tool_names": ["get_administrative_penalty"],
+          "mock_keys": ["administrative_penalties"]
+        },
+        {
+          "submodule_id": "customs_penalties",
+          "title": "海关处罚",
+          "section_id": "operational-risk",
+          "preferred_tool_names": ["get_import_export_credit", "get_administrative_penalty"],
+          "mock_keys": ["customs_penalties"]
+        },
+        {
+          "submodule_id": "equity_freezes",
+          "title": "股权冻结",
+          "section_id": "operational-risk",
+          "preferred_tool_names": ["get_equity_freeze", "get_risk_detail"],
+          "mock_keys": ["equity_freezes"]
+        },
+        {
+          "submodule_id": "chattel_mortgages",
+          "title": "动产抵押",
+          "section_id": "operational-risk",
+          "preferred_tool_names": ["get_chattel_mortgage", "get_risk_detail"],
+          "mock_keys": ["chattel_mortgages"]
+        },
+        {
+          "submodule_id": "equity_pledges",
+          "title": "股权出质",
+          "section_id": "operational-risk",
+          "preferred_tool_names": ["get_equity_pledge", "get_risk_detail"],
+          "mock_keys": ["equity_pledges"]
+        },
+        {
+          "submodule_id": "intellectual_property_pledges",
+          "title": "知识产权出质",
+          "section_id": "operational-risk",
+          "preferred_tool_names": ["get_intellectual_property_pledge", "get_risk_detail"],
+          "mock_keys": ["intellectual_property_pledges"]
+        },
+        {
+          "submodule_id": "licenses",
+          "title": "行政许可",
+          "section_id": "operations-analysis",
+          "preferred_tool_names": ["get_administrative_license"],
+          "mock_keys": ["administrative_licenses"]
+        },
+        {
+          "submodule_id": "qualifications",
+          "title": "资质信息",
+          "section_id": "operations-analysis",
+          "preferred_tool_names": ["get_qualifications"],
+          "mock_keys": ["qualifications"]
+        },
+        {
+          "submodule_id": "tax_credit",
+          "title": "税务评级",
+          "section_id": "operations-analysis",
+          "preferred_tool_names": ["get_taxpayer_info"],
+          "mock_keys": ["tax_credit_grade"]
+        },
+        {
+          "submodule_id": "customs_registration",
+          "title": "海关登记信息",
+          "section_id": "operations-analysis",
+          "preferred_tool_names": ["get_import_export_credit"],
+          "mock_keys": ["customs_registration"]
+        },
+        {
+          "submodule_id": "customs_rating",
+          "title": "海关评级",
+          "section_id": "operations-analysis",
+          "preferred_tool_names": ["get_import_export_credit"],
+          "mock_keys": ["customs_rating"]
+        },
+        {
+          "submodule_id": "bidding",
+          "title": "招投标信息",
+          "section_id": "operations-analysis",
+          "preferred_tool_names": ["get_bidding_info"],
+          "mock_keys": ["bidding_awards"]
+        },
+        {
+          "submodule_id": "public_opinion",
+          "title": "新闻舆情",
+          "section_id": "operations-analysis",
+          "preferred_tool_names": ["get_news_info", "get_risk_detail"],
+          "mock_keys": ["news"]
+        },
+        {
+          "submodule_id": "annual_reports",
+          "title": "工商年报",
+          "section_id": "operations-analysis",
+          "preferred_tool_names": ["get_annual_reports"],
+          "mock_keys": ["employee_count", "financial_indicators"]
+        },
+        {
+          "submodule_id": "financial_summary",
+          "title": "财务主要指标",
+          "section_id": "operations-analysis",
+          "preferred_tool_names": ["get_financial_summary", "get_financial_main_indicators", "get_financial_data"],
+          "mock_keys": ["financial_indicators"]
+        },
+        {
+          "submodule_id": "income_statement",
+          "title": "利润表",
+          "section_id": "operations-analysis",
+          "preferred_tool_names": ["get_income_statement", "get_financial_data"],
+          "mock_keys": ["income_statement"]
+        },
+        {
+          "submodule_id": "balance_sheet",
+          "title": "资产负债表",
+          "section_id": "operations-analysis",
+          "preferred_tool_names": ["get_balance_sheet", "get_financial_data"],
+          "mock_keys": ["balance_sheet"]
+        },
+        {
+          "submodule_id": "cash_flow_statement",
+          "title": "现金流量表",
+          "section_id": "operations-analysis",
+          "preferred_tool_names": ["get_cash_flow_statement", "get_financial_data"],
+          "mock_keys": ["cash_flow_statement"]
+        },
+        {
+          "submodule_id": "intellectual_property",
+          "title": "知识产权",
+          "section_id": "operations-analysis",
+          "preferred_tool_names": ["get_patent_info", "get_software_copyright_info", "get_trademark_info"],
+          "mock_keys": ["intellectual_property"]
+        }
+      ],
+      "keywords": [
+        "经营异常",
+        "行政处罚",
+        "抽查检查",
+        "税务",
+        "招投标",
+        "专利",
+        "软著",
+        "annual",
+        "financial",
+        "penalty",
+        "license",
+        "bidding",
+        "patent",
+        "copyright",
+        "taxpayer"
+      ]
+    },
+    "peers": {
+      "preferred_tool_names": [
+        "get_competitors",
+        "get_ranking_list_info",
+        "get_suppliers_and_customers",
+        "get_products_info"
+      ],
+      "submodules": [
+        {
+          "submodule_id": "competitors",
+          "title": "同类企业",
+          "section_id": "peer-analysis",
+          "preferred_tool_names": ["get_competitors"],
+          "mock_keys": ["peer_companies"]
+        },
+        {
+          "submodule_id": "regional_industry_counts",
+          "title": "同行业同地区企业数量",
+          "section_id": "peer-analysis",
+          "preferred_tool_names": ["get_ranking_list_info", "get_competitors"],
+          "mock_keys": ["regional_industry_counts"]
+        },
+        {
+          "submodule_id": "regional_industry_growth",
+          "title": "同行业同地区年度新增",
+          "section_id": "peer-analysis",
+          "preferred_tool_names": ["get_ranking_list_info", "get_competitors"],
+          "mock_keys": ["regional_industry_growth"]
+        },
+        {
+          "submodule_id": "industry_benchmarks",
+          "title": "行业参考指标",
+          "section_id": "peer-analysis",
+          "preferred_tool_names": ["get_ranking_list_info", "get_competitors"],
+          "mock_keys": ["industry", "metrics"]
+        }
+      ],
+      "keywords": [
+        "行业",
+        "区域",
+        "排名",
+        "同类企业",
+        "竞品",
+        "competitor",
+        "ranking",
+        "supplier",
+        "customer",
+        "product"
+      ]
+    }
+  }
+}

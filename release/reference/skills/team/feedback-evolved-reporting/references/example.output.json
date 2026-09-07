@@ -1,0 +1,7 @@
+{
+  "candidate_id": "candidate-example",
+  "status": "awaiting_approval",
+  "source_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "candidate_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "evaluation": {"passed": true, "baseline_score": 0.8, "candidate_score": 0.9}
+}

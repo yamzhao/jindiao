@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "kind": "team",
+  "entrypoint": "SKILL.md",
+  "input_schema": "references/input.schema.json",
+  "output_schema": "references/output.schema.json"
+}

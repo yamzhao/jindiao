@@ -1,0 +1,34 @@
+{
+  "as_of_date": "2026-08-31",
+  "dishonest_records": [
+    {
+      "case_no": "(2026)沪0115执1234号",
+      "performance_status": "全部未履行",
+      "published_on": "2026-08-02",
+      "record_id": "judicial:dishonest:1"
+    }
+  ],
+  "executions": [
+    {
+      "amount_cny": 6800000,
+      "case_no": "(2026)沪0115执1234号",
+      "filed_on": "2026-06-20",
+      "record_id": "judicial:execution:1",
+      "status": "unresolved"
+    }
+  ],
+  "judgments": [
+    {
+      "amount_cny": 6800000,
+      "case_type": "建设工程合同纠纷",
+      "decided_on": "2026-05-18",
+      "record_id": "judicial:judgment:1"
+    }
+  ],
+  "restrictions_on_high_consumption": [
+    {
+      "published_on": "2026-07-15",
+      "record_id": "judicial:restriction:1"
+    }
+  ]
+}

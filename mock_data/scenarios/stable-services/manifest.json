@@ -1,0 +1,55 @@
+{
+  "as_of_date": "2026-08-31",
+  "enterprise_key": {
+    "aliases": [
+      "金调远帆服务"
+    ],
+    "company_name": "金调远帆服务有限公司",
+    "unified_social_credit_code": "91120100MA01JD006F"
+  },
+  "files": [
+    {
+      "path": "company.json",
+      "role": "runtime",
+      "sha256": "84e3f9b373c659f8446d345325d3b8e76d59d7336263bd88cfbf98c653a5ad79"
+    },
+    {
+      "path": "corpus/operating-notes.md",
+      "role": "runtime",
+      "sha256": "4075560140c03bf1cd7a5352fe1959539c3eb606ae630d2a03b4c88e635aee32"
+    },
+    {
+      "path": "expected/decision.json",
+      "role": "expected",
+      "sha256": "f518f926f740fdbef3f6bc8e21b024e4414ed97f3517d62baa9caad2e96f1170"
+    },
+    {
+      "path": "expected/findings.json",
+      "role": "expected",
+      "sha256": "a55c621186a88d96b963c77def567c17a1ffcc9bcfad6eaf0846d2857c84cc8a"
+    },
+    {
+      "path": "governance.json",
+      "role": "runtime",
+      "sha256": "0c47d7cb31d3abbb0a76fb927fff16cbf3c00a72caa096279de7742f06a924e2"
+    },
+    {
+      "path": "judicial.json",
+      "role": "runtime",
+      "sha256": "4c1e76777a488fc858454dd29554dfc57f3098297bd3d1424603c4e094d04237"
+    },
+    {
+      "path": "operations.json",
+      "role": "runtime",
+      "sha256": "78434d5c799b9a18ed69644ce7d369891d7fb6371008142138dcaa7f7dbb46fd"
+    },
+    {
+      "path": "peers.json",
+      "role": "runtime",
+      "sha256": "15ebe268268fd792de6d131d285494e79776fb6e2e3ba00116f34bea5b0bf420"
+    }
+  ],
+  "scenario_id": "stable-services",
+  "schema_version": 1,
+  "version": "v1.0.0"
+}

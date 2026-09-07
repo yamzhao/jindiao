@@ -1,0 +1,11 @@
+**
+!src/
+!src/jindiao/
+!src/jindiao/agents/
+!src/jindiao/agents/agent_teams_investigator.py
+!src/jindiao/orchestration/
+!src/jindiao/orchestration/team_runtime.py
+!deploy/
+!deploy/agentarts/
+!deploy/agentarts/Dockerfile.multi-recovery
+!deploy/agentarts/Dockerfile.multi-recovery.dockerignore

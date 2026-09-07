@@ -1,0 +1,55 @@
+{
+  "as_of_date": "2026-08-31",
+  "enterprise_key": {
+    "aliases": [
+      "金调沧澜供应链"
+    ],
+    "company_name": "金调沧澜供应链有限公司",
+    "unified_social_credit_code": "91370100MA01JD008H"
+  },
+  "files": [
+    {
+      "path": "company.json",
+      "role": "runtime",
+      "sha256": "fd9556f9899a4e9a6e5ec9b72cdfd840d11e78af5c912579ecd37d29db863048"
+    },
+    {
+      "path": "corpus/operating-notes.md",
+      "role": "runtime",
+      "sha256": "d4e1d453300a0e6e329675f5c78bb8af0d39060b3b2d9be48aba3626a155fcd5"
+    },
+    {
+      "path": "expected/decision.json",
+      "role": "expected",
+      "sha256": "6d49738256a18da01fe919ed5f736c7ab537ba8bb5394a6891b222ada8c1297a"
+    },
+    {
+      "path": "expected/findings.json",
+      "role": "expected",
+      "sha256": "bdd8b95797647e7d8ec372a9c341d524517b7e4e97613a884b332154ba898197"
+    },
+    {
+      "path": "governance.json",
+      "role": "runtime",
+      "sha256": "ef02ddef53b909823aedca3cb28f51ae2780cc61e97eafd7ebcb7496e883b876"
+    },
+    {
+      "path": "judicial.json",
+      "role": "runtime",
+      "sha256": "d3a36bfe04d8546dfc54091bdd71518b9e5ced80fd4adf565deaf617895dbfce"
+    },
+    {
+      "path": "operations.json",
+      "role": "runtime",
+      "sha256": "bdad9f6a4abbb0d2df6ca647d4454f2799087fa98e662e5b1be9989c92aeae12"
+    },
+    {
+      "path": "peers.json",
+      "role": "runtime",
+      "sha256": "5214785c99112629e45f6611b794c0bd0cba966b3b4cc20e6c886a902398ca57"
+    }
+  ],
+  "scenario_id": "operating-pressure",
+  "schema_version": 1,
+  "version": "v1.0.0"
+}

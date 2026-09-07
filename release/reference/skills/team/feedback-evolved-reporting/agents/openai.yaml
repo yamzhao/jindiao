@@ -1,0 +1,4 @@
+interface:
+  display_name: "Feedback-evolved Reporting"
+  short_description: "Improve reports through governed feedback evolution"
+  default_prompt: "Use $feedback-evolved-reporting to propose a governed reporting improvement."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "TYC Evidence Acquisition"
+  short_description: "Acquire traceable Tianyancha enterprise evidence"
+  default_prompt: "Use $tyc-evidence-acquisition to collect traceable enterprise evidence."

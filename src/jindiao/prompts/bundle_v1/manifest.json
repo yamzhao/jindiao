@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "bundle_version": "due-diligence-prompts-v1",
+  "acquisition": {
+    "enterprise-context": {
+      "version": "enterprise-context-v2",
+      "path": "acquisition/enterprise-context.md",
+      "required_fragments": ["8 个模块", "48 个标准子模块", "Evidence", "available", "verified_empty", "capability_absent", "source_error", "not_requested", "不可信数据", "不得生成 RiskItem", "不得决定最终风险分", "必须先调用 `collect_enterprise_context`", "必须调用 `submit_enterprise_context`", "自然语言回答不能替代"]
+    },
+    "supplemental-evidence": {
+      "version": "deepsearch-acquisition-v1",
+      "path": "acquisition/supplemental-evidence.md",
+      "required_fragments": ["SupplementTask", "baseline_enrichment", "evidence_gap", "不可信数据", "不得覆盖 verified_empty", "Evidence", "不得生成 RiskItem", "不得决定最终风险分"]
+    }
+  },
+  "investigation": {
+    "core": {
+      "version": "investigation-core-v1",
+      "path": "investigation/core.md",
+      "required_fragments": ["固定核查项", "只读 EnterpriseContextSnapshot", "Evidence ID", "risk", "no_risk", "inconclusive", "不得调用外部 Tool/MCP", "结构化提交", "不得决定最终风险分"]
+    },
+    "roles": {
+      "single-investigator": {"version": "single-investigator-v3", "path": "investigation/roles/single-investigator.md", "required_fragments": ["Single Investigator", "全部启用核查项", "完整性自检", "运行时绑定规则", "read_assigned_snapshot_context", "不得填写或猜测", "一个模型响应中并行发起全部 15 个", "不得把 15 个核查拆成逐轮模型对话"]},
+      "leader": {"version": "leader-v3", "path": "investigation/roles/leader.md", "required_fragments": ["Investigation Leader", "分配全部启用核查项", "不得直接生成正式 RiskItem", "scheduled", "先调用 `submit_check_assignments`", "一个 `create_task` 调用中批量建立全部首轮调查任务", "首轮只能创建 4 个角色级 scheduled 任务", "不得为每个 check_id 单独创建任务", "返工任务", "二次复核任务", "运行时绑定规则", "必须无参数调用"]},
+      "corporate": {"version": "corporate-v3", "path": "investigation/roles/corporate.md", "required_fragments": ["Corporate Investigator", "工商存续", "任务授权子模块", "read_assigned_snapshot_context", "一个模型响应中并行发起", "member_complete_task", "运行时绑定规则", "不得填写或猜测"]},
+      "judicial-compliance": {"version": "judicial-compliance-v3", "path": "investigation/roles/judicial-compliance.md", "required_fragments": ["Judicial & Compliance Investigator", "司法", "Evidence", "read_assigned_snapshot_context", "一个模型响应中并行发起", "member_complete_task", "运行时绑定规则", "不得填写或猜测"]},
+      "financial-operations": {"version": "financial-operations-v3", "path": "investigation/roles/financial-operations.md", "required_fragments": ["Financial & Operations Investigator", "盈利", "年报社保局部事实", "read_assigned_snapshot_context", "一个模型响应中并行发起", "member_complete_task", "运行时绑定规则", "不得填写或猜测"]},
+      "related-peer": {"version": "related-peer-v3", "path": "investigation/roles/related-peer.md", "required_fragments": ["Related & Peer Investigator", "同业偏离", "inconclusive", "read_assigned_snapshot_context", "一个模型响应中并行发起", "member_complete_task", "运行时绑定规则", "不得填写或猜测"]},
+      "reviewer": {"version": "reviewer-v3", "path": "investigation/roles/reviewer.md", "required_fragments": ["Independent Reviewer", "ReviewIssue", "RepairTask", "不得修改 Evidence", "member_complete_task", "运行时绑定规则", "只填写 `issues` 与 `repair_tasks`", "只提交需要处理的异常", "不得把结论正确或缺口合理记为 ReviewIssue", "单次最多 4 个 ReviewIssue", "不得请求冻结快照之外的新 Evidence"]}
+    }
+  },
+  "checks": {
+    "checks/registration-status-normal@v1": {"version": "fixed-check-v1", "path": "checks/fixed-check.md", "required_fragments": ["固定核查项", "check_id", "CheckResult", "inconclusive"]},
+    "checks/registration-change-anomaly@v1": {"version": "fixed-check-v1", "path": "checks/fixed-check.md", "required_fragments": ["固定核查项", "check_id", "CheckResult", "inconclusive"]},
+    "checks/ownership-control-risk@v1": {"version": "fixed-check-v1", "path": "checks/fixed-check.md", "required_fragments": ["固定核查项", "check_id", "CheckResult", "inconclusive"]},
+    "checks/material-execution-risk@v1": {"version": "fixed-check-v1", "path": "checks/fixed-check.md", "required_fragments": ["固定核查项", "check_id", "CheckResult", "inconclusive"]},
+    "checks/dishonesty-and-consumption-restriction@v1": {"version": "fixed-check-v1", "path": "checks/fixed-check.md", "required_fragments": ["固定核查项", "check_id", "CheckResult", "inconclusive"]},
+    "checks/operation-abnormality@v1": {"version": "fixed-check-v1", "path": "checks/fixed-check.md", "required_fragments": ["固定核查项", "check_id", "CheckResult", "inconclusive"]},
+    "checks/administrative-compliance-penalties@v1": {"version": "fixed-check-v1", "path": "checks/fixed-check.md", "required_fragments": ["固定核查项", "check_id", "CheckResult", "inconclusive"]},
+    "checks/equity-encumbrance@v1": {"version": "fixed-check-v1", "path": "checks/fixed-check.md", "required_fragments": ["固定核查项", "check_id", "CheckResult", "inconclusive"]},
+    "checks/profitability-decline@v1": {"version": "fixed-check-v1", "path": "checks/fixed-check.md", "required_fragments": ["固定核查项", "check_id", "CheckResult", "inconclusive"]},
+    "checks/solvency-pressure@v1": {"version": "fixed-check-v1", "path": "checks/fixed-check.md", "required_fragments": ["固定核查项", "check_id", "CheckResult", "inconclusive"]},
+    "checks/cash-flow-pressure@v1": {"version": "fixed-check-v1", "path": "checks/fixed-check.md", "required_fragments": ["固定核查项", "check_id", "CheckResult", "inconclusive"]},
+    "checks/revenue-anomaly@v1": {"version": "fixed-check-v1", "path": "checks/fixed-check.md", "required_fragments": ["固定核查项", "check_id", "CheckResult", "inconclusive"]},
+    "checks/related-party-control-risk@v1": {"version": "fixed-check-v1", "path": "checks/fixed-check.md", "required_fragments": ["固定核查项", "check_id", "CheckResult", "inconclusive"]},
+    "checks/peer-performance-deviation@v1": {"version": "fixed-check-v1", "path": "checks/fixed-check.md", "required_fragments": ["固定核查项", "check_id", "CheckResult", "inconclusive"]},
+    "checks/employment-scale-consistency@v1": {"version": "fixed-check-v1", "path": "checks/fixed-check.md", "required_fragments": ["固定核查项", "check_id", "CheckResult", "inconclusive"]}
+  }
+}

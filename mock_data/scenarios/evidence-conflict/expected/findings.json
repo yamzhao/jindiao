@@ -1,0 +1,32 @@
+[
+  {
+    "claim": "企业登记状态为存续",
+    "domain": "identity",
+    "evidence_ids": [
+      "ev-company-registration"
+    ],
+    "finding_id": "finding-registration-active",
+    "risk_class": "non_risk",
+    "severity": "info",
+    "status": "accepted",
+    "subject_id": "mock:evidence-conflict",
+    "value": "存续"
+  },
+  {
+    "claim": "员工人数在结构化年报与补充材料中不一致",
+    "domain": "operations",
+    "evidence_ids": [
+      "ev-operations-employees",
+      "ev-corpus-employees"
+    ],
+    "finding_id": "finding-employee-conflict",
+    "risk_class": "attention",
+    "severity": "medium",
+    "status": "unconfirmed",
+    "subject_id": "mock:evidence-conflict",
+    "value": {
+      "document": 112,
+      "structured": 86
+    }
+  }
+]

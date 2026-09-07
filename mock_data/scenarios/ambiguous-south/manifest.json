@@ -1,0 +1,55 @@
+{
+  "as_of_date": "2026-08-31",
+  "enterprise_key": {
+    "aliases": [
+      "金调同名实业"
+    ],
+    "company_name": "金调同名实业(南方)有限公司",
+    "unified_social_credit_code": "91440100MA01JD010K"
+  },
+  "files": [
+    {
+      "path": "company.json",
+      "role": "runtime",
+      "sha256": "5e8dd839632b2b0a77d4d994ce673d44af9bca94ca1696c41eaac7efb3c7d369"
+    },
+    {
+      "path": "corpus/operating-notes.md",
+      "role": "runtime",
+      "sha256": "c4b3fc02b4ebb8313518266151d14d925ec96c6c28d0f113c63036cde4a86aaa"
+    },
+    {
+      "path": "expected/decision.json",
+      "role": "expected",
+      "sha256": "8a9babcbb5a0173772f8a57521da72d5fa2ebb2b78146f59970c83b698225977"
+    },
+    {
+      "path": "expected/findings.json",
+      "role": "expected",
+      "sha256": "602561f7ddcb827dc1b9c4fe77ec0203f46151a1c443fc3adbda9bd2557d6fc2"
+    },
+    {
+      "path": "governance.json",
+      "role": "runtime",
+      "sha256": "0c95bfe4e20ee56bcf8837d0f0e7f5751c5445a387024439b4727919f01da40d"
+    },
+    {
+      "path": "judicial.json",
+      "role": "runtime",
+      "sha256": "4c1e76777a488fc858454dd29554dfc57f3098297bd3d1424603c4e094d04237"
+    },
+    {
+      "path": "operations.json",
+      "role": "runtime",
+      "sha256": "e9fae31dc8999d6e072fa4d96e06a47aac50c89cddaaf7c8d91145b64a81229f"
+    },
+    {
+      "path": "peers.json",
+      "role": "runtime",
+      "sha256": "846d85b0be3bfdea13028fe136154e20482e81164f22f8517526b92ea81aa040"
+    }
+  ],
+  "scenario_id": "ambiguous-south",
+  "schema_version": 1,
+  "version": "v1.0.0"
+}

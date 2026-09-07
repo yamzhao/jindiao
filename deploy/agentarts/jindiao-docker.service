@@ -1,0 +1,20 @@
+[Unit]
+Description=Jindiao integration Docker engine
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+Environment=PATH=/opt/jindiao/tools/docker:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+ExecStart=/opt/jindiao/tools/docker/dockerd --host=unix:///run/jindiao-docker.sock --data-root=/opt/jindiao/docker --exec-root=/run/jindiao-docker --pidfile=/run/jindiao-docker.pid --iptables=false --bridge=none --registry-mirror=https://docker.m.daocloud.io
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=1048576
+LimitNPROC=infinity
+LimitCORE=infinity
+Delegate=yes
+KillMode=process
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

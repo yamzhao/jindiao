@@ -1,0 +1,10 @@
+# Direct BFF dependencies aligned with the locally tested project environment.
+# No model, Tianyancha, agent runtime, or development dependencies.
+fastapi==0.115.11
+starlette==0.46.2
+httpx==0.28.1
+truststore==0.10.4
+pydantic==2.11.7
+pydantic-settings==2.5.2
+anyio==4.15.0
+uvicorn==0.38.0

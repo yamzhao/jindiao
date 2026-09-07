@@ -1,0 +1,23 @@
+{
+  "as_of_date": "2026-08-31",
+  "business_scope": "技术服务、项目管理、国内贸易及供应链服务",
+  "company_name": "金调云岑建设有限公司",
+  "established_on": "2016-05-18",
+  "industry": "房屋建筑业",
+  "legal_representative": "梁峻",
+  "paid_in_capital_cny": 32000000,
+  "record_id": "company:registration",
+  "registered_address": "中国某市高新区创新大道 88 号",
+  "registered_capital_cny": 50000000,
+  "registration_changes": [
+    {
+      "after": "5000 万元",
+      "before": "3000 万元",
+      "changed_on": "2024-01-12",
+      "item": "注册资本",
+      "record_id": "company:change:2024-01"
+    }
+  ],
+  "registration_status": "存续",
+  "unified_social_credit_code": "91510100MA01JD007G"
+}

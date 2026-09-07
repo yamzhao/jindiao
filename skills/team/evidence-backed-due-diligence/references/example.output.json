@@ -1,0 +1,8 @@
+{
+  "plan": {"plan_id": "example-plan"},
+  "findings": [],
+  "evidence": [],
+  "review_decision": {"accepted_finding_ids": []},
+  "coverage": {"ratio": 0.5},
+  "agent_trace": []
+}

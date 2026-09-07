@@ -1,0 +1,15 @@
+{
+  "as_of_date": "2026-08-31",
+  "dishonest_records": [],
+  "executions": [],
+  "judgments": [
+    {
+      "amount_cny": 180000,
+      "case_type": "买卖合同纠纷",
+      "decided_on": "2025-11-06",
+      "record_id": "judicial:judgment:1",
+      "status": "resolved"
+    }
+  ],
+  "restrictions_on_high_consumption": []
+}

@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {"id": "parallel-domains", "expect": ["parallel_execution", "shared_context"]},
+    {"id": "unbacked-risk", "expect": ["unconfirmed", "not_scored"]},
+    {"id": "cross-agent-conflict", "expect": ["conflict_issue", "targeted_repair"]},
+    {"id": "repair-exhausted", "expect": ["bounded_stop", "pending_review"]}
+  ]
+}

@@ -1,0 +1,58 @@
+[
+  {
+    "claim": "企业登记状态为存续",
+    "domain": "identity",
+    "evidence_ids": [
+      "ev-company-registration"
+    ],
+    "finding_id": "finding-registration-active",
+    "risk_class": "non_risk",
+    "severity": "info",
+    "status": "accepted",
+    "subject_id": "mock:operational-abnormal",
+    "value": "存续"
+  },
+  {
+    "claim": "企业被列入经营异常名录且尚未移出",
+    "domain": "operations",
+    "evidence_ids": [
+      "ev-operations-abnormal-1"
+    ],
+    "finding_id": "finding-operation-abnormal",
+    "risk_class": "attention",
+    "severity": "high",
+    "status": "accepted",
+    "subject_id": "mock:operational-abnormal",
+    "value": "未按期公示年度报告"
+  },
+  {
+    "claim": "企业存在行政处罚记录",
+    "domain": "operations",
+    "evidence_ids": [
+      "ev-operations-penalty-1"
+    ],
+    "finding_id": "finding-administrative-penalty",
+    "risk_class": "attention",
+    "severity": "medium",
+    "status": "accepted",
+    "subject_id": "mock:operational-abnormal",
+    "value": "产品标识不规范"
+  },
+  {
+    "claim": "近三年净利润持续下降并转亏",
+    "domain": "operations",
+    "evidence_ids": [
+      "ev-operations-financial-series"
+    ],
+    "finding_id": "finding-profit-decline",
+    "risk_class": "attention",
+    "severity": "medium",
+    "status": "accepted",
+    "subject_id": "mock:operational-abnormal",
+    "value": [
+      310,
+      40,
+      -380
+    ]
+  }
+]

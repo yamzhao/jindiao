@@ -1,0 +1,4 @@
+interface:
+  display_name: "Evidence-backed Due Diligence"
+  short_description: "Coordinate evidence-backed enterprise investigations"
+  default_prompt: "Use $evidence-backed-due-diligence to run a reviewed enterprise investigation."

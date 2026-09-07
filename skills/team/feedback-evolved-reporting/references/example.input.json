@@ -1,0 +1,6 @@
+{
+  "skill_name": "feedback-evolved-reporting",
+  "feedback": "Put source gaps beside the affected conclusion.",
+  "evidence_refs": ["artifact://run-1/feedback.json#1"],
+  "source_version": "1.0.0"
+}

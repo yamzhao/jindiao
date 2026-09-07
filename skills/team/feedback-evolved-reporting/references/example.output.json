@@ -1,0 +1,13 @@
+{
+  "candidate_id": "candidate-example",
+  "status": "rejected",
+  "source_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "candidate_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "evaluation": {
+    "passed": false,
+    "reason_codes": [
+      "use_feedback_api"
+    ],
+    "illustrative_only": true
+  }
+}

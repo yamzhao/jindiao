@@ -1,0 +1,125 @@
+{
+  "$defs": {
+    "EnterpriseKey": {
+      "additionalProperties": false,
+      "description": "Stable identifiers accepted when selecting a scenario.",
+      "properties": {
+        "company_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Company Name"
+        },
+        "unified_social_credit_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unified Social Credit Code"
+        },
+        "aliases": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Aliases",
+          "type": "array"
+        }
+      },
+      "title": "EnterpriseKey",
+      "type": "object"
+    },
+    "ScenarioFile": {
+      "additionalProperties": false,
+      "description": "One hash-pinned file declared by a scenario manifest.",
+      "properties": {
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/ScenarioFileRole",
+          "default": "runtime"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "title": "ScenarioFile",
+      "type": "object"
+    },
+    "ScenarioFileRole": {
+      "description": "Controls which process may read a manifest file.",
+      "enum": [
+        "runtime",
+        "expected"
+      ],
+      "title": "ScenarioFileRole",
+      "type": "string"
+    }
+  },
+  "$id": "https://openjiuwen.example/schemas/jindiao/scenario-manifest-v1.json",
+  "additionalProperties": false,
+  "description": "Versioned, content-addressed manifest for one enterprise scenario.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "scenario_id": {
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "title": "Scenario Id",
+      "type": "string"
+    },
+    "enterprise_key": {
+      "$ref": "#/$defs/EnterpriseKey"
+    },
+    "version": {
+      "pattern": "^v\\d+(?:\\.\\d+){0,2}$",
+      "title": "Version",
+      "type": "string"
+    },
+    "as_of_date": {
+      "format": "date",
+      "title": "As Of Date",
+      "type": "string"
+    },
+    "files": {
+      "items": {
+        "$ref": "#/$defs/ScenarioFile"
+      },
+      "minItems": 1,
+      "title": "Files",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "scenario_id",
+    "enterprise_key",
+    "version",
+    "as_of_date",
+    "files"
+  ],
+  "title": "ScenarioManifest",
+  "type": "object"
+}

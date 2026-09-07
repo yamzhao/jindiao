@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {"id": "exact-code", "expect": ["one_subject", "traceable_evidence"]},
+    {"id": "valid-empty", "expect": ["verified_empty", "no_mock_fallback"]},
+    {"id": "source-error", "expect": ["source_error", "no_secret_leak"]},
+    {"id": "capability-absent", "expect": ["mock_allowed", "mock_marked"]}
+  ]
+}

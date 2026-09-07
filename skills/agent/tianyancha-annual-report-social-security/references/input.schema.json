@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["subject", "queried_at", "report_as_of"],
+  "properties": {
+    "subject": {
+      "type": "object",
+      "required": ["subject_id", "company_name", "source", "resolved_at"],
+      "properties": {
+        "subject_id": {"type": "string", "pattern": "^tyc:[0-9]+$"},
+        "company_name": {"type": "string", "minLength": 1},
+        "unified_social_credit_code": {"type": ["string", "null"]},
+        "region": {"type": ["string", "null"]},
+        "registration_status": {"type": ["string", "null"]},
+        "source": {"const": "tianyancha"},
+        "resolved_at": {"type": "string", "format": "date-time"}
+      },
+      "additionalProperties": false
+    },
+    "queried_at": {"type": "string", "format": "date-time"},
+    "report_as_of": {"type": "string", "format": "date"}
+  },
+  "additionalProperties": false
+}

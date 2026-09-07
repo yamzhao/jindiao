@@ -1,0 +1,20 @@
+# Narrow follow-up to the verified public-web ARM64 hotfix; no secrets or full-worktree COPY.
+ARG BASE_IMAGE=jindiao:agentarts-20260906-public-web-fix-arm64
+FROM ${BASE_IMAGE}
+USER root
+RUN python - <<'PY'
+from pathlib import Path
+import hashlib
+expected = {
+    'agents/agent_teams_investigator.py': 'b44ae17e66b29be9daa24bf6a157ff97098cc8c479c5df8be385e8edaf10b98e',
+    'orchestration/team_runtime.py': '5ae47f85a062e563447dfda247ee8696222451a54dac733f1055f78000b4012e',
+}
+for root in ('/app/src/jindiao', '/usr/local/lib/python3.11/site-packages/jindiao'):
+    for relative, digest in expected.items():
+        assert hashlib.sha256((Path(root) / relative).read_bytes()).hexdigest() == digest, relative
+PY
+COPY src/jindiao/agents/agent_teams_investigator.py /app/src/jindiao/agents/agent_teams_investigator.py
+COPY src/jindiao/agents/agent_teams_investigator.py /usr/local/lib/python3.11/site-packages/jindiao/agents/agent_teams_investigator.py
+COPY src/jindiao/orchestration/team_runtime.py /app/src/jindiao/orchestration/team_runtime.py
+COPY src/jindiao/orchestration/team_runtime.py /usr/local/lib/python3.11/site-packages/jindiao/orchestration/team_runtime.py
+USER jindiao

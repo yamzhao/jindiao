@@ -1,0 +1,16 @@
+{
+  "as_of_date": "2026-08-31",
+  "band": "manual_review",
+  "pending_review_items": [
+    "conflict.employee_count"
+  ],
+  "rule_hits": [
+    {
+      "finding_id": "finding-employee-conflict",
+      "points": 20,
+      "rule_id": "attention.unresolved_conflict"
+    }
+  ],
+  "rule_version": "v1",
+  "score": 20
+}

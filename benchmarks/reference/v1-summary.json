@@ -1,0 +1,82 @@
+{
+  "record_count": 60,
+  "mode_metrics": {
+    "single": {
+      "quality_score": 0.65625,
+      "success_rate": 0.8,
+      "end_to_end_duration_ms": 1.766667,
+      "first_valid_evidence_ms": 1.041667,
+      "tool_calls": 4.0,
+      "token_count": 0.0,
+      "conflicts_detected": 0.0,
+      "repairs_requested": 0.0,
+      "sample_count": 30.0
+    },
+    "multi": {
+      "quality_score": 0.76125,
+      "success_rate": 0.8,
+      "end_to_end_duration_ms": 4.933333,
+      "first_valid_evidence_ms": 1.625,
+      "tool_calls": 4.6,
+      "token_count": 0.0,
+      "conflicts_detected": 0.3,
+      "repairs_requested": 0.6,
+      "sample_count": 30.0
+    }
+  },
+  "deltas": {
+    "quality_score": 0.105,
+    "success_rate": 0.0,
+    "end_to_end_duration_ms": 3.166666,
+    "first_valid_evidence_ms": 0.583333,
+    "tool_calls": 0.6,
+    "token_count": 0.0,
+    "conflicts_detected": 0.3,
+    "repairs_requested": 0.6
+  },
+  "confidence_intervals_95": {
+    "quality_score": [
+      0.046624,
+      0.163376
+    ],
+    "success_rate": [
+      0.0,
+      0.0
+    ],
+    "end_to_end_duration_ms": [
+      -1.760592,
+      8.093926
+    ]
+  },
+  "primary_metrics": [
+    "quality_score"
+  ],
+  "can_claim_collaboration_gain": true,
+  "claim": "已证明协作增益",
+  "metadata": {
+    "benchmark_id": "jindiao-multi-agent-v1",
+    "command": "python scripts/compare_agents.py --manifest benchmarks/manifest.json --output benchmarks/results/latest",
+    "code_version": "source-sha256:abf68ad42ca92d336736986c4f7733c460ef7bdcd8410b36ffa8a54e1d4e9619",
+    "concurrency": 4,
+    "dataset_hash": "7e91628952d762ee35451d6dc422904f3c20e8319cf02e1bbcc8951f11fe80d9",
+    "hardware": {
+      "machine": "arm64",
+      "processor": "arm",
+      "system": "Darwin"
+    },
+    "manifest_hash": "5c4f429eebc14644669b9fd9dbdee0b71d77af6dee15742682bab41c19f4e49a",
+    "model": {
+      "provider": "offline_mock",
+      "name": "deterministic-mock",
+      "temperature": 0.0
+    },
+    "random_seed": 20260903,
+    "rule_version": "v1",
+    "skill_versions": {
+      "tyc-evidence-acquisition": "1.0.0",
+      "evidence-backed-due-diligence": "1.0.0",
+      "feedback-evolved-reporting": "1.0.0"
+    },
+    "timestamp": "2026-09-03T08:37:50.400528+00:00"
+  }
+}

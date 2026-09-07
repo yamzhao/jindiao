@@ -1,0 +1,23 @@
+# Narrow hotfix for the already deployed ARM64 baseline. No workspace COPY or secrets.
+ARG BASE_IMAGE=jindiao:agentarts-20260906-171833-arm64
+FROM ${BASE_IMAGE}
+USER root
+RUN python - <<'PY'
+from pathlib import Path
+import hashlib
+
+paths = (
+    Path('/app/src/jindiao/reporting/markdown.py'),
+    Path('/usr/local/lib/python3.11/site-packages/jindiao/reporting/markdown.py'),
+)
+expected = '81a44b4295a57dcad02462aed379f9ae6885a77b8f6ba9fa8476f06439d694a8'
+needle = '    SourceType.TIANYANCHA: "天眼查 MCP",\n'
+replacement = needle + '    SourceType.PUBLIC_WEB: "公开网页",\n'
+for path in paths:
+    original = path.read_bytes()
+    assert hashlib.sha256(original).hexdigest() == expected, 'Unexpected baseline renderer'
+    source = original.decode('utf-8')
+    assert source.count(needle) == 1, 'Expected exactly one source-label mapping'
+    path.write_text(source.replace(needle, replacement), encoding='utf-8')
+PY
+USER jindiao

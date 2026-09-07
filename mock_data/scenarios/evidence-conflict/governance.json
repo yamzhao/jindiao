@@ -1,0 +1,37 @@
+{
+  "as_of_date": "2026-08-31",
+  "branches": [],
+  "executives": [
+    {
+      "name": "高原",
+      "position": "执行董事、总经理"
+    },
+    {
+      "name": "孙宁",
+      "position": "监事"
+    }
+  ],
+  "outbound_investments": [
+    {
+      "company_name": "金调双源制造供应链有限公司",
+      "ownership_percent": 51,
+      "record_id": "governance:investment:1",
+      "status": "存续"
+    }
+  ],
+  "shareholders": [
+    {
+      "name": "金调产业投资控股有限公司",
+      "ownership_percent": 62,
+      "record_id": "governance:shareholder:1",
+      "subscribed_capital_cny": 31000000
+    },
+    {
+      "name": "高原",
+      "ownership_percent": 38,
+      "record_id": "governance:shareholder:2",
+      "subscribed_capital_cny": 19000000
+    }
+  ],
+  "ultimate_controller": "高原"
+}

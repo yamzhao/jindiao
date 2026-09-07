@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["run_context", "subject", "capabilities"],
+  "properties": {
+    "run_context": {"type": "object"},
+    "subject": {"type": "object"},
+    "capabilities": {"type": "object", "additionalProperties": {"type": "array"}}
+  },
+  "additionalProperties": false
+}

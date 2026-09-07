@@ -1,0 +1,845 @@
+{
+  "subject": {
+    "subject_id": "mock:normal-enterprise",
+    "company_name": "金调绿洲科技有限公司",
+    "unified_social_credit_code": "91110108MA01JD001A",
+    "region": "某市",
+    "registration_status": "存续",
+    "source": "mock",
+    "resolved_at": "2026-09-03T00:00:00Z"
+  },
+  "decision": {
+    "band": "reject",
+    "score": 80,
+    "confidence": 0.88,
+    "rule_version": "risk-rules-v1",
+    "rule_hits": [
+      {
+        "rule_id": "admission.dishonest_subject",
+        "finding_id": "finding-judicial",
+        "evidence_ids": [
+          "ev-judicial"
+        ],
+        "points": 80,
+        "explanation": "存在失信被执行人记录"
+      }
+    ],
+    "major_risk_finding_ids": [
+      "finding-judicial"
+    ],
+    "pending_review_items": [
+      "确认历史案件履行状态"
+    ],
+    "as_of_date": "2026-08-31"
+  },
+  "risk_summary": {
+    "admission_count": 1,
+    "attention_count": 1,
+    "non_risk_count": 3,
+    "total_score": 80,
+    "top_finding_ids": [
+      "finding-judicial",
+      "finding-operations"
+    ]
+  },
+  "coverage": {
+    "total_items": 5,
+    "completed_items": 5,
+    "ratio": 1.0,
+    "status_counts": {
+      "verified_records": 0,
+      "verified_empty": 0,
+      "capability_absent": 0,
+      "source_error": 0,
+      "degraded_mock": 5
+    },
+    "items": [
+      {
+        "domain": "identity",
+        "capability": "identity-capability",
+        "status": "degraded_mock",
+        "record_count": 1,
+        "error": null,
+        "fallback_reason": "Tianyancha capability absent",
+        "completeness": "complete",
+        "gap_reasons": []
+      },
+      {
+        "domain": "governance",
+        "capability": "governance-capability",
+        "status": "degraded_mock",
+        "record_count": 1,
+        "error": null,
+        "fallback_reason": "Tianyancha capability absent",
+        "completeness": "complete",
+        "gap_reasons": []
+      },
+      {
+        "domain": "judicial",
+        "capability": "judicial-capability",
+        "status": "degraded_mock",
+        "record_count": 1,
+        "error": null,
+        "fallback_reason": "Tianyancha capability absent",
+        "completeness": "complete",
+        "gap_reasons": []
+      },
+      {
+        "domain": "operations",
+        "capability": "operations-capability",
+        "status": "degraded_mock",
+        "record_count": 1,
+        "error": null,
+        "fallback_reason": "Tianyancha capability absent",
+        "completeness": "complete",
+        "gap_reasons": []
+      },
+      {
+        "domain": "peers",
+        "capability": "peers-capability",
+        "status": "degraded_mock",
+        "record_count": 1,
+        "error": null,
+        "fallback_reason": "Tianyancha capability absent",
+        "completeness": "complete",
+        "gap_reasons": []
+      }
+    ]
+  },
+  "sections": [
+    {
+      "section_id": "report-summary",
+      "title": "报告摘要",
+      "status": "complete",
+      "coverage": 1.0,
+      "finding_ids": [
+        "finding-company",
+        "finding-governance",
+        "finding-judicial",
+        "finding-operations",
+        "finding-peers"
+      ],
+      "evidence_ids": [
+        "ev-company",
+        "ev-governance",
+        "ev-judicial",
+        "ev-operations",
+        "ev-peers"
+      ],
+      "data": {
+        "decision_band": "reject",
+        "risk_score": 80,
+        "confidence": 0.88,
+        "coverage_ratio": 1.0,
+        "information_overview": {
+          "total_submodules": 0,
+          "section_counts": {},
+          "status_counts": {}
+        }
+      }
+    },
+    {
+      "section_id": "risk-summary",
+      "title": "风险摘要",
+      "status": "complete",
+      "coverage": 1.0,
+      "finding_ids": [
+        "finding-judicial",
+        "finding-operations"
+      ],
+      "evidence_ids": [
+        "ev-judicial",
+        "ev-operations"
+      ],
+      "data": {
+        "admission_count": 1,
+        "attention_count": 1,
+        "non_risk_count": 3,
+        "total_score": 80,
+        "rule_version": "risk-rules-v1"
+      }
+    },
+    {
+      "section_id": "company-profile",
+      "title": "企业基本信息",
+      "status": "complete",
+      "coverage": 1.0,
+      "finding_ids": [
+        "finding-company",
+        "finding-governance"
+      ],
+      "evidence_ids": [
+        "ev-company",
+        "ev-governance"
+      ],
+      "data": {
+        "company_name": "金调绿洲科技有限公司",
+        "unified_social_credit_code": "91110108MA01JD001A",
+        "region": "某市",
+        "registration_status": "存续"
+      }
+    },
+    {
+      "section_id": "judicial-risk",
+      "title": "司法风险",
+      "status": "complete",
+      "coverage": 1.0,
+      "finding_ids": [
+        "finding-judicial"
+      ],
+      "evidence_ids": [
+        "ev-judicial"
+      ],
+      "data": {}
+    },
+    {
+      "section_id": "operational-risk",
+      "title": "经营风险",
+      "status": "complete",
+      "coverage": 1.0,
+      "finding_ids": [
+        "finding-operations"
+      ],
+      "evidence_ids": [
+        "ev-operations"
+      ],
+      "data": {}
+    },
+    {
+      "section_id": "operations-analysis",
+      "title": "经营情况",
+      "status": "complete",
+      "coverage": 1.0,
+      "finding_ids": [
+        "finding-operations"
+      ],
+      "evidence_ids": [
+        "ev-operations"
+      ],
+      "data": {
+        "revenue_cny_10k": 12600
+      }
+    },
+    {
+      "section_id": "related-parties",
+      "title": "关联信息",
+      "status": "complete",
+      "coverage": 1.0,
+      "finding_ids": [
+        "finding-governance"
+      ],
+      "evidence_ids": [
+        "ev-governance"
+      ],
+      "data": {}
+    },
+    {
+      "section_id": "peer-analysis",
+      "title": "同类企业分析",
+      "status": "complete",
+      "coverage": 1.0,
+      "finding_ids": [
+        "finding-peers"
+      ],
+      "evidence_ids": [
+        "ev-peers"
+      ],
+      "data": {
+        "median_revenue_cny_10k": 9600
+      }
+    }
+  ],
+  "frontend_views": [
+    {
+      "view_id": "task-status",
+      "title": "任务状态",
+      "data": {
+        "subject_id": "mock:normal-enterprise",
+        "company_name": "金调绿洲科技有限公司",
+        "report_as_of": "2026-08-31",
+        "source_disclosure": [
+          "Mock 数据为固定版本化场景数据, 不代表真实企业信息。",
+          "能力缺失或演示降级后由固定 Mock 补足, 相关证据已标记为 Mock。"
+        ]
+      }
+    },
+    {
+      "view_id": "due-diligence-conclusion",
+      "title": "尽调结论",
+      "data": {
+        "decision": {
+          "band": "reject",
+          "score": 80,
+          "confidence": 0.88,
+          "rule_version": "risk-rules-v1",
+          "rule_hits": [
+            {
+              "rule_id": "admission.dishonest_subject",
+              "finding_id": "finding-judicial",
+              "evidence_ids": [
+                "ev-judicial"
+              ],
+              "points": 80,
+              "explanation": "存在失信被执行人记录"
+            }
+          ],
+          "major_risk_finding_ids": [
+            "finding-judicial"
+          ],
+          "pending_review_items": [
+            "确认历史案件履行状态"
+          ],
+          "as_of_date": "2026-08-31"
+        },
+        "coverage": {
+          "total_items": 5,
+          "completed_items": 5,
+          "ratio": 1.0,
+          "status_counts": {
+            "verified_records": 0,
+            "verified_empty": 0,
+            "capability_absent": 0,
+            "source_error": 0,
+            "degraded_mock": 5
+          },
+          "items": [
+            {
+              "domain": "identity",
+              "capability": "identity-capability",
+              "status": "degraded_mock",
+              "record_count": 1,
+              "error": null,
+              "fallback_reason": "Tianyancha capability absent",
+              "completeness": "complete",
+              "gap_reasons": []
+            },
+            {
+              "domain": "governance",
+              "capability": "governance-capability",
+              "status": "degraded_mock",
+              "record_count": 1,
+              "error": null,
+              "fallback_reason": "Tianyancha capability absent",
+              "completeness": "complete",
+              "gap_reasons": []
+            },
+            {
+              "domain": "judicial",
+              "capability": "judicial-capability",
+              "status": "degraded_mock",
+              "record_count": 1,
+              "error": null,
+              "fallback_reason": "Tianyancha capability absent",
+              "completeness": "complete",
+              "gap_reasons": []
+            },
+            {
+              "domain": "operations",
+              "capability": "operations-capability",
+              "status": "degraded_mock",
+              "record_count": 1,
+              "error": null,
+              "fallback_reason": "Tianyancha capability absent",
+              "completeness": "complete",
+              "gap_reasons": []
+            },
+            {
+              "domain": "peers",
+              "capability": "peers-capability",
+              "status": "degraded_mock",
+              "record_count": 1,
+              "error": null,
+              "fallback_reason": "Tianyancha capability absent",
+              "completeness": "complete",
+              "gap_reasons": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "view_id": "risk-dashboard",
+      "title": "风险驾驶舱",
+      "data": {
+        "summary": {
+          "admission_count": 1,
+          "attention_count": 1,
+          "non_risk_count": 3,
+          "total_score": 80,
+          "top_finding_ids": [
+            "finding-judicial",
+            "finding-operations"
+          ]
+        },
+        "admission_finding_ids": [
+          "finding-judicial"
+        ],
+        "attention_finding_ids": [
+          "finding-operations"
+        ]
+      }
+    },
+    {
+      "view_id": "company-profile",
+      "title": "企业画像",
+      "data": {
+        "company_name": "金调绿洲科技有限公司",
+        "unified_social_credit_code": "91110108MA01JD001A",
+        "region": "某市",
+        "registration_status": "存续"
+      }
+    },
+    {
+      "view_id": "judicial-compliance",
+      "title": "司法与合规",
+      "data": {
+        "judicial": {
+          "section_id": "judicial-risk",
+          "title": "司法风险",
+          "status": "complete",
+          "coverage": 1.0,
+          "finding_ids": [
+            "finding-judicial"
+          ],
+          "evidence_ids": [
+            "ev-judicial"
+          ],
+          "data": {}
+        },
+        "operational_risk": {
+          "section_id": "operational-risk",
+          "title": "经营风险",
+          "status": "complete",
+          "coverage": 1.0,
+          "finding_ids": [
+            "finding-operations"
+          ],
+          "evidence_ids": [
+            "ev-operations"
+          ],
+          "data": {}
+        }
+      }
+    },
+    {
+      "view_id": "operations",
+      "title": "经营情况",
+      "data": {
+        "revenue_cny_10k": 12600
+      }
+    },
+    {
+      "view_id": "related-parties",
+      "title": "关联关系",
+      "data": {}
+    },
+    {
+      "view_id": "peer-analysis",
+      "title": "同类企业分析",
+      "data": {
+        "median_revenue_cny_10k": 9600
+      }
+    },
+    {
+      "view_id": "evidence-center",
+      "title": "证据中心",
+      "data": {
+        "findings": [
+          {
+            "finding_id": "finding-company",
+            "subject_id": "mock:normal-enterprise",
+            "domain": "identity",
+            "claim": "identity 结论 finding-company",
+            "value": null,
+            "risk_class": "non_risk",
+            "severity": "info",
+            "status": "accepted",
+            "evidence_ids": [
+              "ev-company"
+            ],
+            "occurred_at": null
+          },
+          {
+            "finding_id": "finding-governance",
+            "subject_id": "mock:normal-enterprise",
+            "domain": "governance",
+            "claim": "governance 结论 finding-governance",
+            "value": null,
+            "risk_class": "non_risk",
+            "severity": "info",
+            "status": "accepted",
+            "evidence_ids": [
+              "ev-governance"
+            ],
+            "occurred_at": null
+          },
+          {
+            "finding_id": "finding-judicial",
+            "subject_id": "mock:normal-enterprise",
+            "domain": "judicial",
+            "claim": "judicial 结论 finding-judicial",
+            "value": null,
+            "risk_class": "admission",
+            "severity": "critical",
+            "status": "accepted",
+            "evidence_ids": [
+              "ev-judicial"
+            ],
+            "occurred_at": null
+          },
+          {
+            "finding_id": "finding-operations",
+            "subject_id": "mock:normal-enterprise",
+            "domain": "operations",
+            "claim": "operations 结论 finding-operations",
+            "value": null,
+            "risk_class": "attention",
+            "severity": "medium",
+            "status": "accepted",
+            "evidence_ids": [
+              "ev-operations"
+            ],
+            "occurred_at": null
+          },
+          {
+            "finding_id": "finding-peers",
+            "subject_id": "mock:normal-enterprise",
+            "domain": "peers",
+            "claim": "peers 结论 finding-peers",
+            "value": null,
+            "risk_class": "non_risk",
+            "severity": "info",
+            "status": "accepted",
+            "evidence_ids": [
+              "ev-peers"
+            ],
+            "occurred_at": null
+          }
+        ],
+        "evidence": [
+          {
+            "evidence_id": "ev-company",
+            "claim": "company.registration_status 已核验",
+            "value": true,
+            "subject_id": "mock:normal-enterprise",
+            "source_type": "mock",
+            "source_status": "degraded_mock",
+            "source_tool": null,
+            "source_record_id": "ev-company",
+            "queried_at": "2026-09-03T00:00:00Z",
+            "as_of_date": "2026-08-31",
+            "confidence": 1.0,
+            "is_mock": true,
+            "supports_fields": [
+              "company.registration_status"
+            ],
+            "raw_ref": "mock://normal-enterprise/v1/data.json#ev-company",
+            "source_chain": [],
+            "source_title": null,
+            "source_publisher": null,
+            "source_parameters_hash": null,
+            "content_hash": null
+          },
+          {
+            "evidence_id": "ev-governance",
+            "claim": "governance.shareholders 已核验",
+            "value": true,
+            "subject_id": "mock:normal-enterprise",
+            "source_type": "mock",
+            "source_status": "degraded_mock",
+            "source_tool": null,
+            "source_record_id": "ev-governance",
+            "queried_at": "2026-09-03T00:00:00Z",
+            "as_of_date": "2026-08-31",
+            "confidence": 1.0,
+            "is_mock": true,
+            "supports_fields": [
+              "governance.shareholders"
+            ],
+            "raw_ref": "mock://normal-enterprise/v1/data.json#ev-governance",
+            "source_chain": [],
+            "source_title": null,
+            "source_publisher": null,
+            "source_parameters_hash": null,
+            "content_hash": null
+          },
+          {
+            "evidence_id": "ev-judicial",
+            "claim": "judicial.dishonest 已核验",
+            "value": true,
+            "subject_id": "mock:normal-enterprise",
+            "source_type": "mock",
+            "source_status": "degraded_mock",
+            "source_tool": null,
+            "source_record_id": "ev-judicial",
+            "queried_at": "2026-09-03T00:00:00Z",
+            "as_of_date": "2026-08-31",
+            "confidence": 1.0,
+            "is_mock": true,
+            "supports_fields": [
+              "judicial.dishonest"
+            ],
+            "raw_ref": "mock://normal-enterprise/v1/data.json#ev-judicial",
+            "source_chain": [],
+            "source_title": null,
+            "source_publisher": null,
+            "source_parameters_hash": null,
+            "content_hash": null
+          },
+          {
+            "evidence_id": "ev-operations",
+            "claim": "operations.abnormal 已核验",
+            "value": true,
+            "subject_id": "mock:normal-enterprise",
+            "source_type": "mock",
+            "source_status": "degraded_mock",
+            "source_tool": null,
+            "source_record_id": "ev-operations",
+            "queried_at": "2026-09-03T00:00:00Z",
+            "as_of_date": "2026-08-31",
+            "confidence": 1.0,
+            "is_mock": true,
+            "supports_fields": [
+              "operations.abnormal"
+            ],
+            "raw_ref": "mock://normal-enterprise/v1/data.json#ev-operations",
+            "source_chain": [],
+            "source_title": null,
+            "source_publisher": null,
+            "source_parameters_hash": null,
+            "content_hash": null
+          },
+          {
+            "evidence_id": "ev-peers",
+            "claim": "peers.metrics 已核验",
+            "value": true,
+            "subject_id": "mock:normal-enterprise",
+            "source_type": "mock",
+            "source_status": "degraded_mock",
+            "source_tool": null,
+            "source_record_id": "ev-peers",
+            "queried_at": "2026-09-03T00:00:00Z",
+            "as_of_date": "2026-08-31",
+            "confidence": 1.0,
+            "is_mock": true,
+            "supports_fields": [
+              "peers.metrics"
+            ],
+            "raw_ref": "mock://normal-enterprise/v1/data.json#ev-peers",
+            "source_chain": [],
+            "source_title": null,
+            "source_publisher": null,
+            "source_parameters_hash": null,
+            "content_hash": null
+          }
+        ]
+      }
+    },
+    {
+      "view_id": "collaboration-evaluation",
+      "title": "协作与评测",
+      "data": {
+        "agent_trace": [],
+        "collaboration": {},
+        "evaluation": {},
+        "skill_versions": {},
+        "agent_count": 5,
+        "benchmark_mode": "multi"
+      }
+    }
+  ],
+  "findings": [
+    {
+      "finding_id": "finding-company",
+      "subject_id": "mock:normal-enterprise",
+      "domain": "identity",
+      "claim": "identity 结论 finding-company",
+      "value": null,
+      "risk_class": "non_risk",
+      "severity": "info",
+      "status": "accepted",
+      "evidence_ids": [
+        "ev-company"
+      ],
+      "occurred_at": null
+    },
+    {
+      "finding_id": "finding-governance",
+      "subject_id": "mock:normal-enterprise",
+      "domain": "governance",
+      "claim": "governance 结论 finding-governance",
+      "value": null,
+      "risk_class": "non_risk",
+      "severity": "info",
+      "status": "accepted",
+      "evidence_ids": [
+        "ev-governance"
+      ],
+      "occurred_at": null
+    },
+    {
+      "finding_id": "finding-judicial",
+      "subject_id": "mock:normal-enterprise",
+      "domain": "judicial",
+      "claim": "judicial 结论 finding-judicial",
+      "value": null,
+      "risk_class": "admission",
+      "severity": "critical",
+      "status": "accepted",
+      "evidence_ids": [
+        "ev-judicial"
+      ],
+      "occurred_at": null
+    },
+    {
+      "finding_id": "finding-operations",
+      "subject_id": "mock:normal-enterprise",
+      "domain": "operations",
+      "claim": "operations 结论 finding-operations",
+      "value": null,
+      "risk_class": "attention",
+      "severity": "medium",
+      "status": "accepted",
+      "evidence_ids": [
+        "ev-operations"
+      ],
+      "occurred_at": null
+    },
+    {
+      "finding_id": "finding-peers",
+      "subject_id": "mock:normal-enterprise",
+      "domain": "peers",
+      "claim": "peers 结论 finding-peers",
+      "value": null,
+      "risk_class": "non_risk",
+      "severity": "info",
+      "status": "accepted",
+      "evidence_ids": [
+        "ev-peers"
+      ],
+      "occurred_at": null
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev-company",
+      "claim": "company.registration_status 已核验",
+      "value": true,
+      "subject_id": "mock:normal-enterprise",
+      "source_type": "mock",
+      "source_status": "degraded_mock",
+      "source_tool": null,
+      "source_record_id": "ev-company",
+      "queried_at": "2026-09-03T00:00:00Z",
+      "as_of_date": "2026-08-31",
+      "confidence": 1.0,
+      "is_mock": true,
+      "supports_fields": [
+        "company.registration_status"
+      ],
+      "raw_ref": "mock://normal-enterprise/v1/data.json#ev-company",
+      "source_chain": [],
+      "source_title": null,
+      "source_publisher": null,
+      "source_parameters_hash": null,
+      "content_hash": null
+    },
+    {
+      "evidence_id": "ev-governance",
+      "claim": "governance.shareholders 已核验",
+      "value": true,
+      "subject_id": "mock:normal-enterprise",
+      "source_type": "mock",
+      "source_status": "degraded_mock",
+      "source_tool": null,
+      "source_record_id": "ev-governance",
+      "queried_at": "2026-09-03T00:00:00Z",
+      "as_of_date": "2026-08-31",
+      "confidence": 1.0,
+      "is_mock": true,
+      "supports_fields": [
+        "governance.shareholders"
+      ],
+      "raw_ref": "mock://normal-enterprise/v1/data.json#ev-governance",
+      "source_chain": [],
+      "source_title": null,
+      "source_publisher": null,
+      "source_parameters_hash": null,
+      "content_hash": null
+    },
+    {
+      "evidence_id": "ev-judicial",
+      "claim": "judicial.dishonest 已核验",
+      "value": true,
+      "subject_id": "mock:normal-enterprise",
+      "source_type": "mock",
+      "source_status": "degraded_mock",
+      "source_tool": null,
+      "source_record_id": "ev-judicial",
+      "queried_at": "2026-09-03T00:00:00Z",
+      "as_of_date": "2026-08-31",
+      "confidence": 1.0,
+      "is_mock": true,
+      "supports_fields": [
+        "judicial.dishonest"
+      ],
+      "raw_ref": "mock://normal-enterprise/v1/data.json#ev-judicial",
+      "source_chain": [],
+      "source_title": null,
+      "source_publisher": null,
+      "source_parameters_hash": null,
+      "content_hash": null
+    },
+    {
+      "evidence_id": "ev-operations",
+      "claim": "operations.abnormal 已核验",
+      "value": true,
+      "subject_id": "mock:normal-enterprise",
+      "source_type": "mock",
+      "source_status": "degraded_mock",
+      "source_tool": null,
+      "source_record_id": "ev-operations",
+      "queried_at": "2026-09-03T00:00:00Z",
+      "as_of_date": "2026-08-31",
+      "confidence": 1.0,
+      "is_mock": true,
+      "supports_fields": [
+        "operations.abnormal"
+      ],
+      "raw_ref": "mock://normal-enterprise/v1/data.json#ev-operations",
+      "source_chain": [],
+      "source_title": null,
+      "source_publisher": null,
+      "source_parameters_hash": null,
+      "content_hash": null
+    },
+    {
+      "evidence_id": "ev-peers",
+      "claim": "peers.metrics 已核验",
+      "value": true,
+      "subject_id": "mock:normal-enterprise",
+      "source_type": "mock",
+      "source_status": "degraded_mock",
+      "source_tool": null,
+      "source_record_id": "ev-peers",
+      "queried_at": "2026-09-03T00:00:00Z",
+      "as_of_date": "2026-08-31",
+      "confidence": 1.0,
+      "is_mock": true,
+      "supports_fields": [
+        "peers.metrics"
+      ],
+      "raw_ref": "mock://normal-enterprise/v1/data.json#ev-peers",
+      "source_chain": [],
+      "source_title": null,
+      "source_publisher": null,
+      "source_parameters_hash": null,
+      "content_hash": null
+    }
+  ],
+  "generated_at": "2026-09-03T00:00:00Z",
+  "source_disclosure": [
+    "Mock 数据为固定版本化场景数据, 不代表真实企业信息。",
+    "能力缺失或演示降级后由固定 Mock 补足, 相关证据已标记为 Mock。"
+  ]
+}

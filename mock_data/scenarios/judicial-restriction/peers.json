@@ -1,0 +1,21 @@
+{
+  "as_of_date": "2026-08-31",
+  "industry": "房屋建筑业",
+  "metrics": {
+    "median_employee_count": 91,
+    "median_net_margin_percent": 7.1,
+    "median_revenue_cny_10k": 9600
+  },
+  "peer_companies": [
+    {
+      "company_name": "金调同行甲有限公司",
+      "record_id": "peers:company:1",
+      "revenue_cny_10k": 10400
+    },
+    {
+      "company_name": "金调同行乙有限公司",
+      "record_id": "peers:company:2",
+      "revenue_cny_10k": 9200
+    }
+  ]
+}

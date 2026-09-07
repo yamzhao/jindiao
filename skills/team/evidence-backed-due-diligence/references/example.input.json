@@ -1,0 +1,5 @@
+{
+  "run_context": {"run_id": "example-run", "max_tool_calls": 20},
+  "subject": {"subject_id": "mock:example", "company_name": "示例企业"},
+  "capabilities": {"governance": ["shareholders"], "judicial": []}
+}

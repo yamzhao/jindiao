@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["plan", "findings", "evidence", "review_decision", "coverage", "agent_trace"],
+  "properties": {
+    "plan": {"type": "object"},
+    "findings": {"type": "array", "items": {"type": "object"}},
+    "evidence": {"type": "array", "items": {"type": "object"}},
+    "review_decision": {"type": "object"},
+    "coverage": {"type": "object"},
+    "agent_trace": {"type": "array", "items": {"type": "object"}}
+  },
+  "additionalProperties": false
+}

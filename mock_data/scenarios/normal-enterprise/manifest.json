@@ -1,0 +1,55 @@
+{
+  "as_of_date": "2026-08-31",
+  "enterprise_key": {
+    "aliases": [
+      "金调绿洲科技"
+    ],
+    "company_name": "金调绿洲科技有限公司",
+    "unified_social_credit_code": "91110108MA01JD001A"
+  },
+  "files": [
+    {
+      "path": "company.json",
+      "role": "runtime",
+      "sha256": "8e2a0e2fd92917c986ad5f0bb874a5ec0701a0521a02f63d8b8c459a0d8baee3"
+    },
+    {
+      "path": "corpus/operating-notes.md",
+      "role": "runtime",
+      "sha256": "6281d47734d4e540a5033387a91b4c562e6d2985f2b582fb3b6f35ad47be3792"
+    },
+    {
+      "path": "expected/decision.json",
+      "role": "expected",
+      "sha256": "8a9babcbb5a0173772f8a57521da72d5fa2ebb2b78146f59970c83b698225977"
+    },
+    {
+      "path": "expected/findings.json",
+      "role": "expected",
+      "sha256": "7226c5369d4167b90ebee10541d093b7473707aa44e4c00056d7d4c82a374a45"
+    },
+    {
+      "path": "governance.json",
+      "role": "runtime",
+      "sha256": "1935247a56f6bb8225a217d5a530a9797f9a413bd1c080bd1ae493ff01f32f58"
+    },
+    {
+      "path": "judicial.json",
+      "role": "runtime",
+      "sha256": "4c1e76777a488fc858454dd29554dfc57f3098297bd3d1424603c4e094d04237"
+    },
+    {
+      "path": "operations.json",
+      "role": "runtime",
+      "sha256": "3da047c318c707c625e9e374a8871a5ae874032a0583e61c552a7a835077bb5f"
+    },
+    {
+      "path": "peers.json",
+      "role": "runtime",
+      "sha256": "a1696d141103e40b759326d90388442c588e42985b3f1286bc4e2145bc26ed1c"
+    }
+  ],
+  "scenario_id": "normal-enterprise",
+  "schema_version": 1,
+  "version": "v1.0.0"
+}

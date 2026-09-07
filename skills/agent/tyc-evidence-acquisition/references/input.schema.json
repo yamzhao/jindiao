@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["enterprise", "domain", "capability", "allow_degraded_mock"],
+  "properties": {
+    "enterprise": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "company_name": {"type": "string", "minLength": 1},
+        "unified_social_credit_code": {"type": "string", "minLength": 1},
+        "region": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "domain": {"enum": ["governance", "judicial", "operations", "peers"]},
+    "capability": {"type": "string", "minLength": 1},
+    "allow_degraded_mock": {"type": "boolean"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "release_id": "jindiao-demo-v1",
+  "frozen_at": "2026-09-03T08:37:50.400528+00:00",
+  "hash_algorithm": "sha256",
+  "tree_hash_algorithm": "sha256(sorted(relative_path + NUL + sha256(file_bytes) + LF))",
+  "model": {
+    "provider": "offline_mock",
+    "name": "deterministic-mock",
+    "temperature": 0.0,
+    "random_seed": 20260903
+  },
+  "versions": {
+    "rule": "v1",
+    "tyc-evidence-acquisition": "1.0.0",
+    "evidence-backed-due-diligence": "1.0.0",
+    "feedback-evolved-reporting": "1.0.0"
+  },
+  "benchmark": {
+    "id": "jindiao-multi-agent-v1",
+    "code_version": "source-sha256:abf68ad42ca92d336736986c4f7733c460ef7bdcd8410b36ffa8a54e1d4e9619",
+    "record_count": 60,
+    "single_quality_score": 0.65625,
+    "multi_quality_score": 0.76125,
+    "quality_delta": 0.105,
+    "quality_delta_confidence_interval_95": [
+      0.046624,
+      0.163376
+    ],
+    "single_success_rate": 0.8,
+    "multi_success_rate": 0.8,
+    "can_claim_collaboration_gain": true
+  },
+  "files": {
+    "pyproject.toml": "4e0f60a6f7b623ad1fbef1a90fc771c63f2e2329e4fb1facd0330abaf6357200",
+    "requirements.txt": "b7599994a427cf8048bdfd91858b5306d4b41ae9a9776fbd50e007f0dc009c56",
+    "uv.lock": "1e3c1b50c955abe7e60f46d51e3aa219f2393fd2043ef5aaa75b2afb78f504f1",
+    "benchmarks/manifest.json": "5fabca69eb35e51b1948a9b53bed0b014e1e11a6b0f004a0aec320695c4577e9",
+    "config/risk-rules-v1.json": "e83a45c3553005e77d79309a6538514f5912dd9195f1396ec6dea5025bf874f9",
+    "config/tianyancha-capability-routes.json": "84060dbda105338147d9a296927625721a2731ac94cd1a4b142029d292507f0e",
+    "benchmarks/reference/v1-summary.json": "224c2f0b6a601d4baace7eb68d6c60b2cea6ffb68b3f416a4df92a71cec27560",
+    "benchmarks/reference/v1-records.jsonl": "92af2618f592f003be0040094b05a76385c79a6fd28b03cb3f64223271905536",
+    "benchmarks/reference/v1-comparison.md": "a6dbc0e0f43aa7ccc1fa76b033eb5eaaff82ac8c5fc6e9d89462982bf8258f3a",
+    "benchmarks/reference/v1-failures.json": "a058982444863bb00829d78ede378edac3eb593049b9f7fba2df3c7113e39533"
+  },
+  "trees": {
+    "mock_data/scenarios": "2097ff6ed177ce2286ef9c42413eaf4a84765aac964c6c26a6f5e50c8b1a1be5",
+    "skills/agent/tyc-evidence-acquisition": "2419c463fd28eec93c0e79824eb14cf0fda605b2f141281232c2dd82a5dd236a",
+    "skills/team/evidence-backed-due-diligence": "684183555a74bd9f4e37d2bd75f19d4aaf9b6bc940cb6b1a079601392a2a53be",
+    "release/reference/skills/team/feedback-evolved-reporting": "b38857effc53e55fb5aab3fffde799056c5a8de8f6017cd41dabc62eb5a526ef"
+  },
+  "asset_notes": {
+    "reporting_skill": "Original 1.0.0 package preserved byte-for-byte under release/reference/skills/team/feedback-evolved-reporting when current guidance was updated for the 2026-09-06 local Demo. Benchmark records and original tree hash are unchanged."
+  }
+}

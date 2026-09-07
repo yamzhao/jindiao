@@ -1,0 +1,55 @@
+{
+  "as_of_date": "2026-08-31",
+  "enterprise_key": {
+    "aliases": [
+      "金调澄明工业"
+    ],
+    "company_name": "金调澄明工业有限公司",
+    "unified_social_credit_code": "91320500MA01JD005E"
+  },
+  "files": [
+    {
+      "path": "company.json",
+      "role": "runtime",
+      "sha256": "73cbcca20ffa84a7c1e7690aea880ce30cb11b7090ea20f7c6a770a0168bc466"
+    },
+    {
+      "path": "corpus/operating-notes.md",
+      "role": "runtime",
+      "sha256": "49807f4efc586462ff814dce44408570bf30a7d3cefa9d924cac3f56046094b5"
+    },
+    {
+      "path": "expected/decision.json",
+      "role": "expected",
+      "sha256": "f518f926f740fdbef3f6bc8e21b024e4414ed97f3517d62baa9caad2e96f1170"
+    },
+    {
+      "path": "expected/findings.json",
+      "role": "expected",
+      "sha256": "09ff2e0444b15a7343d2aba2f103c4914616952f929189f176326b01c27bd8ee"
+    },
+    {
+      "path": "governance.json",
+      "role": "runtime",
+      "sha256": "e1d6dfa8418b9a0f731e4eff163ec8e7b3bce8c0b250d742a28ff5061c74535a"
+    },
+    {
+      "path": "judicial.json",
+      "role": "runtime",
+      "sha256": "4c1e76777a488fc858454dd29554dfc57f3098297bd3d1424603c4e094d04237"
+    },
+    {
+      "path": "operations.json",
+      "role": "runtime",
+      "sha256": "7e933703d2a6d69ef5cf4252725994f4c821c96a44a7e5ac4bad30e140bf4b48"
+    },
+    {
+      "path": "peers.json",
+      "role": "runtime",
+      "sha256": "d0f505d47d9f1014500af78151c1b5448d49e4e3906c4af88edc5676218acc24"
+    }
+  ],
+  "scenario_id": "stable-industrial",
+  "schema_version": 1,
+  "version": "v1.0.0"
+}

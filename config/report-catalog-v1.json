@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "catalog_version": "report-catalog-v1",
+  "module_count": 8,
+  "submodule_count": 48,
+  "modules": [
+    {
+      "module_id": "report-summary",
+      "title": "报告摘要",
+      "submodules": []
+    },
+    {
+      "module_id": "risk-summary",
+      "title": "风险摘要",
+      "submodules": []
+    },
+    {
+      "module_id": "company-profile",
+      "title": "企业基本信息",
+      "submodules": [
+        {"submodule_id": "registration", "title": "工商登记信息"},
+        {"submodule_id": "shareholders", "title": "股东信息"},
+        {"submodule_id": "executives", "title": "高管任职"},
+        {"submodule_id": "external_investments", "title": "对外投资"},
+        {"submodule_id": "branches", "title": "分支机构"},
+        {"submodule_id": "registration_changes", "title": "工商变更"}
+      ]
+    },
+    {
+      "module_id": "judicial-risk",
+      "title": "司法风险",
+      "submodules": [
+        {"submodule_id": "consumption_restrictions", "title": "限制高消费"},
+        {"submodule_id": "dishonest_enforcement", "title": "失信被执行"},
+        {"submodule_id": "executions", "title": "企业被执行"},
+        {"submodule_id": "judicial_documents", "title": "裁判文书"},
+        {"submodule_id": "hearing_notices", "title": "开庭公告"},
+        {"submodule_id": "filing_notices", "title": "立案公告"},
+        {"submodule_id": "court_notices", "title": "法院公告"},
+        {"submodule_id": "judicial_auctions", "title": "司法拍卖"},
+        {"submodule_id": "commercial_bribery", "title": "行贿违法"}
+      ]
+    },
+    {
+      "module_id": "operational-risk",
+      "title": "经营风险",
+      "submodules": [
+        {"submodule_id": "liquidation", "title": "清算信息"},
+        {"submodule_id": "simple_deregistration", "title": "简易注销"},
+        {"submodule_id": "serious_violations", "title": "严重违法"},
+        {"submodule_id": "operation_abnormalities", "title": "经营异常"},
+        {"submodule_id": "tax_negative_records", "title": "税务负面"},
+        {"submodule_id": "environmental_penalties", "title": "环保处罚"},
+        {"submodule_id": "administrative_penalties", "title": "行政处罚"},
+        {"submodule_id": "customs_penalties", "title": "海关处罚"},
+        {"submodule_id": "equity_freezes", "title": "股权冻结"},
+        {"submodule_id": "chattel_mortgages", "title": "动产抵押"},
+        {"submodule_id": "equity_pledges", "title": "股权出质"},
+        {"submodule_id": "intellectual_property_pledges", "title": "知识产权出质"}
+      ]
+    },
+    {
+      "module_id": "operations-analysis",
+      "title": "经营情况",
+      "submodules": [
+        {"submodule_id": "licenses", "title": "行政许可"},
+        {"submodule_id": "qualifications", "title": "资质信息"},
+        {"submodule_id": "tax_credit", "title": "税务评级"},
+        {"submodule_id": "customs_registration", "title": "海关登记信息"},
+        {"submodule_id": "customs_rating", "title": "海关评级"},
+        {"submodule_id": "bidding", "title": "招投标信息"},
+        {"submodule_id": "public_opinion", "title": "新闻舆情"},
+        {"submodule_id": "annual_reports", "title": "工商年报"},
+        {"submodule_id": "financial_summary", "title": "财务主要指标"},
+        {"submodule_id": "income_statement", "title": "利润表"},
+        {"submodule_id": "balance_sheet", "title": "资产负债表"},
+        {"submodule_id": "cash_flow_statement", "title": "现金流量表"},
+        {"submodule_id": "intellectual_property", "title": "知识产权"}
+      ]
+    },
+    {
+      "module_id": "related-parties",
+      "title": "关联信息",
+      "submodules": [
+        {"submodule_id": "beneficial_owners", "title": "受益所有人"},
+        {"submodule_id": "actual_controller", "title": "疑似实际控制人"},
+        {"submodule_id": "legal_representative_investments", "title": "法人对外投资"},
+        {"submodule_id": "legal_representative_roles", "title": "法人对外任职"}
+      ]
+    },
+    {
+      "module_id": "peer-analysis",
+      "title": "同类企业分析",
+      "submodules": [
+        {"submodule_id": "competitors", "title": "同类企业"},
+        {"submodule_id": "regional_industry_counts", "title": "同行业同地区企业数量"},
+        {"submodule_id": "regional_industry_growth", "title": "同行业同地区年度新增"},
+        {"submodule_id": "industry_benchmarks", "title": "行业参考指标"}
+      ]
+    }
+  ]
+}

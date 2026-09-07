@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {"id": "latest-eligible-report", "expect": ["exact_subject", "latest_year", "traceable_evidence"]},
+    {"id": "report-not-found", "expect": ["verified_empty", "no_mock", "no_zero_inference"]},
+    {"id": "values-not-public", "expect": ["preserve_raw_disclosure", "no_zero_inference"]},
+    {"id": "source-failure", "expect": ["source_error", "no_fabricated_evidence"]},
+    {"id": "wrong-subject", "expect": ["reject_before_fetch", "allowlist_preserved"]}
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "as_of_date": "2026-08-31",
+  "enterprise_key": {
+    "aliases": [
+      "金调云岑建设"
+    ],
+    "company_name": "金调云岑建设有限公司",
+    "unified_social_credit_code": "91510100MA01JD007G"
+  },
+  "files": [
+    {
+      "path": "company.json",
+      "role": "runtime",
+      "sha256": "f2ff55b5d46737a6a13fc53eaf00a192242973c68a58c48104e3348cc19f9fc7"
+    },
+    {
+      "path": "corpus/operating-notes.md",
+      "role": "runtime",
+      "sha256": "e0d16e69e1d0d7336e47f1081712ee6703f023660acafe330c2d92910d251ce8"
+    },
+    {
+      "path": "expected/decision.json",
+      "role": "expected",
+      "sha256": "b5f6668a8c9c9e2069f3084da13a6e7819e4ac262ec2be215d16f84100cb4878"
+    },
+    {
+      "path": "expected/findings.json",
+      "role": "expected",
+      "sha256": "ce2db10291ee7fa972f7dffcb8712269b5c743bf0e5af86aeb918701cb0a68a2"
+    },
+    {
+      "path": "governance.json",
+      "role": "runtime",
+      "sha256": "8b63edb5d414ce9a739525fd0dc5c7173920fff3448b39e5c36ab23b356da7a2"
+    },
+    {
+      "path": "judicial.json",
+      "role": "runtime",
+      "sha256": "4f3934c265de09710a0cf4f0bfaea5c1b1ade3834b2c3c83d0f754de4b020752"
+    },
+    {
+      "path": "operations.json",
+      "role": "runtime",
+      "sha256": "61e53a964ef874ef647dd2f3acb9cc7729fd95fc29fa48a7dedf185f75d7cee7"
+    },
+    {
+      "path": "peers.json",
+      "role": "runtime",
+      "sha256": "5098c13e7015d42ad325046d789a86232d6c223003a2aa0d7b8b96424528a748"
+    }
+  ],
+  "scenario_id": "judicial-restriction",
+  "schema_version": 1,
+  "version": "v1.0.0"
+}

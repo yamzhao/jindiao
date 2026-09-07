@@ -1,0 +1,55 @@
+{
+  "as_of_date": "2026-08-31",
+  "enterprise_key": {
+    "aliases": [
+      "金调震岳工程"
+    ],
+    "company_name": "金调震岳工程有限公司",
+    "unified_social_credit_code": "91310115MA01JD002B"
+  },
+  "files": [
+    {
+      "path": "company.json",
+      "role": "runtime",
+      "sha256": "5b8044d87785b6a30d0cdf5d08787aef84e8030d80e153ec290bc6e73c84914d"
+    },
+    {
+      "path": "corpus/operating-notes.md",
+      "role": "runtime",
+      "sha256": "f99cbfa094ad10fff833d98f103f2184791388f6d194cc15cc3370c875bc61eb"
+    },
+    {
+      "path": "expected/decision.json",
+      "role": "expected",
+      "sha256": "b5f6668a8c9c9e2069f3084da13a6e7819e4ac262ec2be215d16f84100cb4878"
+    },
+    {
+      "path": "expected/findings.json",
+      "role": "expected",
+      "sha256": "7f8f52e2fadef6627c5d63704016cdc1443fd18dc26c63fae9a7855cef61ee2e"
+    },
+    {
+      "path": "governance.json",
+      "role": "runtime",
+      "sha256": "fb576b17798f7573317dc5200d9df2559c9c0c8dd2579cd73d2127fbc0dd135c"
+    },
+    {
+      "path": "judicial.json",
+      "role": "runtime",
+      "sha256": "4f3934c265de09710a0cf4f0bfaea5c1b1ade3834b2c3c83d0f754de4b020752"
+    },
+    {
+      "path": "operations.json",
+      "role": "runtime",
+      "sha256": "6fc935a6e370481beb6f164c6c28954406550c28c551c6e9e80c213798e303b7"
+    },
+    {
+      "path": "peers.json",
+      "role": "runtime",
+      "sha256": "e71c91feb03b7d254286a4acb50a892a37897f0d8e1eb801cfc96c925218302c"
+    }
+  ],
+  "scenario_id": "judicial-high-risk",
+  "schema_version": 1,
+  "version": "v1.0.0"
+}

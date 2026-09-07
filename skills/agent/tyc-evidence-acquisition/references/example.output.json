@@ -1,0 +1,6 @@
+{
+  "subject_id": "tyc:example",
+  "source_status": "verified_empty",
+  "evidence": [],
+  "coverage": {"domain": "judicial", "capability": "dishonest"}
+}

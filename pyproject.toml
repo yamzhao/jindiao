@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jindiao"
+version = "0.1.0"
+description = "Single-machine multi-agent enterprise due-diligence application built on openJiuwen."
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "fastapi==0.115.11",
+    "httpx>=0.28,<1",
+    "jsonschema>=4.23,<5",
+    "mcp>=1.29,<2",
+    "openjiuwen[observability,sqlite]==0.1.17",
+    "openjiuwen-deepsearch @ git+https://gitcode.com/openJiuwen/deepsearch.git@cbab9c29219873af3da8a96eba85232a0f7154bc#subdirectory=deepsearch",
+    "pydantic==2.11.7",
+    "pydantic-settings==2.5.2",
+    "python-dotenv>=1.2.1,<2",
+    "sse-starlette>=2.1,<4",
+    "truststore==0.10.4",
+    "uvicorn[standard]==0.38.0",
+]
+
+[project.optional-dependencies]
+agentarts = ["openjiuwen[agentarts]==0.1.17"]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.15,<2",
+    "pytest>=8.3,<9",
+    "pytest-asyncio>=0.25,<1",
+    "pytest-cov>=6,<8",
+    "ruff>=0.11,<1",
+    "types-jsonschema>=4.23,<5",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+jindiao = [
+    "py.typed",
+    "prompts/bundle_v1/*.json",
+    "prompts/bundle_v1/**/*.md",
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra -q --strict-markers --cov=src/jindiao --cov-report=term-missing --cov-fail-under=80"
+asyncio_mode = "strict"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["src/jindiao"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests", "benchmarks", "scripts"]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/generate_mock_scenarios.py" = ["RUF001"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+module = ["openjiuwen.*", "openjiuwen_deepsearch.*"]
+ignore_missing_imports = true

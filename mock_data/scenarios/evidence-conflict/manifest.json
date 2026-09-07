@@ -1,0 +1,55 @@
+{
+  "as_of_date": "2026-08-31",
+  "enterprise_key": {
+    "aliases": [
+      "金调双源制造"
+    ],
+    "company_name": "金调双源制造有限公司",
+    "unified_social_credit_code": "91330200MA01JD004D"
+  },
+  "files": [
+    {
+      "path": "company.json",
+      "role": "runtime",
+      "sha256": "2dc6cccbd1ba5bb4e97b006b51378d54f4a69527050a4c57d11372174f995216"
+    },
+    {
+      "path": "corpus/operating-notes.md",
+      "role": "runtime",
+      "sha256": "3fc1faacbfefb01248cc192a4cd412a664763478d060c563dc32a3f09c6d495a"
+    },
+    {
+      "path": "expected/decision.json",
+      "role": "expected",
+      "sha256": "f518f926f740fdbef3f6bc8e21b024e4414ed97f3517d62baa9caad2e96f1170"
+    },
+    {
+      "path": "expected/findings.json",
+      "role": "expected",
+      "sha256": "761329c97b45fb5828651891d704098a6b532e4e69f8672a0d5e0413a6008930"
+    },
+    {
+      "path": "governance.json",
+      "role": "runtime",
+      "sha256": "5c78ceed6d5227d9bdbdffd94888c8b729deeee8942bd90b8e88558773cd142b"
+    },
+    {
+      "path": "judicial.json",
+      "role": "runtime",
+      "sha256": "d3a36bfe04d8546dfc54091bdd71518b9e5ced80fd4adf565deaf617895dbfce"
+    },
+    {
+      "path": "operations.json",
+      "role": "runtime",
+      "sha256": "220c7f6789dd1a30d7b1792cdc9a0fd97e5d3434bbb0b9383fe4b51dac1ead4a"
+    },
+    {
+      "path": "peers.json",
+      "role": "runtime",
+      "sha256": "255b7e677c9d326f0012c20413a5cefcfb079107ba210f1da5db96eacc3508d1"
+    }
+  ],
+  "scenario_id": "evidence-conflict",
+  "schema_version": 1,
+  "version": "v1.0.0"
+}

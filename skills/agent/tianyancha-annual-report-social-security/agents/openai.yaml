@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tianyancha Annual Social Security"
+  short_description: "Retrieve traceable annual-report social-security evidence"
+  default_prompt: "Use $tianyancha-annual-report-social-security for bounded Tianyancha annual-report evidence."

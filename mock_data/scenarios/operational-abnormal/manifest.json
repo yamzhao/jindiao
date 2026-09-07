@@ -1,0 +1,55 @@
+{
+  "as_of_date": "2026-08-31",
+  "enterprise_key": {
+    "aliases": [
+      "金调星火商贸"
+    ],
+    "company_name": "金调星火商贸有限公司",
+    "unified_social_credit_code": "91440300MA01JD003C"
+  },
+  "files": [
+    {
+      "path": "company.json",
+      "role": "runtime",
+      "sha256": "dd8459fa5335efec398c6a7cf32b3e749cce5f6e262451aa7c36b5ad260e904a"
+    },
+    {
+      "path": "corpus/operating-notes.md",
+      "role": "runtime",
+      "sha256": "616b220ed17b339006199ca616a0f6531d22f76a6cdbe750ebf2d19a81ee4afa"
+    },
+    {
+      "path": "expected/decision.json",
+      "role": "expected",
+      "sha256": "6d49738256a18da01fe919ed5f736c7ab537ba8bb5394a6891b222ada8c1297a"
+    },
+    {
+      "path": "expected/findings.json",
+      "role": "expected",
+      "sha256": "75f3c044ddb04129db8515b1cb8c4627a0d5e4057011b957e0463abdec0f5321"
+    },
+    {
+      "path": "governance.json",
+      "role": "runtime",
+      "sha256": "72651ea9fd59e8935ad8e3427062a4a5b950ec68bdc047ddeec1fea27025d336"
+    },
+    {
+      "path": "judicial.json",
+      "role": "runtime",
+      "sha256": "d3a36bfe04d8546dfc54091bdd71518b9e5ced80fd4adf565deaf617895dbfce"
+    },
+    {
+      "path": "operations.json",
+      "role": "runtime",
+      "sha256": "aff53a21f98086239034161ec471c248ccfa46538724215fd14c83905f91d8c3"
+    },
+    {
+      "path": "peers.json",
+      "role": "runtime",
+      "sha256": "cff6a291bb05373e1d1b20e161e9c4076949bca031b5b24290294dd2fa842897"
+    }
+  ],
+  "scenario_id": "operational-abnormal",
+  "schema_version": 1,
+  "version": "v1.0.0"
+}

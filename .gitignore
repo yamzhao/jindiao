@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Environments and secrets
+.venv/
+.env
+.env.*
+!.env.example
+
+# Build
+build/
+dist/
+*.egg-info/
+
+# IDE and OS
+.DS_Store
+.idea/
+.vscode/
+
+# Runtime and benchmark outputs
+artifacts/*
+!artifacts/.gitkeep
+benchmarks/results/*
+!benchmarks/results/.gitkeep
+*.log
+
+# Generated reports
+reports/

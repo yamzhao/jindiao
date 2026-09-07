@@ -1,0 +1,24 @@
+{
+  "as_of_date": "2026-08-31",
+  "band": "manual_review",
+  "pending_review_items": [],
+  "rule_hits": [
+    {
+      "finding_id": "finding-operation-abnormal",
+      "points": 25,
+      "rule_id": "attention.operation_abnormal"
+    },
+    {
+      "finding_id": "finding-administrative-penalty",
+      "points": 10,
+      "rule_id": "attention.administrative_penalty"
+    },
+    {
+      "finding_id": "finding-profit-decline",
+      "points": 10,
+      "rule_id": "attention.profit_decline"
+    }
+  ],
+  "rule_version": "v1",
+  "score": 45
+}

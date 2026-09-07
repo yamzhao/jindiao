@@ -1,0 +1,15 @@
+[
+  {
+    "claim": "企业登记状态为存续",
+    "domain": "identity",
+    "evidence_ids": [
+      "ev-company-registration"
+    ],
+    "finding_id": "finding-registration-active",
+    "risk_class": "non_risk",
+    "severity": "info",
+    "status": "accepted",
+    "subject_id": "mock:ambiguous-south",
+    "value": "存续"
+  }
+]

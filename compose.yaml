@@ -1,0 +1,17 @@
+services:
+  jindiao:
+    build:
+      context: .
+    image: jindiao:local
+    ports:
+      - "8080:8080"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      JINDIAO_MOCK_DATA_ROOT: /app/mock_data
+      JINDIAO_ARTIFACT_ROOT: /app/artifacts
+      MODEL_NAME: ${MODEL_NAME:-deterministic-mock}
+    volumes:
+      - ./artifacts:/app/artifacts
+    restart: unless-stopped

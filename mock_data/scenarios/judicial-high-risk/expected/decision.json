@@ -1,0 +1,24 @@
+{
+  "as_of_date": "2026-08-31",
+  "band": "reject",
+  "pending_review_items": [],
+  "rule_hits": [
+    {
+      "finding_id": "finding-dishonest",
+      "points": 80,
+      "rule_id": "admission.dishonest_subject"
+    },
+    {
+      "finding_id": "finding-consumption-restriction",
+      "points": 80,
+      "rule_id": "admission.consumption_restriction"
+    },
+    {
+      "finding_id": "finding-execution",
+      "points": 20,
+      "rule_id": "attention.unresolved_execution"
+    }
+  ],
+  "rule_version": "v1",
+  "score": 180
+}

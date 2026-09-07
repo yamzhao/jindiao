@@ -1,0 +1,56 @@
+[
+  {
+    "claim": "企业登记状态为存续",
+    "domain": "identity",
+    "evidence_ids": [
+      "ev-company-registration"
+    ],
+    "finding_id": "finding-registration-active",
+    "risk_class": "non_risk",
+    "severity": "info",
+    "status": "accepted",
+    "subject_id": "mock:judicial-restriction",
+    "value": "存续"
+  },
+  {
+    "claim": "企业存在失信被执行人记录",
+    "domain": "judicial",
+    "evidence_ids": [
+      "ev-judicial-dishonest-1"
+    ],
+    "finding_id": "finding-dishonest",
+    "risk_class": "admission",
+    "severity": "critical",
+    "status": "accepted",
+    "subject_id": "mock:judicial-restriction",
+    "value": "全部未履行"
+  },
+  {
+    "claim": "企业存在限制高消费记录",
+    "domain": "judicial",
+    "evidence_ids": [
+      "ev-judicial-restriction-1"
+    ],
+    "finding_id": "finding-consumption-restriction",
+    "risk_class": "admission",
+    "severity": "critical",
+    "status": "accepted",
+    "subject_id": "mock:judicial-restriction",
+    "value": true
+  },
+  {
+    "claim": "企业存在未结被执行记录",
+    "domain": "judicial",
+    "evidence_ids": [
+      "ev-judicial-execution-1"
+    ],
+    "finding_id": "finding-execution",
+    "risk_class": "attention",
+    "severity": "high",
+    "status": "accepted",
+    "subject_id": "mock:judicial-restriction",
+    "value": {
+      "amount_cny": 6800000
+    }
+  }
+]

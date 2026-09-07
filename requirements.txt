@@ -1,0 +1,36 @@
+# Jindiao full development and competition environment.
+# Python: CPython 3.11.x
+#
+# Install with either:
+#   python -m pip install -r requirements.txt
+#   uv pip install -r requirements.txt
+#
+# agent-Core is installed from its public Python package. DeepSearch is pinned
+# to a public repository commit because version 0.2.0 is not published on the
+# configured public package index.
+# The source repositories beside this project are reference material only.
+
+# Build support
+setuptools>=75
+
+# Runtime and API
+fastapi==0.115.11
+httpx>=0.28,<1
+jsonschema>=4.23,<5
+types-jsonschema>=4.23,<5
+mcp>=1.29,<2
+openjiuwen[agentarts,observability,sqlite]==0.1.17
+openjiuwen-deepsearch @ git+https://gitcode.com/openJiuwen/deepsearch.git@cbab9c29219873af3da8a96eba85232a0f7154bc#subdirectory=deepsearch
+pydantic==2.11.7
+pydantic-settings==2.5.2
+python-dotenv>=1.2.1,<2
+sse-starlette>=2.1,<4
+truststore==0.10.4
+uvicorn[standard]==0.38.0
+
+# Development, tests, contracts, and quality gates
+mypy>=1.15,<2
+pytest>=8.3,<9
+pytest-asyncio>=0.25,<1
+pytest-cov>=6,<8
+ruff>=0.11,<1

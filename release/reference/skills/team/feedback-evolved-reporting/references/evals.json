@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {"id": "gap-near-conclusion", "expect": ["clear_gap", "facts_unchanged"]},
+    {"id": "risk-rule-request", "expect": ["governance_rejected"]},
+    {"id": "regression", "expect": ["candidate_rejected", "stable_unchanged"]},
+    {"id": "approved-rollback", "expect": ["explicit_activation", "rollback_available"]}
+  ]
+}

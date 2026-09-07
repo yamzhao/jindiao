@@ -1,0 +1,115 @@
+{
+  "schema_version": 2,
+  "benchmark_id": "jindiao-multi-agent-v1",
+  "repetitions": 3,
+  "random_seed": 20260903,
+  "primary_metrics": ["quality_score"],
+  "quality_weights": {
+    "coverage": 0.30,
+    "evidence_support": 0.25,
+    "risk_quality": 0.20,
+    "conflict_detection": 0.15,
+    "report_structure": 0.10
+  },
+  "gain_thresholds": [
+    {
+      "metric": "quality_score",
+      "direction": "increase",
+      "minimum_absolute_delta": 0.02
+    }
+  ],
+  "failure_retention": {
+    "timeout": true,
+    "schema_error": true,
+    "partial": true,
+    "include_in_aggregates": true
+  },
+  "model": {
+    "provider": "offline_mock",
+    "name": "deterministic-mock",
+    "temperature": 0.0
+  },
+  "budget": {
+    "max_concurrency": 4,
+    "max_tool_calls": 60,
+    "max_repair_rounds": 2,
+    "timeout_seconds": 300
+  },
+  "cases": [
+    {
+      "case_id": "normal-technology",
+      "scenario_id": "normal-enterprise",
+      "scenario_version": "v1.0.0",
+      "category": "normal",
+      "enterprise": {"company_name": "金调绿洲科技有限公司"}
+    },
+    {
+      "case_id": "judicial-admission",
+      "scenario_id": "judicial-high-risk",
+      "scenario_version": "v1.0.0",
+      "category": "judicial_risk",
+      "enterprise": {"company_name": "金调震岳工程有限公司"}
+    },
+    {
+      "case_id": "operational-abnormal",
+      "scenario_id": "operational-abnormal",
+      "scenario_version": "v1.0.0",
+      "category": "operational_risk",
+      "enterprise": {"company_name": "金调星火商贸有限公司"}
+    },
+    {
+      "case_id": "employee-evidence-conflict",
+      "scenario_id": "evidence-conflict",
+      "scenario_version": "v1.0.0",
+      "category": "evidence_conflict",
+      "enterprise": {"company_name": "金调双源制造有限公司"}
+    },
+    {
+      "case_id": "industrial-capability-absent",
+      "scenario_id": "stable-industrial",
+      "scenario_version": "v1.0.0",
+      "category": "capability_absent",
+      "enterprise": {"company_name": "金调澄明工业有限公司"},
+      "source_status_overrides": {"peers": "capability_absent"}
+    },
+    {
+      "case_id": "services-report-gap",
+      "scenario_id": "stable-services",
+      "scenario_version": "v1.0.0",
+      "category": "report_gap",
+      "enterprise": {"company_name": "金调远帆服务有限公司"},
+      "source_status_overrides": {"judicial": "verified_empty"}
+    },
+    {
+      "case_id": "judicial-restriction",
+      "scenario_id": "judicial-restriction",
+      "scenario_version": "v1.0.0",
+      "category": "judicial_risk",
+      "enterprise": {"company_name": "金调云岑建设有限公司"}
+    },
+    {
+      "case_id": "operations-source-error",
+      "scenario_id": "operating-pressure",
+      "scenario_version": "v1.0.0",
+      "category": "source_error",
+      "enterprise": {"company_name": "金调沧澜供应链有限公司"},
+      "source_status_overrides": {"operations": "source_error"}
+    },
+    {
+      "case_id": "ambiguous-name-north",
+      "scenario_id": "ambiguous-north",
+      "scenario_version": "v1.0.0",
+      "category": "entity_ambiguous",
+      "enterprise": {"company_name": "金调同名实业"},
+      "use_scenario_id": false
+    },
+    {
+      "case_id": "ambiguous-name-south",
+      "scenario_id": "ambiguous-south",
+      "scenario_version": "v1.0.0",
+      "category": "entity_ambiguous",
+      "enterprise": {"company_name": "金调同名实业"},
+      "use_scenario_id": false
+    }
+  ]
+}

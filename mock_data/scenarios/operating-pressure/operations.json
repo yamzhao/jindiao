@@ -1,0 +1,53 @@
+{
+  "abnormal_operations": [
+    {
+      "listed_on": "2026-03-15",
+      "reason": "未按期公示年度报告",
+      "record_id": "operations:abnormal:1",
+      "removed_on": null
+    }
+  ],
+  "administrative_penalties": [
+    {
+      "amount_cny": 120000,
+      "decided_on": "2026-05-09",
+      "reason": "产品标识不规范",
+      "record_id": "operations:penalty:1"
+    }
+  ],
+  "as_of_date": "2026-08-31",
+  "bidding_awards": [
+    {
+      "amount_cny": 2400000,
+      "awarded_on": "2025-09-18",
+      "record_id": "operations:bid:1"
+    }
+  ],
+  "employee_count": 47,
+  "employee_count_record_id": "operations:employees:2025",
+  "financial_indicators": [
+    {
+      "net_profit_cny_10k": 420,
+      "record_id": "operations:financial:2023",
+      "revenue_cny_10k": 8700,
+      "year": 2023
+    },
+    {
+      "net_profit_cny_10k": 50,
+      "record_id": "operations:financial:2024",
+      "revenue_cny_10k": 6900,
+      "year": 2024
+    },
+    {
+      "net_profit_cny_10k": -260,
+      "record_id": "operations:financial:2025",
+      "revenue_cny_10k": 4800,
+      "year": 2025
+    }
+  ],
+  "intellectual_property": {
+    "patents": 7,
+    "software_copyrights": 12
+  },
+  "tax_credit_grade": "B"
+}
