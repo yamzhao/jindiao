@@ -20,20 +20,27 @@
 
 ```mermaid
 flowchart LR
-    C[调用方] -->|v1 result / v2 Run API| API[FastAPI]
-    API --> A[共享 acquisition]
-    A --> CA[Enterprise Context Agent]
-    CA --> TYC[天眼查 MCP Gateway]
-    A --> SP[SupplementPolicy]
-    SP --> DS[DeepSearch Agent\n年报 / 有界补证]
-    CA --> F[ContextFreezer]
+    C["调用方"] -->|v1 result / v2 Run API| API["FastAPI"]
+    API --> A["共享 acquisition"]
+
+    A --> CA["Enterprise Context Agent"]
+    CA --> TYC["天眼查 MCP Gateway"]
+
+    A --> SP["SupplementPolicy"]
+    SP --> DS["DeepSearch Agent<br/>年报 / 有界补证"]
+
+    CA --> F["ContextFreezer"]
     DS --> F
-    F --> SNAP[不可变 EnterpriseContextSnapshot]
-    SNAP --> S[Single\n1 Agent + 自检]
-    SNAP --> M[Multi\nLeader + 4 Specialists + Reviewer]
-    S --> G[Evidence 门禁与确定性裁决]
+
+    F --> SNAP["不可变 EnterpriseContextSnapshot"]
+
+    SNAP --> S["Single<br/>1 Agent + 自检"]
+    SNAP --> M["Multi<br/>Leader + 4 Specialists + Reviewer"]
+
+    S --> G["Evidence 门禁与确定性裁决"]
     M --> G
-    G --> OUT[agent_results + 8/48 Result + Markdown]
+
+    G --> OUT["agent_results + 8/48 Result + Markdown"]
 ```
 
 所有组件运行在一个 Python 进程和一台机器上；不需要数据库、Redis、消息队列或独立向量服务。详细设计见 [产品设计](docs/product-design.md) 和 [技术栈](docs/technical-stack.md)。
