@@ -10,6 +10,7 @@ from pydantic import AwareDatetime, Field, JsonValue, field_validator, model_val
 from jindiao.security import redact_json
 
 from .base import ContractModel
+from .execution_steps import ExecutionPlan, ExecutionStepSnapshot, ExecutionStepState
 from .runs import ActorView, RunStage
 
 
@@ -64,6 +65,16 @@ class LifecycleEventType(StrEnum):
     AGENT_CANCELLED = "agent.cancelled"
 
 
+class ExecutionEventType(StrEnum):
+    """Stable semantic events intended for product execution timelines."""
+
+    PLAN_CREATED = "execution.plan.created"
+    STEP_STARTED = "execution.step.started"
+    STEP_PROGRESS = "execution.step.progress"
+    STEP_COMPLETED = "execution.step.completed"
+    STEP_FAILED = "execution.step.failed"
+
+
 REQUIRED_PAYLOAD_KEY: dict[EventType, str] = {
     EventType.RUN_ACCEPTED: "status",
     EventType.ACQUISITION_STARTED: "acquisition",
@@ -98,7 +109,7 @@ REQUIRED_PAYLOAD_KEY: dict[EventType, str] = {
 
 
 class RunEvent(ContractModel):
-    event_type: EventType | LifecycleEventType
+    event_type: EventType | LifecycleEventType | ExecutionEventType
     schema_version: int = Field(default=1, ge=1)
     event_id: str | None = None
     request_id: str = Field(min_length=1)
@@ -136,6 +147,23 @@ class RunEvent(ContractModel):
             required_key = REQUIRED_PAYLOAD_KEY[self.event_type]
             if required_key not in self.payload:
                 raise ValueError(f"{self.event_type.value} payload requires {required_key}")
+        elif isinstance(self.event_type, ExecutionEventType):
+            key = "plan" if self.event_type is ExecutionEventType.PLAN_CREATED else "step"
+            if key not in self.payload:
+                raise ValueError(f"{self.event_type.value} payload requires {key}")
+            model = ExecutionPlan if key == "plan" else ExecutionStepSnapshot
+            snapshot = model.model_validate(self.payload[key])
+            if set(self.payload) != {key}:
+                raise ValueError("execution payload must contain only the typed snapshot")
+            if isinstance(snapshot, ExecutionStepSnapshot):
+                expected = {
+                    ExecutionEventType.STEP_STARTED: ExecutionStepState.RUNNING,
+                    ExecutionEventType.STEP_PROGRESS: ExecutionStepState.RUNNING,
+                    ExecutionEventType.STEP_COMPLETED: ExecutionStepState.COMPLETED,
+                    ExecutionEventType.STEP_FAILED: ExecutionStepState.FAILED,
+                }[self.event_type]
+                if snapshot.state is not expected:
+                    raise ValueError("execution event type does not match step state")
         return self
 
 
@@ -149,7 +177,7 @@ class EventSequencer:
 
     def next(
         self,
-        event_type: EventType | LifecycleEventType | str,
+        event_type: EventType | LifecycleEventType | ExecutionEventType | str,
         payload: dict[str, JsonValue],
         *,
         occurred_at: datetime | None = None,
@@ -162,7 +190,10 @@ class EventSequencer:
             try:
                 event_type = EventType(event_type)
             except ValueError:
-                event_type = LifecycleEventType(event_type)
+                try:
+                    event_type = LifecycleEventType(event_type)
+                except ValueError:
+                    event_type = ExecutionEventType(event_type)
         self._sequence += 1
         return RunEvent(
             event_type=event_type,
@@ -187,4 +218,10 @@ class EventSequencer:
         self._sequence = sequence
 
 
-__all__ = ["EventSequencer", "EventType", "LifecycleEventType", "RunEvent"]
+__all__ = [
+    "EventSequencer",
+    "EventType",
+    "ExecutionEventType",
+    "LifecycleEventType",
+    "RunEvent",
+]

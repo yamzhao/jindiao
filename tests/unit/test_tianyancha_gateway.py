@@ -11,7 +11,7 @@ from pydantic import JsonValue
 from jindiao.application.errors import AgentExecutionError
 from jindiao.contracts.acquisition import SubmoduleAvailability
 from jindiao.contracts.entities import EnterpriseInput
-from jindiao.contracts.evidence import CoverageCompleteness, SourceStatus
+from jindiao.contracts.evidence import CoverageCompleteness, CoverageGapReason, SourceStatus
 from jindiao.tianyancha import (
     CapabilityRoutingConfig,
     GatewayBudget,
@@ -119,6 +119,62 @@ async def test_gateway_produces_source_observation_coverage_and_evidence_not_fin
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("total", [0, 1, 10])
+async def test_gateway_count_table_without_details_never_claims_complete_records(
+    total: int,
+) -> None:
+    client = GatewayClient(
+        capabilities=("get_financial_summary",),
+        business_results={
+            ("get_financial_summary", 1): McpCallResult(
+                text=(f"| 字段 | 值 |\n| --- | --- |\n| 总数 | {total} |",)
+            ),
+        },
+    )
+    target = gateway(client)
+    subject, _ = await target.initialize(EnterpriseInput(company_name="网关测试有限公司"))
+    observation = await target.acquire_submodule("financial_summary", subject_id=subject.subject_id)
+    assert observation.facts["record_count"] == 0
+    metadata = observation.facts["source_metadata"]
+    assert isinstance(metadata, dict) and metadata["total_count"] == total
+    assert len([name for name, _ in client.calls if name == "call_tool"]) == 1
+    if total:
+        assert observation.completeness is CoverageCompleteness.PARTIAL
+        assert CoverageGapReason.MISSING_FIELDS in observation.gap_reasons
+        assert observation.source_status is not SourceStatus.VERIFIED_EMPTY
+    else:
+        assert observation.source_status is SourceStatus.VERIFIED_EMPTY
+        assert observation.availability is SubmoduleAvailability.VERIFIED_EMPTY
+        assert observation.completeness is CoverageCompleteness.COMPLETE
+
+
+@pytest.mark.asyncio
+async def test_gateway_fetches_second_page_when_total_is_only_in_markdown() -> None:
+    client = GatewayClient(
+        capabilities=("get_financial_summary",),
+        business_results={
+            ("get_financial_summary", page): McpCallResult.model_validate(
+                {
+                    "structured_content": {"page": page, "page_size": 1},
+                    "text": [
+                        "| 字段 | 值 |\n| --- | --- |\n| 总数 | 2 |\n\n"
+                        f"| 年度 | 营业收入 |\n| --- | --- |\n| {2026 - page} | 1200 |"
+                    ],
+                }
+            )
+            for page in (1, 2)
+        },
+    )
+    target = gateway(client)
+    subject, _ = await target.initialize(EnterpriseInput(company_name="网关测试有限公司"))
+    result = await target.acquire_submodule("financial_summary", subject_id=subject.subject_id)
+    assert result.completeness is CoverageCompleteness.COMPLETE
+    assert result.facts["record_count"] == 2
+    assert len(result.evidence) == 2
+    assert len([name for name, _ in client.calls if name == "call_tool"]) == 2
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "unauthorized_agent",
     (
@@ -215,12 +271,48 @@ async def test_gateway_paginates_cleans_and_keeps_reproducibility_metadata() -> 
 
 
 @pytest.mark.asyncio
+async def test_gateway_deduplicates_records_within_and_across_pages() -> None:
+    first = {"id": "case-1", "caseNo": "(2026)京01执1号"}
+    revised = {**first, "status": "已结案"}
+    client = GatewayClient(
+        capabilities=("get_judicial_documents",),
+        business_results={
+            ("get_judicial_documents", 1): McpCallResult(
+                structured_content={"items": [first, first], "has_more": True, "page": 1}
+            ),
+            ("get_judicial_documents", 2): McpCallResult(
+                structured_content={
+                    "items": [first, revised, revised],
+                    "has_more": False,
+                    "page": 2,
+                }
+            ),
+        },
+    )
+    target = gateway(client)
+    subject, _ = await target.initialize(EnterpriseInput(company_name="网关测试有限公司"))
+
+    observation = await target.acquire_submodule(
+        "judicial_documents", subject_id=subject.subject_id
+    )
+    context = observation.to_submodule_context()
+
+    assert [item.value for item in observation.evidence] == [first, revised]
+    assert len(context.evidence_ids) == len(context.provenance) == 2
+    assert len(set(context.evidence_ids)) == 2
+    assert observation.facts["records"] == [first, revised]
+    assert len(observation.invocation_ids) == 2
+    assert observation.evidence[0].raw_ref is not None
+    assert observation.invocation_ids[0] in observation.evidence[0].raw_ref
+
+
+@pytest.mark.asyncio
 async def test_gateway_concurrently_deduplicates_one_shared_capability_call() -> None:
     client = GatewayClient(
-        capabilities=("get_risk_overview",),
+        capabilities=("get_financial_data",),
         business_results={
-            ("get_risk_overview", 1): McpCallResult(
-                structured_content={"items": [{"id": "risk-1", "type": "execution"}]}
+            ("get_financial_data", 1): McpCallResult(
+                structured_content={"items": [{"year": 2025, "revenue": 100_000_000}]}
             )
         },
         delay=0.01,
@@ -232,9 +324,9 @@ async def test_gateway_concurrently_deduplicates_one_shared_capability_call() ->
         *(
             target.acquire_submodule(submodule_id, subject_id=subject.subject_id)
             for submodule_id in (
-                "consumption_restrictions",
-                "dishonest_enforcement",
-                "executions",
+                "income_statement",
+                "balance_sheet",
+                "cash_flow_statement",
             )
         )
     )

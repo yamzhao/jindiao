@@ -1,0 +1,16 @@
+# Credential-free fixtures are opt-in via bin/start.sh --mock.
+services:
+  jindiao:
+    environment:
+      MODEL_PROVIDER: offline_mock
+      MODEL_NAME: deterministic-mock
+      MODEL_BASE_URL: ""
+      MODEL_API_KEY: ""
+      TIANYANCHA_MCP_AUTHORIZATION: ""
+      JINDIAO_AGENT_RUNTIME_MODE: deterministic_harness
+      JINDIAO_DATA_SOURCE_MODE: mock
+      JINDIAO_ALLOW_DEGRADED_MOCK: "false"
+      JINDIAO_EXECUTION_PROFILE: attached
+      JINDIAO_STORAGE_BACKEND: local
+      JINDIAO_DETACHED_PROBE_PASSED: "false"
+      JINDIAO_REPORTING_DEMO_ENABLED: "false"

@@ -3,6 +3,7 @@
 Usage: python scripts/remote_integration_probe.py http://127.0.0.1:8080
 """
 
+# ruff: noqa: RUF001 -- official company name uses fullwidth parentheses
 from __future__ import annotations
 
 import argparse
@@ -53,7 +54,7 @@ def main() -> int:
         "X-Hw-Agentarts-Session-Id": probe_id,
     }
     body = {
-        "enterprise": {"company_name": "金调绿洲科技有限公司"},
+        "customerName": "乐视网信息技术（北京）股份有限公司",
         "scenario_id": "normal-enterprise",
         "mode": "single",
     }
@@ -105,12 +106,12 @@ def main() -> int:
 
         def exercise_run(mode: str, scenario: str) -> dict[str, Any]:
             company_name = {
-                "normal-enterprise": "金调绿洲科技有限公司",
+                "normal-enterprise": "乐视网信息技术（北京）股份有限公司",
                 "evidence-conflict": "金调双源制造有限公司",
             }[scenario]
             request = {
                 **body,
-                "enterprise": {"company_name": company_name},
+                "customerName": company_name,
                 "mode": mode,
                 "scenario_id": scenario,
             }
@@ -122,7 +123,7 @@ def main() -> int:
             repeated = client.post(RUNS, json=request, headers={"Idempotency-Key": key})
             assert repeated.status_code == 202 and repeated.json()["run_id"] == run_id
             conflicting = client.post(
-                RUNS, json={**request, "language": "en-US"}, headers={"Idempotency-Key": key}
+                RUNS, json={**request, "amount": 100}, headers={"Idempotency-Key": key}
             )
             assert conflicting.status_code == 409
             observed = events(client.get(f"{run_path}/events"))

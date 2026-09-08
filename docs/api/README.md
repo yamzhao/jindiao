@@ -4,6 +4,8 @@
 
 > 当前版本没有注册 `/api/agent/components/export`。第 8 节记录已注册、默认关闭的两个本地反馈 Demo 接口；应用和恢复仅通过本地 CLI 执行。
 
+> **连接真实 ECS 时**：创建请求请填写真实企业名称，并省略 `scenario_id`（也不要传空字符串）。文中带 `scenario_id` 的示例仅用于 Mock/Demo 环境。当前 ECS 的 `formal + tianyancha` 模式不接受场景覆盖；旧版本将此参数冲突显示为 `run.failed / internal_error`。修正参数后须用新的幂等键创建新 Run；重复订阅已失败 Run 的 `/events` 只会重放失败事件。健康检查接口是 `/ping`，不是 `/events`。
+
 ## 1. 接口总览
 
 | 方法 | 路径 | 用途 | 成功状态 |
@@ -25,9 +27,48 @@
 
 ## 2. 通用请求模型
 
-### 2.1 尽调请求体
+### 本地模型与 token 预算开关
 
-v1 请求体为 `DueDiligenceRequest`；v2 创建请求体为该模型加上 `mode`、`execution_profile`、`session_id`。
+模型由服务端 `MODEL_NAME` 决定，不由创建请求体指定。本地联调现在使用 `deepseek-v4-flash`，沿用原 `MODEL_PROVIDER`、`MODEL_BASE_URL` 和密钥，未修改 ECS。
+
+默认 `JINDIAO_ENFORCE_TOKEN_BUDGET=true`：输入最多 300000、输出最多 100000、合计最多 400000 tokens；下一次请求按 UTF-8 字节及协议余量保守估算，计入已用、并发预留和未知占用后判断能否派发。实际用量超过数值限额也会停止。估算值不等于供应商实际 token 数。
+
+按当前本地联调要求设置 `JINDIAO_ENFORCE_TOKEN_BUDGET=false` 后，只观察和记录 token 用量，不再以这些数值限额拒绝请求或中断结果生成，费用可能超过旧的 400000-token 范围。单次有界输出（默认最多 10000）、300 秒超时、模型/工具调用次数、证据校验与计量完整性检查仍有效，供应商自己的上下文限制也仍有效。
+
+开关属于服务端配置，不能放在 HTTP 请求 JSON 中。修改 `.env` 后执行 `bin/start.sh` 重新加载；`bin/restart.sh` 仅重启现有容器，不重新构建或加载新配置。
+
+### 2.1 v2 Run / invocations 扁平请求体
+
+`POST /api/v2/due-diligence/runs` 和 `/invocations` 使用 `RunCreateRequest`，字段全部放在一级，不接受 `enterprise`、`business_context`、`region` 或 `company_name` 等旧入参。前端按原型表单字段直接提交，金额以**万元**计。
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `customerName` | string/null | 与 uscc 至少一个 | `null` | 客户名称，去除首尾空格 |
+| `uscc` | string/null | 与 customerName 至少一个 | `null` | 统一社会信用代码，去除首尾空格并转大写 |
+| `product` | string/null | 否 | `null` | 业务品种，如“流动资金贷款”，不是“新增授信”等发生类型 |
+| `amount` | number/string/null | 否 | `null` | 拟申请金额，人民币万元；有限正数，兼容十进制数字字符串（如 `"2"`、`"1.0001"`、`"2e3"`）；不接受布尔值、NaN 或 Infinity |
+| `term` | integer/string/null | 否 | `null` | 期限，月；正整数，兼容整数字符串（如 `"12"`），不接受布尔值、小数或指数形式字符串 |
+| `manager` | string/null | 否 | `null` | 主办客户经理，用于业务展示，不决定 Run 权限 |
+| `branch` | string/null | 否 | `null` | 所属支行，本期作为报告上报机构 |
+| `mode` | `single\|multi` | 否 | `multi` | 选择单/多 Agent 执行方式 |
+| `report_as_of` | string (`YYYY-MM-DD`)/null | 否 | 运行时日期 | 尽调报告基准日期 |
+| `execution_profile` | `attached\|detached` | 否 | `attached` | detached 只有部署探针通过后可用 |
+| `session_id` | string/null | 否 | `null` | 运行所属会话，也可由请求头提供；浏览器 BFF 自行管理路由会话 |
+| `scenario_id` | string/null | 否 | `null` | 仅测试/演示时指定 Mock 场景；真实天眼查请求省略 |
+
+表单中的空白业务文本归一为 `null`；金额和期限推荐使用 JSON 数值，兼容普通文本输入框产生的数字字符串，转换前去除首尾空格。金额可带小数或十进制指数；期限只能是整数字面量（`"12.0"`、`"1.5"`、`"1e2"` 均拒绝）。两者都不接受千分位逗号、单位后缀、空字符串、纯空白、布尔值或非正数；未填写时请省略或传 `null`。内部及转发值归一为数值，非法输入仍返回 `422`，不会启动尽调。
+
+例如 `{"customerName":"华为技术有限公司","amount":"2","term":"12","mode":"single"}` 与金额 `2`、期限 `12` 的数值请求等价；金额仍为 **2 万元**，前端无需先乘以 10000。
+
+业务文本去除首尾空格；语言固定为 `zh-CN`，不再接受 `language`、`allow_degraded_mock`、`skill_feedback`。未知字段返回 `422`，不同时兼容新旧同义入参。单家客户对应一次 Run，不新增批量请求结构。
+
+内部统一将 `amount × 10000` 转为人民币元，BFF 原样转发万元值，不执行换算。报告输出仍采用原字段名：`product → report.business_plan.business_product`、`manager → customer_manager`、`branch → reporting_org`、`amount → application_amount`（元）、`term → application_term_months`（月）。申报字段保留调用方输入并标记 `user_input` 来源，不由 LLM 覆盖；企业身份仍由外部资料核验。
+
+全部规范化字段参与幂等哈希：省略与显式 `null` 等价，金额 5000、5000.0 与 `"5000.0"` 等价，期限 12 与 `"12"` 等价；相同 `Idempotency-Key` 修改金额、品种、客户经理、支行等有效内容返回 `409`。创建响应、查询、SSE、取消和最终结果路径不变。
+
+### 2.2 v1 兼容请求体
+
+只有 `/api/v1/due-diligence/result` 继续使用以下 `DueDiligenceRequest` 嵌套结构。内部执行模型也保留该结构，v2 在入口完成转换。
 
 | 字段 | 类型 | 必填 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -39,16 +80,22 @@ v1 请求体为 `DueDiligenceRequest`；v2 创建请求体为该模型加上 `mo
 | `language` | string | 否 | `zh-CN` | 报告语言 |
 | `scenario_id` | string/null | 否 | `null` | 冻结 Mock 场景；生产天眼查模式应省略 |
 | `allow_degraded_mock` | boolean | 否 | `false` | 仅影响显式 Mock/演示路径的降级行为 |
+| `business_context` | object | 否 | `{}` | 调用方已有的申报方案及流水、授信、本行记录摘要；省略与空对象等价，并纳入幂等哈希 |
+| `business_context.reporting_org` / `reporting_date` | string/date/null | 否 | `null` | 上报机构和日期 |
+| `business_context.business_product` / `customer_manager` | string/null | 否 | `null` | 业务品种与主办客户经理 |
+| `business_context.application_type` / `application_amount` / `application_term_months` / `fund_use` | string/number/integer/string | 否 | `null` | 申报类型、金额（人民币元）、期限（月）和用途 |
+| `business_context.suggested_*` | number/string/integer/null | 否 | `null` | 已有人工建议金额、利率、授信期限和贷款期限，服务端不得覆盖 |
+| `business_context.guarantee_methods` / `repayment_methods` | string[] | 否 | `[]` | 保证方式和还款方式枚举，详见 OpenAPI |
+| `business_context.bank_flow` | object/null | 否 | `null` | 调用方流水摘要；不是逐笔流水直连凭据 |
+| `business_context.credit_info` | object/null | 否 | `null` | 调用方授信摘要；金额单位为人民币元 |
+| `business_context.internal_record` | object/null | 否 | `null` | 调用方本行关系摘要 |
 | `skill_feedback` | object/null | 否 | `null` | 已 deprecated；有值时统一 `rejected/use_feedback_api`，不生成候选且不阻断主报告，见第 8 节 |
 | `skill_feedback.source` | string | 是（对象存在时） | — | 反馈来源 |
 | `skill_feedback.reference` | string | 是 | — | 可审计引用，如 `artifact://...` |
 | `skill_feedback.text` | string | 是 | — | 反馈正文 |
 | `skill_feedback.evidence_refs` | string[] | 是 | — | 至少一个证据/报告引用 |
-| `mode`（仅 v2） | `single\|multi` | 否 | `multi` | 选择 investigation 拓扑 |
-| `execution_profile`（仅 v2） | `attached\|detached` | 否 | `attached` | detached 只有部署探针通过后可用 |
-| `session_id`（仅 v2） | string/null | 否 | `null` | 运行所属会话；也可由请求头提供 |
 
-### 2.2 通用请求头
+### 2.3 通用请求头
 
 | Header | 适用接口 | 说明 |
 | --- | --- | --- |
@@ -81,24 +128,24 @@ v1 请求体为 `DueDiligenceRequest`；v2 创建请求体为该模型加上 `mo
 POST /api/v2/due-diligence/runs
 Content-Type: application/json
 Accept: application/json
-Idempotency-Key: demo-20260906-001
+Idempotency-Key: live-request-001
 X-Hw-Agentgateway-User-Id: user-001
 ```
 
-请求示例：
+真实数据请求示例（省略 `scenario_id`）：
 
 ```json
 {
-  "enterprise": {
-    "company_name": "金调绿洲科技有限公司",
-    "region": "北京"
-  },
+  "customerName": "乐视网信息技术（北京）股份有限公司",
+  "uscc": null,
+  "product": "流动资金贷款",
+  "amount": 5000,
+  "term": 12,
+  "manager": "王某某",
+  "branch": "城东支行",
   "report_as_of": "2026-08-31",
-  "language": "zh-CN",
-  "scenario_id": "normal-enterprise",
   "mode": "multi",
-  "execution_profile": "attached",
-  "allow_degraded_mock": false
+  "execution_profile": "attached"
 }
 ```
 
@@ -212,6 +259,104 @@ data: {"event_type":"run.accepted","schema_version":1,"event_id":"run-01JINDIAO:
 
 事件对象字段：`event_type`、`schema_version`、`event_id`、`request_id`、`run_id`、`sequence`、`occurred_at`、`stage`、`actor`、`task_id`、`check_id`、`payload`。常见事件包括 `run.started`、`run.phase.started/completed`、`entity.resolved`、`agent.started/completed`、`evidence.collected`、`section.completed`、`report.completed`、`run.partial`、`run.failed`、`run.cancelled`。
 
+#### AI 尽调执行过程
+
+前端使用同一个 v2 SSE 流中的 `execution.*` 渲染执行过程。调用顺序为：创建 Run → 订阅 `links.events.href` → 按 `step_id` 更新步骤卡片 → 收到 Run 终态后关闭流，成功或部分完成时读取 `links.result.href`。不需要新增接口，也不需要解析 Agent 输出文本。
+
+| 事件 | payload | 前端处理 |
+| --- | --- | --- |
+| `execution.plan.created` | `{ "plan": ExecutionPlan }` | 初始化七个待执行步骤；每次 Run 开始执行时仅一条 |
+| `execution.step.started` | `{ "step": ExecutionStepSnapshot }` | 整体替换该步骤，显示运行状态和进展 |
+| `execution.step.progress` | 同上 | 整体替换该步骤；由真实里程碑触发，可能没有此事件 |
+| `execution.step.completed` | 同上 | 显示业务结论和可展开的事实、证据、缺口 |
+| `execution.step.failed` | 同上 | 显示该环节执行失败；不代表企业有风险 |
+
+`ExecutionPlan` 包含 `plan_version="due-diligence-execution-v1"`、`mode="single|multi"` 和 `steps`。每个步骤定义包含 `step_id`、`order`、`title`、`objective`。固定顺序如下；顺序用于展示，实际运行可以并行。
+
+| order | step_id | title |
+| --- | --- | --- |
+| 1 | `company-verification` | 企业主体与工商信息 |
+| 2 | `ownership-and-relations` | 股权与关联关系 |
+| 3 | `business-and-supply-chain` | 经营情况与上下游 |
+| 4 | `finance-cashflow-solvency` | 财务、流水与偿债能力 |
+| 5 | `external-risk-screening` | 司法、行政、税务与舆情 |
+| 6 | `cross-risk-review` | 风险交叉审核 |
+| 7 | `structured-report-generation` | 结构化尽调报告生成 |
+
+`ExecutionStepSnapshot` 字段：
+
+| 字段 | 含义与限制 |
+| --- | --- |
+| `step_id / order / title / objective` | 对应计划中的稳定定义 |
+| `state` | `pending / running / completed / failed / cancelled` |
+| `progress_message` | 运行中的简短进展，最多 160 字；完成后为空 |
+| `progress_percent` | 当前运行时没有可靠分母，返回 `null`；完成时为 `100`。不要自行模拟百分比 |
+| `outcome` | 仅 completed 有值：`normal` 无需单列关注、`attention` 需关注、`inconclusive` 待核实 |
+| `conclusion` | 完成或失败后的简短结论，最多 240 字；运行中为空 |
+| `key_facts` | 最多 3 条 `{text, evidence_ids}`，每条文本最多 240 字，引用最多 8 项 |
+| `source_tags` | 最多 8 条 `{label, evidence_id, source_type}`；标签最多 80 字 |
+| `gaps` | 最多 3 条可读资料缺口，每条最多 240 字；完整缺失说明见最终报告 |
+| `executor_ids` | 实际观察到的 Agent ID，最多 8 个；系统执行或未观察到执行者时为空 |
+| `duration_ms` | 从首次观察到该步骤运行到完成/失败的毫秒数；没有开始记录时为 `null` |
+
+默认卡片展示 `title + state + (progress_message 或 conclusion)`，完成时配合 `outcome` 显示“无需单列关注 / 需关注 / 待核实”。展开后展示目标、关键事实、证据和缺口。`source_type` 为 `tianyancha / public_web / user_input / derived / mock`；Mock 来源应在界面明确标识。点击证据通过 ID 关联最终结果的 `evidence`；结果生成前不展示尚未校验的事实。
+
+步骤完成表示已完成对现有资料的处理。模块不可用、字段缺失或核验未定时，结论为 `inconclusive`；若已有确定风险，优先返回 `attention`，同时保留缺口。它们都不等于运行失败。报告生成步骤的 `normal` 仅说明结构化报告已生成，不代表授信建议。`key_facts` 仅引用对应事实自身的证据，引用 ID 必须同时存在于本步骤 `source_tags` 和最终结果中。
+
+以下为完成事件示例（示意数据）：
+
+```text
+id: 42
+event: execution.step.completed
+data: {"event_type":"execution.step.completed","schema_version":1,"event_id":"run-01JINDIAO:42","request_id":"req-01JINDIAO","run_id":"run-01JINDIAO","sequence":42,"occurred_at":"2026-09-07T05:50:00Z","stage":"reporting","actor":{"kind":"system","id":"jindiao","role":"coordinator"},"task_id":null,"check_id":null,"payload":{"step":{"step_id":"external-risk-screening","order":5,"title":"司法、行政、税务与舆情","objective":"扫描司法执行、行政处罚、税务、信用及公开舆情风险。","state":"completed","outcome":"attention","progress_message":null,"progress_percent":100,"conclusion":"发现一项执行事项，税务资料仍待核实。","key_facts":[{"text":"存在一项尚未解除的执行事项","evidence_ids":["ev-001"]}],"source_tags":[{"label":"天眼查·被执行明细","evidence_id":"ev-001","source_type":"tianyancha"}],"gaps":["未取得可核验税务资料"],"executor_ids":["judicial-compliance-agent"],"duration_ms":12500}}}
+```
+
+同一快照在 started/progress 时 `state="running"`，`outcome=null`、`conclusion=null`，通过 `progress_message` 展示“正在依据已采集资料执行核查”等信息。最终七个完成快照由校验后的 `ProductResult` 统一生成，并在 `report.completed` 和 Run 终态之前发布，避免在审核前把初步发现当成定论。某些路径没有可靠的开始信号，此时允许直接收到 completed，`duration_ms=null`。旧版结果只提供保守的完成摘要，不补造证据或执行者。
+
+Run 状态接口的总体 `progress` 按这七个步骤的最新快照去重统计：收到计划后 `total=7`，只计 `state=completed` 的步骤，不把失败或取消计为成功。执行完成可为 `7/7`、100%，同时因资料缺口保持 `status=partial`；100% 不代表无风险或资料齐全。重启后从已有 SSE 恢复此派生计数，不修改历史报告、不重跑模型；无执行计划的老记录不补造七步进度。
+
+前端 reducer 示例（每个 Run 独立保存状态）：
+
+```javascript
+let lastSequence = 0;
+let steps = new Map();
+function reduce(event) {
+  if (event.sequence <= lastSequence) return; // 重放/重连去重
+  lastSequence = event.sequence;
+  if (event.event_type === "execution.plan.created") {
+    for (const definition of event.payload.plan.steps) {
+      if (!steps.has(definition.step_id)) {
+        steps.set(definition.step_id, {
+          ...definition, state: "pending", outcome: null, conclusion: null,
+          progress_message: null, progress_percent: null, key_facts: [],
+          source_tags: [], gaps: [], executor_ids: [], duration_ms: null
+        });
+      }
+    }
+  } else if (event.event_type.startsWith("execution.step.")) {
+    steps.set(event.payload.step.step_id, event.payload.step); // 整体覆盖
+  } else if (["run.cancelled", "run.failed"].includes(event.event_type)) {
+    // 取消没有独立的 step.cancelled 事件；进程中断也可能只有 run.failed。
+    for (const [id, step] of steps) {
+      if (step.state === "running") {
+        steps.set(id, {...step,
+          state: event.event_type === "run.cancelled" ? "cancelled" : "failed",
+          progress_message: null, outcome: null,
+          conclusion: event.event_type === "run.cancelled" ? "本次运行已取消" : "本次运行已中断"
+        });
+      }
+    }
+  }
+}
+// 渲染：Array.from(steps.values()).sort((a, b) => a.order - b.order)
+```
+
+使用 `EventSource` 时为上述五种执行事件和四种 Run 终态分别注册 `addEventListener`，解析 `message.data` 后调用 reducer；终态必须 `close()`，防止完成后自动重连。业务报告仍从 result 接口读取。
+
+刷新页面、步骤状态丢失时，从 `after=0` 重放；保留了步骤状态时才使用对应的 `Last-Event-ID`/`after` 续传。这里的游标是数字 `sequence`（如 `42`），不是字符串 `event_id`。GET Run 的状态快照不新增步骤数组。所有事件共享一个递增序号，队列拥塞时完成/失败快照优先入队，出现序号缺口会从存储补齐后继续发送；刷新重建与实时显示使用相同快照。
+
+单 Agent 和多 Agent 使用同一计划，不把七个业务步骤伪装成七个 Agent。真实 AgentTeams 的读取、提交和审核里程碑来自授权快照读取及权威业务黑板；无法可靠映射的技术事件不用于步骤进展。不增加专门生成过程文案的 LLM 调用，不返回 `agent.output`、token delta、提示词或内部思维链。v1 兼容流保持原事件枚举，不包含 `execution.*`。BFF 原样转发这些事件，并继续应用鉴权、重放游标和 SSE 字节上限。
+
 ### 3.4 获取 Run 结果
 
 ```http
@@ -220,60 +365,60 @@ Accept: application/json
 X-Hw-Agentgateway-User-Id: user-001
 ```
 
-- 结果已生成：`200`，返回完整 `DueDiligenceResult`。
+- 结果已生成：`200`，新 Run 返回 `schema_version=prototype-v1` 的固定产品结果。
 - 仍在运行：`202`，返回 `{"status":"running|accepted", "run_id":"...", "links": {...}}`。
 - 运行失败：`500`，返回 `{"error": <ErrorRecord>}`。
 
 完整结果顶层字段固定如下：
 
 ```text
-meta, subject, decision, risk_summary, coverage, sections, findings, evidence,
-agent_results, report_structure, context_snapshot, execution_cost,
-comparison_metadata, agent_trace, collaboration, evaluation,
-skill_evolution, report_markdown, errors
+schema_version, meta, subject, summary, report, risk_findings, evidence, report_markdown
 ```
 
-主要结果字段说明：
+这是 breaking 字段变更。新运行不再公开旧 `decision`、`coverage`、`sections`、`findings`、`agent_results`、成本、协作和评测字段；这些内容按版本保存在内部运行产物中。升级前没有 `schema_version` 的历史 Run 仍按原格式只读返回，不重新生成或补字段。
+
+固定字段说明：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `meta` | object | request/run 标识、状态、模式、时间、模型、规则和 Skill 版本 |
-| `subject` | object | 已解析主体（名称、统一社会信用代码、地区、来源、解析时间） |
-| `decision` | object | `band`（`pass`/`manual_review`/`reject`）、分数、置信度、规则命中和报告日期 |
-| `risk_summary` | object | admission/attention/non-risk 数量、总分和重点 Finding ID |
-| `coverage` | object | 采集覆盖率、各来源状态计数和 `items` |
-| `sections` | array | 8 个报告模块的状态、覆盖率、Finding/Evidence 引用及 `data` |
-| `findings` / `evidence` | array | 结构化风险发现与可审计证据；引用通过 ID 关联 |
-| `agent_results` / `agent_trace` | array | Agent 输出与执行轨迹摘要，不含思维链 |
-| `report_structure` | object | 固定 8 个模块、48 个标准子模块的目录版本 |
-| `context_snapshot` | object/null | 冻结事实快照摘要及共享采集成本 |
-| `execution_cost` | object | `shared_acquisition_cost` 与 `investigation_cost` 两层成本 |
-| `comparison_metadata` | object/null | formal/配对比较所需的拓扑、Prompt/目录/规则版本与哈希 |
-| `collaboration` / `evaluation` | object | Agent 协作计数与评测指标 |
-| `skill_evolution` | object | 未反馈时为 `not_proposed`；旧入口反馈为 `rejected/use_feedback_api`。新候选是第 8 节的独立资源 |
+| `schema_version` | string | 固定为 `prototype-v1` |
+| `meta` | object | request/run 标识、状态、模式、生成时间、报告日期、报告版本和事实 Mock 标记 |
+| `subject` | object | `subject_id`、企业名称和统一社会信用代码 |
+| `summary` | object | `risk_count`、`ai_suggestion`（`proceed\|manual_review\|stop`）及原因 |
+| `report` | object | 业务申报方案和 §1–§7 的八个固定键 |
+| `risk_findings` | array | 由已审核风险事实和核查结论归纳的唯一风险卡片列表 |
+| `evidence` | array | 本结果实际引用的精简证据及派生来源闭包 |
 | `report_markdown` | string | 面向用户的 Markdown 报告 |
-| `errors` | array | 运行期间的结构化错误/数据缺口 |
 
-成功返回示例（为便于阅读只展开代表性数组项；字段名和枚举值与实际响应一致）：
+`report` 恰好包含 `business_plan`、`company_profile`、`ownership`、`business_analysis`、`financial_analysis`、`bank_flow_analysis`、`external_verification`、`risk_points`。不返回 §8、§9 或“补调与资料”。
+
+除 `risk_points` 外，每个模块直接返回固定业务字段，并统一包含 `status`、`analysis`、`evidence_ids`、`missing_fields`。`missing_fields` 元素为 `{field,reason,message}`。未知数值为 `null`，未知集合为 `[]`；它们不等于 0 或“已核验无记录”。已成功核验为空的集合保持 `[]` 且不为该字段生成缺口；能力不存在、来源失败、分页截断或期间不足分别使用 `capability_absent`、`source_error`、`pagination_truncated`、`missing_period`。金额统一为人民币元，期限为月，比例使用 0–100（例如 `38` 表示 38%）。
+
+`report.risk_points.finding_ids` 与 `risk_findings[].id` 同序，`summary.risk_count` 等于卡片数量。每张卡片固定返回 `risk_fact`、真实证据标签、核查项标签和可选的一句模拟案例。模拟案例以“模拟案例：”开头并设置 `historical_case_is_mock=true`，不会进入证据或全局 `meta.is_mock`。
+
+裁剪示例：
 
 ```json
 {
-  "meta": {"request_id": "req-01JINDIAO", "run_id": "run-01JINDIAO", "status": "completed", "mode": "multi", "started_at": "2026-09-06T05:40:08.265456Z", "completed_at": "2026-09-06T05:40:08.279129Z", "duration_ms": 14, "scenario_snapshot_id": "normal-enterprise:v1.0.0:<sha256>", "is_mock": true, "degraded": false, "model_name": "deterministic-mock", "rule_version": "v1", "skill_versions": {"evidence-backed-due-diligence": "1.0.0"}},
-  "subject": {"subject_id": "mock:normal-enterprise", "company_name": "金调绿洲科技有限公司", "unified_social_credit_code": "91110108MA01JD001A", "region": "北京", "registration_status": "存续", "source": "mock", "resolved_at": "2026-09-06T05:40:08.267396Z"},
-  "decision": {"band": "pass", "score": 0, "confidence": 1.0, "rule_version": "v1", "rule_hits": [], "major_risk_finding_ids": [], "pending_review_items": [], "as_of_date": "2026-08-31"},
-  "risk_summary": {"admission_count": 0, "attention_count": 0, "non_risk_count": 4, "total_score": 0, "top_finding_ids": []},
-  "coverage": {"total_items": 4, "completed_items": 4, "ratio": 1.0, "status_counts": {"verified_records": 4, "verified_empty": 0, "capability_absent": 0, "source_error": 0, "degraded_mock": 0}, "items": []},
-  "sections": [], "findings": [], "evidence": [], "agent_results": [],
-  "report_structure": {"catalog_version": "report-catalog-v1", "module_count": 8, "submodule_count": 48, "modules": []},
-  "context_snapshot": null,
-  "execution_cost": {"shared_acquisition_cost": {"llm_requests": 0, "successful_llm_requests": 0, "provider_usage_requests": 0, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "tool_calls": 0, "mcp_calls": 0, "schema_retries": 0, "repair_rounds": 0, "wall_time_ms": 0}, "investigation_cost": {"llm_requests": 0, "successful_llm_requests": 0, "provider_usage_requests": 0, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "tool_calls": 0, "mcp_calls": 0, "schema_retries": 0, "repair_rounds": 0, "wall_time_ms": 0}},
-  "comparison_metadata": null, "agent_trace": [], "collaboration": {"agent_count": 0, "task_count": 0, "parallel_task_count": 0, "conflicts_detected": 0, "repairs_requested": 0, "repairs_completed": 0},
-  "evaluation": {"mode": "multi", "success": true, "metrics": {}}, "skill_evolution": {"status": "not_proposed", "active_version": "1.1.0", "candidate_version": null, "change_summary": null},
-  "report_markdown": "# 企业信用与风控尽调报告\n...", "errors": []
+  "schema_version": "prototype-v1",
+  "meta": {"request_id": "req-01JINDIAO", "run_id": "run-01JINDIAO", "status": "partial", "mode": "multi", "generated_at": "2026-09-07T06:00:00Z", "report_as_of": "2026-08-31", "report_version": "v1", "is_mock": false},
+  "subject": {"subject_id": "tyc:example", "company_name": "示例企业有限公司", "unified_social_credit_code": "91110000EXAMPLE001"},
+  "summary": {"risk_count": 1, "ai_suggestion": "manual_review", "ai_suggestion_reason": "存在已审核风险且部分关键资料不足"},
+  "report": {
+    "business_plan": {"status": "partial", "application_amount": 50000000, "application_term_months": 12, "missing_fields": [{"field": "suggested_interest_rate", "reason": "not_provided", "message": "未提供定价依据"}]},
+    "company_profile": {"status": "complete", "company_name": "示例企业有限公司", "missing_fields": []},
+    "ownership": {"status": "partial"}, "business_analysis": {"status": "partial"},
+    "financial_analysis": {"status": "partial"}, "bank_flow_analysis": {"status": "unavailable"},
+    "external_verification": {"status": "partial"},
+    "risk_points": {"finding_ids": ["risk-001"]}
+  },
+  "risk_findings": [{"id": "risk-001", "title": "存在待关注事项", "source_kind": "mixed", "check_items": [{"id": "material-execution-risk", "label": "重大执行风险"}], "risk_fact": "存在一项已审核的执行风险事实。", "evidence_tags": [{"evidence_id": "ev-001", "label": "天眼查·被执行明细"}], "historical_case": "模拟案例：某企业因执行事项导致经营账户受限。", "historical_case_is_mock": true}],
+  "evidence": [{"id": "ev-001", "source_type": "tianyancha", "source_label": "天眼查·被执行明细", "source_tool": "get_execution_info", "summary": "查询取得一项执行记录", "source_ref": "mcp://get_execution_info/record-1", "data_as_of": "2026-08-31", "queried_at": "2026-09-07T05:50:00Z", "supports_fields": [], "derived_from": [], "is_mock": false}],
+  "report_markdown": "# 示例企业有限公司 尽调报告\n..."
 }
 ```
 
-以上为字段裁剪示例；实际 `sections`、`findings`、`evidence`、`modules` 等数组会按企业和数据源填充。`report_structure.module_count` 固定为 8，`submodule_count` 固定为 48。
+完整机器可读样例见 [`samples/product-result-full-input.json`](samples/product-result-full-input.json) 和 [`samples/product-result-missing-input.json`](samples/product-result-missing-input.json)。完整输入样例通过 v1/内部模型提供流水等扩展材料，不能把其中的嵌套输入直接用于新版 v2 表单；两者的结果仍遵循同一 `ProductResult` 契约。在仓库根目录运行 `.venv/bin/python scripts/generate_product_result_samples.py` 可重新生成；字段定义以 OpenAPI 的 `ProductResult` 及其引用 Schema 为准。
 
 ### 3.5 取消 Run
 
@@ -313,15 +458,15 @@ Accept: application/json
 请求示例：
 
 ```json
-{"enterprise": {"company_name": "金调绿洲科技有限公司"}, "report_as_of": "2026-08-31", "language": "zh-CN", "scenario_id": "normal-enterprise"}
+{"enterprise": {"company_name": "乐视网信息技术（北京）股份有限公司"}, "report_as_of": "2026-08-31", "language": "zh-CN", "scenario_id": "normal-enterprise"}
 ```
 
-`mode` 可选值为 `single`、`multi`，默认 `multi`。JSON 请求会等待并返回第 3.4 节的完整 `DueDiligenceResult`（状态 `200`）；设置 `Accept: text/event-stream` 时返回 SSE，最后一条 `report.completed` 的 `payload.result` 与 JSON 结果契约等价。非法 `mode` 或不支持的 `Accept` 会在创建运行前返回 `422` 或 `406`。
+`mode` 可选值为 `single`、`multi`，默认 `multi`。JSON 请求会等待并返回第 3.4 节的 `prototype-v1` 结果（状态 `200`）；设置 `Accept: text/event-stream` 时返回 SSE，最后一条 `report.completed` 的 `payload.result` 与 JSON 结果契约等价。非法 `mode` 或不支持的 `Accept` 会在创建运行前返回 `422` 或 `406`。
 
-JSON 返回示例（完整字段定义见第 3.4 节）：
+JSON 返回字段路径裁剪示意（实际响应会包含第 3.4 节定义的全部固定子字段）：
 
 ```json
-{"meta": {"status": "completed", "mode": "single"}, "subject": {"subject_id": "mock:normal-enterprise", "company_name": "金调绿洲科技有限公司"}, "decision": {"band": "pass", "score": 0}, "risk_summary": {"total_score": 0}, "sections": [], "findings": [], "evidence": [], "report_markdown": "# 企业信用与风控尽调报告", "errors": []}
+{"schema_version":"prototype-v1","meta":{"status":"partial","mode":"single"},"subject":{"subject_id":"mock:normal-enterprise","company_name":"乐视网信息技术（北京）股份有限公司"},"summary":{"risk_count":0,"ai_suggestion":"manual_review"},"report":{"business_plan":{},"company_profile":{},"ownership":{},"business_analysis":{},"financial_analysis":{},"bank_flow_analysis":{},"external_verification":{},"risk_points":{"finding_ids":[]}},"risk_findings":[],"evidence":[],"report_markdown":"# 乐视网信息技术（北京）股份有限公司 尽调报告"}
 ```
 
 ## 5. AgentArts 适配接口
@@ -337,7 +482,7 @@ Accept: application/json
 ```
 
 ```json
-{"enterprise": {"company_name": "金调绿洲科技有限公司"}, "scenario_id": "normal-enterprise", "mode": "multi"}
+{"customerName": "乐视网信息技术（北京）股份有限公司", "scenario_id": "normal-enterprise", "mode": "multi"}
 ```
 
 返回示例：
@@ -375,9 +520,10 @@ GET /ping
 | `406` | — | `Accept` 同时不包含 JSON 或 SSE（仅 v1） |
 | `422` | `request_invalid`、`evidence_review_failed`、`scenario_integrity`、`evaluation_integrity` | 请求/契约/场景校验失败；FastAPI 参数校验错误可能使用 `{"detail": [...]}` |
 | `500` | `agent_execution_failed`、`risk_rule_failed`、`report_generation_failed`、`internal_error` | 内部执行失败；v2 已接受的 Run 通过状态查询和 `run.failed` 事件披露 |
+| `504` | `agent_execution_timeout` | Agent 执行超时，`details` 提供执行者、阶段与配置的秒数；`recoverable=true` 不意味着自动重试。仅新版本捕获的超时使用此码，旧 `internal_error` 记录不追溯改写 |
 | `503` | `source_unavailable` | 外部数据源暂不可用 |
 
-来源缺口、`source_error`、`capability_absent` 或冲突未解时，系统会在结果中标记 coverage/`errors`，必要时将 Run 标记为 `partial`；不得将其解释为“无风险”。
+来源缺口、`source_error`、`capability_absent` 或冲突未解时，系统会在对应模块的 `status` 和 `missing_fields` 中标记，必要时将 Run 标记为 `partial`；不得将其解释为“无风险”。
 
 ## 7. 调用流程示例
 
@@ -388,7 +534,7 @@ created=$(curl -sS -X POST http://localhost:8080/api/v2/due-diligence/runs \
   -H 'Accept: application/json' \
   -H 'Idempotency-Key: demo-001' \
   -H 'X-Hw-Agentgateway-User-Id: user-001' \
-  -d '{"enterprise":{"company_name":"金调绿洲科技有限公司"},"mode":"multi"}')
+  -d '{"customerName":"乐视网信息技术（北京）股份有限公司","mode":"multi"}')
 
 # 2. 使用返回的 links.events.href 订阅；断线后用最后 sequence 作为 after 重连
 curl -N -H 'Accept: text/event-stream' \
@@ -415,7 +561,7 @@ curl -sS -H 'Accept: application/json' \
 
 Run 首次 accepted 持久化 `reporting_policy`，包含 `version/revision/policy/policy_sha256`；幂等重试、排队中和在途任务保持该绑定。独立 service 入口冻结一次；paired 两臂共享同一绑定。应用仅影响之后新受理的 Run。
 
-结果 `meta` 披露 `skill_versions["feedback-evolved-reporting"]`、`reporting_policy_sha256`、`report_renderer_version`、`report_replay_available` 和 `report_replay_reason`。策略基线为 `1.1.0`；候选为按 evolution ID 确定的唯一 `1.1.N`，N 不是连续发布计数。源 Run 不因反馈重新执行或重开 SSE。
+报告策略版本、渲染器版本和 replay 可用性保存在内部回放产物，不扩展 `prototype-v1.meta`。策略基线为 `1.1.0`；候选为按 evolution ID 确定的唯一 `1.1.N`，N 不是连续发布计数。源 Run 不因反馈重新执行或重开 SSE。
 
 ### 8.2 提交反馈
 
@@ -478,6 +624,6 @@ uv run python -m jindiao.reporting.demo_cli --demo --artifact-root "$DEMO_ROOT" 
 
 10 秒是每案例结束时检查的协作式预算，不是硬中断 SLA。failed 评测同键重试返回原 failed 资源及其 413/500，GET 可读取原因；文件系统失败无法保证候选落盘。
 
-单快照上限为实际序列化 4 MiB。快照生成、脱敏重现、大小或专属写入失败仅令 `report_replay_available=false`、`report_replay_reason=snapshot_unavailable`，主报告仍交付；此源报告反馈返回 409。主 result/manifest/RunRepository 保存失败按 Run 失败处理，不发布 report.completed，不返回未落盘的缓存成功结果。最终 replay/result/report/metrics 纳入同次 manifest；JSON、SSE、文件与仓库使用相同最终元数据。
+单快照上限为实际序列化 4 MiB。快照生成、脱敏重现、大小或专属写入失败不扩展公共结果，主报告仍可交付；此源报告反馈返回 409。主 result/manifest/RunRepository 保存失败按 Run 失败处理，不发布 report.completed，不返回未落盘的缓存成功结果。最终 replay/result/report/metrics 纳入同次 manifest；JSON、SSE、文件与仓库使用相同已保存结果。
 
-v1、v2 和 `/invocations` 的旧 `skill_feedback` 已标记 deprecated，统一返回 `skill_evolution.status=rejected`、`reason_codes=["use_feedback_api"]`，不再解析旧 URI、生成格式计数候选或修改主报告。兼容 SSE 仍可携带 `skill_evolution.proposed` 事件，但其 payload 明确为 rejected，不表示产生新候选。旧 Python coordinator 同样明确拒绝。
+v1 的旧 `skill_feedback` 保留 deprecated 兼容行为，不再解析旧 URI、生成格式计数候选或修改主报告。兼容 SSE 仍可携带 `skill_evolution.proposed` 事件，但其 payload 明确为 `rejected/use_feedback_api`，不表示产生新候选。v2 和 `/invocations` 的扁平请求已删除该字段，携带时直接返回 `422`；业务反馈请使用上面的独立反馈接口。

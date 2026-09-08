@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections.abc import Mapping
 from datetime import date, datetime
 from enum import StrEnum
@@ -42,6 +43,12 @@ class NormalizedEvidenceBatch(ContractModel):
     evidence: tuple[Evidence, ...]
     record_count: int = Field(ge=0)
     pagination: PaginationMetadata | None = None
+    available_years: tuple[int, ...] = ()
+    selected_years: tuple[int, ...] = ()
+    links: tuple[str, ...] = ()
+    statement_scope: str | None = None
+    amount_multiplier: int = Field(default=1, ge=1)
+    partial_reasons: tuple[str, ...] = ()
 
 
 _DOMAIN_CLAIMS = {
@@ -82,9 +89,10 @@ _FIELD_SIGNALS: dict[EvidenceDomain, tuple[tuple[str, tuple[str, ...]], ...]] = 
 def _extract_records(value: object) -> list[Mapping[str, object]] | None:
     if not isinstance(value, Mapping):
         return None
-    items = value.get("items")
-    if isinstance(items, list):
-        return [item for item in items if isinstance(item, Mapping)]
+    for collection in ("items", "rows", "records", "list"):
+        items = value.get(collection)
+        if isinstance(items, list):
+            return [item for item in items if isinstance(item, Mapping)]
     for key in ("result", "data"):
         if key in value:
             nested = value.get(key)
@@ -92,6 +100,175 @@ def _extract_records(value: object) -> list[Mapping[str, object]] | None:
             if found is not None:
                 return found
     return [value]
+
+
+def _pagination_only_record(record: Mapping[str, object]) -> bool:
+    keys = {str(key).replace("_", "").casefold() for key in record}
+    return keys <= {
+        "page",
+        "pagenum",
+        "pageno",
+        "pagenumber",
+        "currentpage",
+        "pagesize",
+        "size",
+        "limit",
+        "total",
+        "totalcount",
+        "count",
+        "hasmore",
+        "hasnext",
+        "code",
+        "status",
+        "message",
+    }
+
+
+def _markdown_records(text: str) -> list[dict[str, object]]:
+    def cells(line: str) -> list[str]:
+        if not line.startswith("|"):
+            return []
+        inner = line[1:]
+        if inner.endswith("|") and not inner.endswith(r"\|"):
+            inner = inner[:-1]
+        return [cell.strip().replace(r"\|", "|") for cell in re.split(r"(?<!\\)\|", inner)]
+
+    rows = [cells(line.strip()) for line in text.splitlines()]
+
+    def header_at(index: int) -> bool:
+        return (
+            index + 1 < len(rows)
+            and bool(rows[index])
+            and all(rows[index])
+            and len(set(rows[index])) == len(rows[index])
+            and len(rows[index]) == len(rows[index + 1])
+            and all(re.fullmatch(r":?-{3,}:?", cell) for cell in rows[index + 1])
+        )
+
+    records: list[dict[str, object]] = []
+    index = 0
+    while index + 1 < len(rows):
+        if not header_at(index):
+            index += 1
+            continue
+        headers = rows[index]
+        index += 2
+        while index < len(rows):
+            if header_at(index) or len(rows[index]) != len(headers):
+                break
+            records.append(dict(zip(headers, rows[index], strict=True)))
+            index += 1
+    return records
+
+
+def _walk(value: object) -> list[object]:
+    values = [value]
+    if isinstance(value, Mapping):
+        for child in value.values():
+            values.extend(_walk(child))
+    elif isinstance(value, list | tuple):
+        for child in value:
+            values.extend(_walk(child))
+    return values
+
+
+def _available_years(value: object, texts: tuple[str, ...]) -> tuple[int, ...]:
+    years: set[int] = set()
+    for current in _walk(value):
+        if isinstance(current, Mapping):
+            for key, child in current.items():
+                normalized = str(key).replace("_", "").casefold()
+                if normalized in {"availableyears", "yearlist", "years"}:
+                    for item in _walk(child):
+                        if isinstance(item, int) and 1900 <= item <= 2100:
+                            years.add(item)
+                        elif isinstance(item, str):
+                            years.update(int(year) for year in re.findall(r"(?:19|20)\d{2}", item))
+    for text in texts:
+        if any(marker in text.casefold() for marker in ("available", "可用年份", "年度目录")):
+            years.update(int(year) for year in re.findall(r"(?:19|20)\d{2}", text))
+    return tuple(sorted(years, reverse=True))
+
+
+def _links(value: object, texts: tuple[str, ...]) -> tuple[str, ...]:
+    urls: set[str] = set()
+    for item in (*_walk(value), *texts):
+        if isinstance(item, str):
+            urls.update(re.findall(r"https?://[^\s)\]}>\"']+", item))
+    return tuple(sorted(urls))
+
+
+def _scope(value: object, texts: tuple[str, ...]) -> str | None:
+    if isinstance(value, Mapping):
+        for key, child in value.items():
+            if (
+                str(key).replace("_", "").casefold()
+                in {
+                    "scope",
+                    "statementscope",
+                    "consolidationscope",
+                    "reporttype",
+                }
+                and isinstance(child, str)
+                and child.strip()
+            ):
+                return child.strip()
+    combined = " ".join(texts)
+    if "合并" in combined:
+        return "consolidated"
+    if "母公司" in combined or "单体" in combined:
+        return "standalone"
+    return None
+
+
+def _amount_multiplier(value: object, texts: tuple[str, ...]) -> int:
+    combined = json.dumps(value, ensure_ascii=False) + " " + " ".join(texts)
+    match = re.search(
+        r"(?:单位|unit)\s*[:\N{FULLWIDTH COLON}=]?\s*(亿元|万元|千元|元|CNY)",
+        combined,
+        re.I,
+    )
+    if match is None:
+        return 1
+    return {"亿元": 100_000_000, "万元": 10_000, "千元": 1_000}.get(match.group(1), 1)
+
+
+def _selected_years(
+    years: tuple[int, ...], *, as_of_date: date | None, lookback: int = 3
+) -> tuple[int, ...]:
+    cutoff = as_of_date.year if as_of_date is not None else 2100
+    return tuple(year for year in years if year <= cutoff)[:lookback]
+
+
+def _link_only_payload(value: object) -> bool:
+    if not isinstance(value, Mapping) or not value:
+        return False
+    allowed = {
+        "url",
+        "link",
+        "snapshoturl",
+        "downloadurl",
+        "title",
+        "name",
+        "status",
+        "message",
+    }
+    return all(str(key).replace("_", "").casefold() in allowed for key in value)
+
+
+def _year_directory_payload(value: object) -> bool:
+    if not isinstance(value, Mapping):
+        return False
+    keys = {str(key).replace("_", "").casefold() for key in value}
+    return bool(keys & {"availableyears", "yearlist", "years"}) and keys <= {
+        "availableyears",
+        "yearlist",
+        "years",
+        "links",
+        "url",
+        "message",
+        "status",
+    }
 
 
 def _first(value: Mapping[str, object], *names: str) -> object | None:
@@ -185,13 +362,66 @@ class TianyanchaEvidenceNormalizer:
         raw_snapshot_ref: str,
         source_parameters_hash: str | None = None,
     ) -> NormalizedEvidenceBatch:
+        texts = tuple(text for text in result.text if text.strip())
         records = _extract_records(result.structured_content)
         pagination = _extract_pagination(result.structured_content)
+        years = _available_years(result.structured_content, texts)
+        links = _links(result.structured_content, texts)
+        scope = _scope(result.structured_content, texts)
+        multiplier = _amount_multiplier(result.structured_content, texts)
         values: list[object]
-        if records is None:
-            values = [text for text in result.text if text.strip()]
+        markdown_records = [record for text in texts for record in _markdown_records(text)]
+        # Count tables describe pagination, not a financial or risk fact. Keep
+        # metadata-only evidence when no detail was supplied, without counting it.
+        counts: list[int] = []
+        detail_records: list[dict[str, object]] = []
+        for markdown_record in markdown_records:
+            count = (
+                _as_int(markdown_record.get("值"))
+                if set(markdown_record) == {"字段", "值"} and markdown_record.get("字段") == "总数"
+                else None
+            )
+            if count is None:
+                detail_records.append(markdown_record)
+            else:
+                counts.append(count)
+        markdown_total = max(counts) if counts else None
+        if markdown_total is not None:
+            if pagination is None:
+                pagination = PaginationMetadata(total_count=markdown_total)
+            elif pagination.total_count is None:
+                pagination = pagination.model_copy(update={"total_count": markdown_total})
+        structured_details = [
+            record
+            for record in records or []
+            if not _pagination_only_record(record)
+            and not _year_directory_payload(record)
+            and not (_links(record, ()) and _link_only_payload(record))
+        ]
+        count_only = bool(counts) and not detail_records and not structured_details
+        directory_only = (
+            bool(years)
+            and not markdown_records
+            and (records is None or (len(records) == 1 and _year_directory_payload(records[0])))
+        )
+        link_only = (
+            bool(links)
+            and not markdown_records
+            and not directory_only
+            and (not records or (len(records) == 1 and _link_only_payload(records[0])))
+        )
+        if markdown_records:
+            values = list[object](detail_records or structured_details)
+        elif records is None:
+            values = list(texts)
         else:
             values = list(records)
+        if directory_only:
+            values = [{"available_years": list(years), "links": list(links)}]
+        elif link_only:
+            values = [{"links": list(links)}]
+        if count_only:
+            values = [{"total_count": markdown_total}]
 
         evidence_items: list[Evidence] = []
         for value in values:
@@ -233,11 +463,34 @@ class TianyanchaEvidenceNormalizer:
                     }
                 )
             )
+        actual_record_count = (
+            0 if directory_only or link_only or count_only else len(evidence_items)
+        )
+        selected_years = _selected_years(years, as_of_date=as_of_date)
+        financial_tool = any(
+            marker in tool_name
+            for marker in ("financial", "income_statement", "balance_sheet", "cash_flow")
+        )
+        partial: list[str] = []
+        if directory_only:
+            partial.append("year_directory_only")
+        if link_only:
+            partial.append("link_only")
+        if count_only and markdown_total:
+            partial.append("count_only")
+        if financial_tool and years and len(selected_years) < 3:
+            partial.append("missing_period")
         return NormalizedEvidenceBatch(
             domain=domain,
             evidence=tuple(evidence_items),
-            record_count=len(evidence_items),
+            record_count=actual_record_count,
             pagination=pagination,
+            available_years=years,
+            selected_years=selected_years,
+            links=links,
+            statement_scope=scope,
+            amount_multiplier=multiplier,
+            partial_reasons=tuple(partial),
         )
 
 

@@ -4,14 +4,17 @@ services:
       context: .
     image: jindiao:local
     ports:
-      - "8080:8080"
+      - "${JINDIAO_BIND_HOST:-127.0.0.1}:${JINDIAO_PORT:-8080}:8080"
     env_file:
-      - path: .env
+      - path: ${JINDIAO_ENV_FILE:-.env}
         required: false
     environment:
       JINDIAO_MOCK_DATA_ROOT: /app/mock_data
       JINDIAO_ARTIFACT_ROOT: /app/artifacts
       MODEL_NAME: ${MODEL_NAME:-deterministic-mock}
     volumes:
-      - ./artifacts:/app/artifacts
+      - ${JINDIAO_ARTIFACT_MOUNT:-./artifacts}:/app/artifacts
     restart: unless-stopped
+
+volumes:
+  local-artifacts:

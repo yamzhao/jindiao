@@ -50,6 +50,11 @@ class AgentExecutionError(JindiaoError):
     recoverable = True
 
 
+class AgentTimeoutError(AgentExecutionError):
+    code = ErrorCode.AGENT_EXECUTION_TIMEOUT
+    http_status = 504
+
+
 class EvidenceReviewError(JindiaoError):
     category = ErrorCategory.REVIEW
     code = ErrorCode.EVIDENCE_REVIEW_FAILED
@@ -122,6 +127,7 @@ def http_status_for_error(error: Exception) -> int:
 
 __all__ = [
     "AgentExecutionError",
+    "AgentTimeoutError",
     "DetachedUnavailableError",
     "EntityAmbiguousError",
     "EntityNotFoundError",

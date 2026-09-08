@@ -12,6 +12,7 @@ from jindiao.contracts.acquisition import EnterpriseContextSnapshot
 from jindiao.contracts.evidence import SourceStatus
 from jindiao.contracts.execution import ExecutionCost, LayeredExecutionCost
 from jindiao.contracts.investigation import CheckResult
+from jindiao.contracts.report_inputs import ReviewedReportInputs
 from jindiao.contracts.reporting import ReportStructure, ReportViewModel
 from jindiao.contracts.results import (
     AgentInvestigationResult,
@@ -53,6 +54,60 @@ class ResultAssembler:
         self._quality = quality_calculator or QualityCalculator()
         self._reports = report_assembler or ReportAssembler()
         self._markdown = markdown_renderer or MarkdownReportRenderer()
+
+    def prepare(
+        self,
+        *,
+        context: RunContext,
+        outcome: OrchestrationOutcome,
+        snapshot: EnterpriseContextSnapshot | None = None,
+        agent_results: tuple[AgentInvestigationResult, ...] = (),
+    ) -> ReviewedReportInputs:
+        """Validate and score internal facts without constructing a legacy result."""
+        if not outcome.review_completed:
+            raise ValueError("results cannot be assembled before review completes")
+        checks = (
+            validate_accepted_investigation_results(
+                snapshot=snapshot,
+                check_catalog=CHECK_CATALOG,
+                agent_results=agent_results,
+            )
+            if snapshot is not None
+            else ()
+        )
+        findings = (
+            self._rule_engine.findings_from_check_results(checks)
+            if snapshot is not None
+            else outcome.findings
+        )
+        evidence = snapshot.evidence if snapshot is not None else outcome.evidence
+        quality = self._quality.assess(
+            coverage=outcome.coverage,
+            findings=findings,
+            evidence=evidence,
+            review_issues=outcome.review_issues,
+            report_as_of=context.report_as_of,
+        )
+        decision = self._rule_engine.evaluate(
+            findings=findings,
+            evidence=evidence,
+            as_of_date=context.report_as_of,
+            confidence=quality.decision_confidence,
+            pending_review_items=quality.pending_review_items,
+        )
+        return ReviewedReportInputs(
+            decision=decision,
+            findings=findings,
+            evidence=evidence,
+            checks=checks,
+            coverage=outcome.coverage,
+            incomplete=bool(outcome.errors)
+            or any(
+                item.status in {SourceStatus.CAPABILITY_ABSENT, SourceStatus.SOURCE_ERROR}
+                for item in outcome.coverage.items
+            )
+            or any(item.status.value == "inconclusive" for item in checks),
+        )
 
     def assemble(
         self,

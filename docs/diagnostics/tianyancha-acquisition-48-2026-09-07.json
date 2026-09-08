@@ -1,0 +1,2475 @@
+{
+  "schema_version": 1,
+  "generated_on": "2026-09-07",
+  "audit_type": "offline_saved_result_and_public_documentation",
+  "total_items": 48,
+  "baseline": {
+    "result_path": "$PROJECT_ROOT/jindiao-result.json",
+    "sha256": "a62f0d99b8ec462f1116c57f9e9e4c2f139a249027bf11bd4de2a742ad5ec02c",
+    "run_id": "84e39c18b80c47d586a66157e49fac9a",
+    "company_name": "华为技术有限公司",
+    "subject_id": "tyc:24416401",
+    "started_at": "2026-09-07T02:59:01.914867Z",
+    "completed_at": "2026-09-07T03:01:18.463790Z",
+    "report_as_of": "2026-08-31",
+    "mode": "multi",
+    "is_mock": false,
+    "status": "partial",
+    "snapshot_id": "snapshot:c50a8867940abc84b9bc5875"
+  },
+  "original_status_counts": {
+    "verified_records": 38,
+    "verified_empty": 0,
+    "capability_absent": 2,
+    "source_error": 8,
+    "degraded_mock": 0
+  },
+  "original_not_requested_count": 0,
+  "official_sources": [
+    {
+      "url": "https://www.tianyancha.com/ai/developer-docs#data-modules",
+      "accessed_on": "2026-09-07",
+      "access_method": "direct_browser"
+    },
+    {
+      "url": "https://www.tianyancha.com/ai/tyc-ai-mcp-cli-tools.md",
+      "accessed_on": "2026-09-07",
+      "access_method": "direct_https",
+      "business_tool_count": 162
+    }
+  ],
+  "source_hashes": [
+    "a62f0d99b8ec462f1116c57f9e9e4c2f139a249027bf11bd4de2a742ad5ec02c  $PROJECT_ROOT/jindiao-result.json",
+    "84060dbda105338147d9a296927625721a2731ac94cd1a4b142029d292507f0e  config/tianyancha-capability-routes.json",
+    "c92f6f3ff6a415a0918d4601ec8bb3786a8c51c8793c42203050c0e77ff43163  src/jindiao/tianyancha/gateway.py",
+    "083e22d3cc1c309febf459930af688074d93cc004c77ba9cdba3038d2bc904cd  src/jindiao/tianyancha/normalizer.py",
+    "21c183ee60dc1c390fd586544857e72bd7e1721325a9b75e5568020bd5b001e0  src/jindiao/application/formal_pipeline.py",
+    "34673ff3362b480ea4b6c7d501c2a88314be99ab"
+  ],
+  "limitations": [
+    "官方静态目录不等于该企业/账号本次返回的能力清单；本次 manifest 和参数 schema 未保存。",
+    "错误工具、请求参数、逐次重试与供应商错误码缺失；null 表示未知，不表示0或未发生。",
+    "诊断结论是离线审计，不修改原始 coverage，不构成修复后覆盖率。",
+    "推荐名称均在已读取的公开目录中；能否用于该企业及具体参数须由实际发现接口确认。",
+    "仅公开工具文档发生网络访问；未发起模型/企业MCP查询、未读取账号权益或修改部署。",
+    "旧 Run dd93c40d37b74289bdb8d152d9ea6126 仅有21/20/7汇总；不将本次48项追溯成旧Run明细。"
+  ],
+  "candidates_missing_from_public_catalog": [
+    "get_company_staff",
+    "get_main_personnel",
+    "get_simple_deregistration",
+    "get_serious_illegal_info",
+    "get_business_abnormal_info",
+    "get_chattel_mortgage",
+    "get_equity_pledge",
+    "get_intellectual_property_pledge",
+    "get_news_info",
+    "get_legal_representative_investments",
+    "get_legal_representative_roles"
+  ],
+  "items": [
+    {
+      "index": 1,
+      "submodule_id": "registration",
+      "title": "工商登记信息",
+      "section_id": "company-profile",
+      "route_domain": "governance",
+      "coverage_domain": "governance",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_company_registration_info",
+        "get_registration_snapshot"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_company_registration_info",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-0ff1fe6cad64ec4720f41ff5",
+          "source_tool": "get_company_registration_info",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:2c3b33c9653a10c915539bc45f0f5fe17223596dd7ab8b7e98c0fc8d50b88554",
+          "raw_ref": "mcp://tianyancha/get_company_registration_info/mcp-576af6f6a748a96d55e81799#record=2c3b33c9653a10c9"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_company_registration_info",
+          "layer": "L1",
+          "module": "企业基础信息"
+        }
+      ],
+      "diagnostic_class": "data_present",
+      "priority": "P2",
+      "diagnosis": "已有登记字段；接口成功不代表全部字段已结构化。",
+      "next_validation": "按字段核验统一信用代码、登记状态与报告基准日。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 2,
+      "submodule_id": "shareholders",
+      "title": "股东信息",
+      "section_id": "company-profile",
+      "route_domain": "governance",
+      "coverage_domain": "governance",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_shareholder_info",
+        "get_share_structure",
+        "get_equity_ratio"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_shareholder_info",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-47ca96f20d9d02ad7b6c46fb",
+          "source_tool": "get_shareholder_info",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:88aa4ec5fa8c89a9a03398c9c76791f833bbada2d3671141b35e66c378087258",
+          "raw_ref": "mcp://tianyancha/get_shareholder_info/mcp-2f6212390759b189066db27e#record=88aa4ec5fa8c89a9"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_shareholder_info",
+          "layer": "L2",
+          "module": "企业基础信息"
+        }
+      ],
+      "diagnostic_class": "data_present",
+      "priority": "P2",
+      "diagnosis": "返回股东明细；当前 record_count=1 是文本证据块数，并非统一业务行计数。",
+      "next_validation": "解析股东、比例、出资和日期，区分公示/年报/当前口径。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 3,
+      "submodule_id": "executives",
+      "title": "高管任职",
+      "section_id": "company-profile",
+      "route_domain": "governance",
+      "coverage_domain": "governance",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_company_staff",
+        "get_key_personnel",
+        "get_main_personnel",
+        "get_registration_snapshot"
+      ],
+      "candidates_missing_from_public_catalog": [
+        "get_company_staff",
+        "get_main_personnel"
+      ],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_registration_snapshot",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-9380d6807e0e4e8c4e7111e8",
+          "source_tool": "get_registration_snapshot",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:f34a72acbe65208b9c9cba5cbd246ad8d59f781c327e9d41eb140f411161064a",
+          "raw_ref": "mcp://tianyancha/get_registration_snapshot/mcp-b6021de4bb31404280e1a29c#record=f34a72acbe65208b"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_key_personnel",
+          "layer": "L2",
+          "module": "企业基础信息"
+        }
+      ],
+      "diagnostic_class": "semantic_mismatch",
+      "priority": "P0",
+      "diagnosis": "实际工具为登记快照，只返回 snapshotUrl，没有高管名单；被标 complete。",
+      "next_validation": "使用主要人员工具；若依赖快照，需先解析并验证姓名职务，不能凭图片链接算完成。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 4,
+      "submodule_id": "external_investments",
+      "title": "对外投资",
+      "section_id": "company-profile",
+      "route_domain": "governance",
+      "coverage_domain": "governance",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_external_investments",
+        "get_controlled_companies"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_external_investments",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-3ffa5d01c2218f7d07996ae5",
+          "source_tool": "get_external_investments",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:31a097c9dc9d0e8fb462079c0f98036057095a156300d567fff7d55a35c41847",
+          "raw_ref": "mcp://tianyancha/get_external_investments/mcp-5128dbbb3cdbfc576c0bff23#record=31a097c9dc9d0e8f"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_external_investments",
+          "layer": "L2",
+          "module": "企业基础信息"
+        }
+      ],
+      "diagnostic_class": "pagination_incomplete",
+      "priority": "P1",
+      "diagnosis": "文本说明总数51、返回20，coverage 却是 complete。",
+      "next_validation": "解析分页元数据；预算内续页，未取完标 partial。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 5,
+      "submodule_id": "branches",
+      "title": "分支机构",
+      "section_id": "company-profile",
+      "route_domain": "governance",
+      "coverage_domain": "governance",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_branches"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_branches",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-742e09eadab3411a9961641c",
+          "source_tool": "get_branches",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:a3eab4f2f27664def8c770295c7a8d955ca64f01a0cc338f3f6c598a0b9bb845",
+          "raw_ref": "mcp://tianyancha/get_branches/mcp-c04fb523971c6bb63ea7e3fe#record=a3eab4f2f27664de"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_branches",
+          "layer": "L2",
+          "module": "企业基础信息"
+        }
+      ],
+      "diagnostic_class": "pagination_incomplete",
+      "priority": "P1",
+      "diagnosis": "文本说明总数31、返回20，却标 complete。",
+      "next_validation": "解析分页并验证负责人、状态；保留未取完的缺口。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 6,
+      "submodule_id": "registration_changes",
+      "title": "工商变更",
+      "section_id": "company-profile",
+      "route_domain": "governance",
+      "coverage_domain": "governance",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_change_records",
+        "get_registration_snapshot"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_change_records",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-9b3d165c04af2c0070ed39fc",
+          "source_tool": "get_change_records",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:e40476e1a91dc0641a9a7c7f20603cad70fb42232e95cd4e91304e556dda798f",
+          "raw_ref": "mcp://tianyancha/get_change_records/mcp-81e9b812830cf9eb8abd5ddb#record=e40476e1a91dc064"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_change_records",
+          "layer": "L2",
+          "module": "企业基础信息"
+        }
+      ],
+      "diagnostic_class": "pagination_incomplete",
+      "priority": "P1",
+      "diagnosis": "文本说明总数156、返回20，却标 complete。",
+      "next_validation": "分页及时间窗筛选；不得凭第一页断言指定期间无异常变更。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 7,
+      "submodule_id": "consumption_restrictions",
+      "title": "限制高消费",
+      "section_id": "judicial-risk",
+      "route_domain": "judicial",
+      "coverage_domain": "judicial",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_risk_overview",
+        "get_risk_detail"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_risk_overview",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-27400536632a1024d8434c90",
+          "source_tool": "get_risk_overview",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:285d6dcd04eca4e61578eabd039050e434cffc3e321dda32cc610fe663ed4147",
+          "raw_ref": "mcp://tianyancha/get_risk_overview/mcp-fcd5515debfee536382ab8f5#record=285d6dcd04eca4e6"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_high_consumption_restriction",
+          "layer": "L2",
+          "module": "风险合规"
+        }
+      ],
+      "diagnostic_class": "summary_only",
+      "priority": "P0",
+      "diagnosis": "复用风险总览，未取得本主体限高明细；未出现该项不等于确认空结果。",
+      "next_validation": "使用限高专用工具，明确当前/历史与企业/个人主体。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 8,
+      "submodule_id": "dishonest_enforcement",
+      "title": "失信被执行",
+      "section_id": "judicial-risk",
+      "route_domain": "judicial",
+      "coverage_domain": "judicial",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_risk_overview",
+        "get_risk_detail",
+        "get_default_event_info"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_risk_overview",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-27400536632a1024d8434c90",
+          "source_tool": "get_risk_overview",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:285d6dcd04eca4e61578eabd039050e434cffc3e321dda32cc610fe663ed4147",
+          "raw_ref": "mcp://tianyancha/get_risk_overview/mcp-fcd5515debfee536382ab8f5#record=285d6dcd04eca4e6"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_dishonest_info",
+          "layer": "L2",
+          "module": "风险合规"
+        }
+      ],
+      "diagnostic_class": "summary_only",
+      "priority": "P0",
+      "diagnosis": "复用风险总览，不能作为本主体失信明细或已核验无失信。",
+      "next_validation": "使用失信专用工具，解析履行情况、日期与主体。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 9,
+      "submodule_id": "executions",
+      "title": "企业被执行",
+      "section_id": "judicial-risk",
+      "route_domain": "judicial",
+      "coverage_domain": "judicial",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_risk_overview",
+        "get_risk_detail",
+        "get_terminated_cases"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_risk_overview",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-27400536632a1024d8434c90",
+          "source_tool": "get_risk_overview",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:285d6dcd04eca4e61578eabd039050e434cffc3e321dda32cc610fe663ed4147",
+          "raw_ref": "mcp://tianyancha/get_risk_overview/mcp-fcd5515debfee536382ab8f5#record=285d6dcd04eca4e6"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_judgment_debtor_info",
+          "layer": "L2",
+          "module": "风险合规"
+        }
+      ],
+      "diagnostic_class": "summary_only",
+      "priority": "P0",
+      "diagnosis": "总览有历史被执行线索，当前被执行明细未下钻；不能混同当前与历史。",
+      "next_validation": "取专用执行明细，必要时另取历史工具并分别展示。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 10,
+      "submodule_id": "judicial_documents",
+      "title": "裁判文书",
+      "section_id": "judicial-risk",
+      "route_domain": "judicial",
+      "coverage_domain": "judicial",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_judicial_documents",
+        "get_judicial_case",
+        "get_lawsuit_detail"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_judicial_documents",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-5cc9f0bdd7aab03898b94a92",
+          "source_tool": "get_judicial_documents",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:b0e8fcd63fc2ea1e56983494b4efcf85751e231e2dd7ac4bd1e76ea6069e32f9",
+          "raw_ref": "mcp://tianyancha/get_judicial_documents/mcp-4a6b1326bd765e16222bf7b8#record=b0e8fcd63fc2ea1e"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_judicial_documents",
+          "layer": "L2",
+          "module": "风险合规"
+        }
+      ],
+      "diagnostic_class": "pagination_incomplete",
+      "priority": "P1",
+      "diagnosis": "文本总数439、返回20，complete 高估。",
+      "next_validation": "分页并核验案件身份、日期、重复案号及裁判结果。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 11,
+      "submodule_id": "hearing_notices",
+      "title": "开庭公告",
+      "section_id": "judicial-risk",
+      "route_domain": "judicial",
+      "coverage_domain": "judicial",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_hearing_notice",
+        "get_judicial_case"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_hearing_notice",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-351679cdc32af0be2b5eee42",
+          "source_tool": "get_hearing_notice",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:5ce3db8214a88b40e9b5f46351c249ad1a603f957913ec9fb78038e1a2d8bf39",
+          "raw_ref": "mcp://tianyancha/get_hearing_notice/mcp-3cf86804f8f35c8aa075c619#record=5ce3db8214a88b40"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_hearing_notice",
+          "layer": "L2",
+          "module": "风险合规"
+        }
+      ],
+      "diagnostic_class": "pagination_incomplete",
+      "priority": "P1",
+      "diagnosis": "文本总数1510、返回20；结果含报告基准日之后的开庭日期。",
+      "next_validation": "区分公告发布日期与开庭日期，按报告口径筛选并分页。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 12,
+      "submodule_id": "filing_notices",
+      "title": "立案公告",
+      "section_id": "judicial-risk",
+      "route_domain": "judicial",
+      "coverage_domain": "judicial",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_case_filing_info"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_case_filing_info",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-2908f850c6a90dccf2780fcf",
+          "source_tool": "get_case_filing_info",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:234af2278c25dd86bad4d3d705ce4357251a0a2833f3f35f1f6c1a94d9f543b4",
+          "raw_ref": "mcp://tianyancha/get_case_filing_info/mcp-58339087eef5e66b6bea3ef0#record=234af2278c25dd86"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_case_filing_info",
+          "layer": "L2",
+          "module": "风险合规"
+        }
+      ],
+      "diagnostic_class": "pagination_incomplete",
+      "priority": "P1",
+      "diagnosis": "文本总数4229、返回20；总览另分自身与历史数量。",
+      "next_validation": "保留自身/历史口径，分页后去重；不能把4229都称当前案件。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 13,
+      "submodule_id": "court_notices",
+      "title": "法院公告",
+      "section_id": "judicial-risk",
+      "route_domain": "judicial",
+      "coverage_domain": "judicial",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_court_notice",
+        "get_service_notice"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_court_notice",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-f7f81c0f67e9d5cd62753442",
+          "source_tool": "get_court_notice",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:0431f81358b5dcabb3ded2f03f03a6365a3a1cf7c3936a71351afbf83f4c7293",
+          "raw_ref": "mcp://tianyancha/get_court_notice/mcp-00e3455ec5dbaa03ea934a0c#record=0431f81358b5dcab"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_court_notice",
+          "layer": "L2",
+          "module": "风险合规"
+        }
+      ],
+      "diagnostic_class": "pagination_incomplete",
+      "priority": "P1",
+      "diagnosis": "文本总数339、返回20；与总览338有采集时点/口径差异待核。",
+      "next_validation": "保留查询时间、来源数量，分页并核验差异。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 14,
+      "submodule_id": "judicial_auctions",
+      "title": "司法拍卖",
+      "section_id": "judicial-risk",
+      "route_domain": "judicial",
+      "coverage_domain": "judicial",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_judicial_auction"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_judicial_auction",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-e7d969c081d79c4c33fdfed3",
+          "source_tool": "get_judicial_auction",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:f769563f27a88765c4dc12604beac1840ef2b3c769259470d3fb16336feafb48",
+          "raw_ref": "mcp://tianyancha/get_judicial_auction/mcp-ff9efee7588082c0b18c002c#record=f769563f27a88765"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_judicial_auction",
+          "layer": "L3",
+          "module": "风险合规"
+        }
+      ],
+      "diagnostic_class": "subject_scope_unverified",
+      "priority": "P0",
+      "diagnosis": "返回拍卖标的为手机/电脑，包含品牌名称；未证明是目标企业自有资产被拍卖。",
+      "next_validation": "核验被执行人/资产所有权/案件关联，品牌命中不可当企业司法风险。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 15,
+      "submodule_id": "commercial_bribery",
+      "title": "行贿违法",
+      "section_id": "judicial-risk",
+      "route_domain": "judicial",
+      "coverage_domain": "judicial",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_public_exhortation",
+        "get_judicial_documents"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_public_exhortation",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-f3c012f537aa06d0840ab600",
+          "source_tool": "get_public_exhortation",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:1e237a95780d19f4bf92a47f8db8ebe32fceabb125e3406cc622bea28da8d413",
+          "raw_ref": "mcp://tianyancha/get_public_exhortation/mcp-379fb051be8ffa26c43d61a5#record=1e237a95780d19f4"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_judicial_documents",
+          "layer": "L2",
+          "module": "风险合规"
+        },
+        {
+          "name": "get_administrative_penalty",
+          "layer": "L2",
+          "module": "风险合规"
+        }
+      ],
+      "diagnostic_class": "semantic_mismatch",
+      "priority": "P0",
+      "diagnosis": "实际 get_public_exhortation 返回票据公示催告，与行贿违法不等价。",
+      "next_validation": "移除该语义映射；通过裁判/处罚中相关案由及违法事实筛选，覆盖不足保留未知。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 16,
+      "submodule_id": "liquidation",
+      "title": "清算信息",
+      "section_id": "operational-risk",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "capability_absent",
+      "original_availability": "capability_absent",
+      "original_completeness": "unknown",
+      "original_record_count": 0,
+      "configured_candidates": [
+        "get_liquidation_info"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": null,
+      "source_tool_basis": "not_preserved_in_result",
+      "request_attempted": false,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_liquidation_info",
+          "layer": "L3",
+          "module": "风险合规"
+        }
+      ],
+      "diagnostic_class": "capability_unmatched",
+      "priority": "P1",
+      "diagnosis": "官方目录存在当前候选，但本次为 capability_absent；不是 not_requested。",
+      "next_validation": "保存该企业能力清单确认缺席原因；周边企业清算不能代替本主体数据。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 17,
+      "submodule_id": "simple_deregistration",
+      "title": "简易注销",
+      "section_id": "operational-risk",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "capability_absent",
+      "original_availability": "capability_absent",
+      "original_completeness": "unknown",
+      "original_record_count": 0,
+      "configured_candidates": [
+        "get_simple_deregistration"
+      ],
+      "candidates_missing_from_public_catalog": [
+        "get_simple_deregistration"
+      ],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": null,
+      "source_tool_basis": "not_preserved_in_result",
+      "request_attempted": false,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_simple_cancellation_info",
+          "layer": "L3",
+          "module": "风险合规"
+        }
+      ],
+      "diagnostic_class": "route_name_mismatch",
+      "priority": "P1",
+      "diagnosis": "配置 get_simple_deregistration 未列于官方目录；官方名称为 get_simple_cancellation_info。",
+      "next_validation": "对照企业 manifest 后修正候选名称；未核验前不可认定无简易注销。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 18,
+      "submodule_id": "serious_violations",
+      "title": "严重违法",
+      "section_id": "operational-risk",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "source_error",
+      "original_availability": "source_error",
+      "original_completeness": "unknown",
+      "original_record_count": 0,
+      "configured_candidates": [
+        "get_serious_illegal_info",
+        "get_risk_detail"
+      ],
+      "candidates_missing_from_public_catalog": [
+        "get_serious_illegal_info"
+      ],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": null,
+      "source_tool_basis": "not_preserved_in_result",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_serious_violation",
+          "layer": "L2",
+          "module": "风险合规"
+        }
+      ],
+      "diagnostic_class": "source_error_route_mismatch",
+      "priority": "P1",
+      "diagnosis": "配置 get_serious_illegal_info 不在官方目录；本次错误工具名与错误码未保留。",
+      "next_validation": "先校准专用工具并保留参数/业务错误；不能只重试通用风险详情。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 19,
+      "submodule_id": "operation_abnormalities",
+      "title": "经营异常",
+      "section_id": "operational-risk",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "source_error",
+      "original_availability": "source_error",
+      "original_completeness": "unknown",
+      "original_record_count": 0,
+      "configured_candidates": [
+        "get_business_abnormal_info",
+        "get_risk_detail"
+      ],
+      "candidates_missing_from_public_catalog": [
+        "get_business_abnormal_info"
+      ],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": null,
+      "source_tool_basis": "not_preserved_in_result",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_business_exception",
+          "layer": "L2",
+          "module": "风险合规"
+        }
+      ],
+      "diagnostic_class": "source_error_route_mismatch",
+      "priority": "P1",
+      "diagnosis": "配置 get_business_abnormal_info 与官方 get_business_exception 不一致；错误详情未知。",
+      "next_validation": "校准名称并按企业能力清单与参数表做单工具验证。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 20,
+      "submodule_id": "tax_negative_records",
+      "title": "税务负面",
+      "section_id": "operational-risk",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_taxpayer_info",
+        "get_risk_detail"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_taxpayer_info",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-0e927c330e33f0e4ff754ab8",
+          "source_tool": "get_taxpayer_info",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:f478def55296e682e51d4ab299feec1c00ced28d20bd8d9a47654c1c42958384",
+          "raw_ref": "mcp://tianyancha/get_taxpayer_info/mcp-9bc7987e0f6c50a9ea15a0f3#record=f478def55296e682"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_tax_arrears_notice",
+          "layer": "L3",
+          "module": "风险合规"
+        },
+        {
+          "name": "get_tax_violation",
+          "layer": "L3",
+          "module": "风险合规"
+        }
+      ],
+      "diagnostic_class": "semantic_mismatch",
+      "priority": "P0",
+      "diagnosis": "实际一般纳税人资格信息，不是欠税或税收违法信息。",
+      "next_validation": "分别采集欠税及税收违法，组合覆盖，不得用纳税资格推断无负面。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 21,
+      "submodule_id": "environmental_penalties",
+      "title": "环保处罚",
+      "section_id": "operational-risk",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_environmental_penalty",
+        "get_administrative_penalty"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_administrative_penalty",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-128e80572d64e127e3c780c8",
+          "source_tool": "get_administrative_penalty",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:835f5fb0c79f6b939e3e86ec05daac9d63e1af96392866db143412d4656ab205",
+          "raw_ref": "mcp://tianyancha/get_administrative_penalty/mcp-f81382820dd4968a7bf0d58f#record=835f5fb0c79f6b93"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_environmental_penalty",
+          "layer": "L3",
+          "module": "风险合规"
+        }
+      ],
+      "diagnostic_class": "semantic_mismatch",
+      "priority": "P0",
+      "diagnosis": "复用全部行政处罚；本次两条处罚未被本层按环保类型筛选。",
+      "next_validation": "用环保专用工具或对事实与法规类型做可审计筛选。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 22,
+      "submodule_id": "administrative_penalties",
+      "title": "行政处罚",
+      "section_id": "operational-risk",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_administrative_penalty"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_administrative_penalty",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-128e80572d64e127e3c780c8",
+          "source_tool": "get_administrative_penalty",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:835f5fb0c79f6b939e3e86ec05daac9d63e1af96392866db143412d4656ab205",
+          "raw_ref": "mcp://tianyancha/get_administrative_penalty/mcp-f81382820dd4968a7bf0d58f#record=835f5fb0c79f6b93"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_administrative_penalty",
+          "layer": "L2",
+          "module": "风险合规"
+        }
+      ],
+      "diagnostic_class": "data_present",
+      "priority": "P2",
+      "diagnosis": "已取得两条处罚明细；系统仍按一块 Markdown 计数。",
+      "next_validation": "结构化处罚事实与日期，校验监管机关和主体；记录数按业务行。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 23,
+      "submodule_id": "customs_penalties",
+      "title": "海关处罚",
+      "section_id": "operational-risk",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_import_export_credit",
+        "get_administrative_penalty"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_import_export_credit",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-5d9b9911b17884587de45a73",
+          "source_tool": "get_import_export_credit",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:4183e79489776628acd3bdd78089d39cd15c5b950b6664c8314a3b73965abb37",
+          "raw_ref": "mcp://tianyancha/get_import_export_credit/mcp-34919541ba1dbaf9ce12ea4c#record=4183e79489776628"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_administrative_penalty",
+          "layer": "L2",
+          "module": "风险合规"
+        }
+      ],
+      "diagnostic_class": "semantic_mismatch",
+      "priority": "P0",
+      "diagnosis": "实际进出口信用返回海关编码和评级，不含海关处罚明细。",
+      "next_validation": "寻找企业清单中的海关处罚能力；或对行政处罚按海关机关筛选并标覆盖边界。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 24,
+      "submodule_id": "equity_freezes",
+      "title": "股权冻结",
+      "section_id": "operational-risk",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "source_error",
+      "original_availability": "source_error",
+      "original_completeness": "unknown",
+      "original_record_count": 0,
+      "configured_candidates": [
+        "get_equity_freeze",
+        "get_risk_detail"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": null,
+      "source_tool_basis": "not_preserved_in_result",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_equity_freeze",
+          "layer": "L2",
+          "module": "风险合规"
+        },
+        {
+          "name": "get_judicial_assistance",
+          "layer": "L3",
+          "module": "风险合规"
+        }
+      ],
+      "diagnostic_class": "source_error_unresolved",
+      "priority": "P1",
+      "diagnosis": "专用工具名在官方目录中；本次实际选中专用还是风险详情未知。",
+      "next_validation": "保留选中工具、参数、HTTP/业务错误；司法协助作为有类型过滤的替代方案。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 25,
+      "submodule_id": "chattel_mortgages",
+      "title": "动产抵押",
+      "section_id": "operational-risk",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "source_error",
+      "original_availability": "source_error",
+      "original_completeness": "unknown",
+      "original_record_count": 0,
+      "configured_candidates": [
+        "get_chattel_mortgage",
+        "get_risk_detail"
+      ],
+      "candidates_missing_from_public_catalog": [
+        "get_chattel_mortgage"
+      ],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": null,
+      "source_tool_basis": "not_preserved_in_result",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_chattel_mortgage_info",
+          "layer": "L2",
+          "module": "风险合规"
+        }
+      ],
+      "diagnostic_class": "source_error_route_mismatch",
+      "priority": "P1",
+      "diagnosis": "配置 get_chattel_mortgage，官方名称带 _info；本次错误细节未知。",
+      "next_validation": "修正候选映射后按参数表查询，区分当前/历史抵押。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 26,
+      "submodule_id": "equity_pledges",
+      "title": "股权出质",
+      "section_id": "operational-risk",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "source_error",
+      "original_availability": "source_error",
+      "original_completeness": "unknown",
+      "original_record_count": 0,
+      "configured_candidates": [
+        "get_equity_pledge",
+        "get_risk_detail"
+      ],
+      "candidates_missing_from_public_catalog": [
+        "get_equity_pledge"
+      ],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": null,
+      "source_tool_basis": "not_preserved_in_result",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_equity_pledge_info",
+          "layer": "L2",
+          "module": "风险合规"
+        }
+      ],
+      "diagnostic_class": "source_error_route_mismatch",
+      "priority": "P1",
+      "diagnosis": "配置 get_equity_pledge，官方名称带 _info；本次错误细节未知。",
+      "next_validation": "按企业清单校准工具，区分工商出质与上市股权质押。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 27,
+      "submodule_id": "intellectual_property_pledges",
+      "title": "知识产权出质",
+      "section_id": "operational-risk",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "source_error",
+      "original_availability": "source_error",
+      "original_completeness": "unknown",
+      "original_record_count": 0,
+      "configured_candidates": [
+        "get_intellectual_property_pledge",
+        "get_risk_detail"
+      ],
+      "candidates_missing_from_public_catalog": [
+        "get_intellectual_property_pledge"
+      ],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": null,
+      "source_tool_basis": "not_preserved_in_result",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_ipr_pledge",
+          "layer": "L3",
+          "module": "知识产权"
+        }
+      ],
+      "diagnostic_class": "source_error_route_mismatch",
+      "priority": "P1",
+      "diagnosis": "配置 get_intellectual_property_pledge，官方名称是 get_ipr_pledge。",
+      "next_validation": "按知识产权模块查询出质专用工具并保留类型和有效期。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 28,
+      "submodule_id": "licenses",
+      "title": "行政许可",
+      "section_id": "operations-analysis",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_administrative_license"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_administrative_license",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-2ab85fb6f647fe4e20179c1f",
+          "source_tool": "get_administrative_license",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:f087e9911e2c022f8c7c0c293e9d6d319341cba52f9fea782a02cbccccd98ecd",
+          "raw_ref": "mcp://tianyancha/get_administrative_license/mcp-557d8da7450121e214005c6c#record=f087e9911e2c022f"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_administrative_license",
+          "layer": "L2",
+          "module": "经营与公示"
+        }
+      ],
+      "diagnostic_class": "pagination_incomplete",
+      "priority": "P1",
+      "diagnosis": "文本总数4183、展示60，coverage 却 complete；聚合多来源不能按20简单计页数。",
+      "next_validation": "按各来源分页元数据记录总数/返回数及是否截断。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 29,
+      "submodule_id": "qualifications",
+      "title": "资质信息",
+      "section_id": "operations-analysis",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_qualifications"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_qualifications",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-1e041a1efecb62641c22e376",
+          "source_tool": "get_qualifications",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:d941e7fbc3783113f8e4f615b3a73db38993c00e5f6322ca79560a501d8bd3fb",
+          "raw_ref": "mcp://tianyancha/get_qualifications/mcp-83f932708f710929410fa74c#record=d941e7fbc3783113"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_qualifications",
+          "layer": "L2",
+          "module": "经营与公示"
+        }
+      ],
+      "diagnostic_class": "pagination_incomplete",
+      "priority": "P1",
+      "diagnosis": "文本提示部分来源最多5000、当前展示20，完整数量待分页，仍标 complete。",
+      "next_validation": "逐来源分页；保留有效期、来源上限和未完成标记。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 30,
+      "submodule_id": "tax_credit",
+      "title": "税务评级",
+      "section_id": "operations-analysis",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_taxpayer_info"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_taxpayer_info",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-0e927c330e33f0e4ff754ab8",
+          "source_tool": "get_taxpayer_info",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:f478def55296e682e51d4ab299feec1c00ced28d20bd8d9a47654c1c42958384",
+          "raw_ref": "mcp://tianyancha/get_taxpayer_info/mcp-9bc7987e0f6c50a9ea15a0f3#record=f478def55296e682"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_credit_evaluation",
+          "layer": "L1",
+          "module": "经营与公示"
+        }
+      ],
+      "diagnostic_class": "semantic_mismatch",
+      "priority": "P0",
+      "diagnosis": "实际 get_taxpayer_info 只有一般纳税人资格，没有税务信用等级。",
+      "next_validation": "改为信用评价能力，并从税务评级子来源取值。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 31,
+      "submodule_id": "customs_registration",
+      "title": "海关登记信息",
+      "section_id": "operations-analysis",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_import_export_credit"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_import_export_credit",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-5d9b9911b17884587de45a73",
+          "source_tool": "get_import_export_credit",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:4183e79489776628acd3bdd78089d39cd15c5b950b6664c8314a3b73965abb37",
+          "raw_ref": "mcp://tianyancha/get_import_export_credit/mcp-34919541ba1dbaf9ce12ea4c#record=4183e79489776628"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_import_export_credit",
+          "layer": "L3",
+          "module": "经营与公示"
+        }
+      ],
+      "diagnostic_class": "data_present",
+      "priority": "P2",
+      "diagnosis": "返回 baseInfo 含海关编码与注册海关；聚合文本尚未逐字段提取。",
+      "next_validation": "提取 crCode、注册海关等，缺失有效期不得补造。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 32,
+      "submodule_id": "customs_rating",
+      "title": "海关评级",
+      "section_id": "operations-analysis",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_import_export_credit"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_import_export_credit",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-5d9b9911b17884587de45a73",
+          "source_tool": "get_import_export_credit",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:4183e79489776628acd3bdd78089d39cd15c5b950b6664c8314a3b73965abb37",
+          "raw_ref": "mcp://tianyancha/get_import_export_credit/mcp-34919541ba1dbaf9ce12ea4c#record=4183e79489776628"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_import_export_credit",
+          "layer": "L3",
+          "module": "经营与公示"
+        }
+      ],
+      "diagnostic_class": "data_present",
+      "priority": "P2",
+      "diagnosis": "返回 baseInfo 含 creditRating；可支撑评级字段，不支撑处罚维度。",
+      "next_validation": "提取评级及有效期/查询日期，区分海关与税务评级。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 33,
+      "submodule_id": "bidding",
+      "title": "招投标信息",
+      "section_id": "operations-analysis",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_bidding_info"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_bidding_info",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-f040dde9f35801bcb13d0587",
+          "source_tool": "get_bidding_info",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:706383817775dbb3f991fb44ae1193eaae57dd1b41ae6ac16f0d89282dac7a52",
+          "raw_ref": "mcp://tianyancha/get_bidding_info/mcp-25d48c8355a502757ecd27e9#record=706383817775dbb3"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_bidding_info",
+          "layer": "L2",
+          "module": "经营与公示"
+        }
+      ],
+      "diagnostic_class": "pagination_incomplete",
+      "priority": "P1",
+      "diagnosis": "文本总数45059、返回20；部分记录显示投标方，不能都认定中标收入。",
+      "next_validation": "限定日期/项目范围并分页；核验投标/中标/采购人角色。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 34,
+      "submodule_id": "public_opinion",
+      "title": "新闻舆情",
+      "section_id": "operations-analysis",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "source_error",
+      "original_availability": "source_error",
+      "original_completeness": "unknown",
+      "original_record_count": 0,
+      "configured_candidates": [
+        "get_news_info",
+        "get_risk_detail"
+      ],
+      "candidates_missing_from_public_catalog": [
+        "get_news_info"
+      ],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": null,
+      "source_tool_basis": "not_preserved_in_result",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_news_sentiment",
+          "layer": "L2",
+          "module": "经营与公示"
+        }
+      ],
+      "diagnostic_class": "source_error_route_mismatch",
+      "priority": "P1",
+      "diagnosis": "配置 get_news_info 未列官方目录；官方为 get_news_sentiment。",
+      "next_validation": "按新闻专用工具查询并记录来源、时间、情感及错误详情。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 35,
+      "submodule_id": "annual_reports",
+      "title": "工商年报",
+      "section_id": "operations-analysis",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "partial",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_annual_reports"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_annual_reports",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-911c2a73de1546a1d7214f97",
+          "source_tool": "get_annual_reports",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:01207e3a83d56264e22dad9c983aca1bd2dabdb18ded9752139bd6a8ce32faf5",
+          "raw_ref": "mcp://tianyancha/get_annual_reports/mcp-028df85d7647612cdfa433a4#record=01207e3a83d56264"
+        },
+        {
+          "evidence_id": "ev-web-2dccd97e2f37783d34540e04",
+          "source_tool": "tianyancha.annual_report.web",
+          "source_type": "public_web",
+          "content_hash": "sha256:ed8c63ac4f1b23c21283e8e20fa975e60751d9941ebc91219606b9cae9bce938",
+          "raw_ref": "https://www.tianyancha.com/annualReport/24416401/2025"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_annual_reports",
+          "layer": "L2",
+          "module": "企业基础信息"
+        }
+      ],
+      "diagnostic_class": "partial_disclosure",
+      "priority": "P1",
+      "diagnosis": "MCP 为13年摘要；网页补充2025年参保人数，缴费金额等选择不公示，原状态 partial 合理。",
+      "next_validation": "摘要与年度详情分层；不公示应标 undisclosed，不能解释为0或请求失败。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 36,
+      "submodule_id": "financial_summary",
+      "title": "财务主要指标",
+      "section_id": "operations-analysis",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_financial_summary",
+        "get_financial_main_indicators",
+        "get_financial_data"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_financial_summary",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-16781189b7a6b101d45474dd",
+          "source_tool": "get_financial_summary",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:56f732f533055e86f788be74f413d107b436add5611d434399e59399168f7363",
+          "raw_ref": "mcp://tianyancha/get_financial_summary/mcp-d3a9dfca44bfe49a09c2bacf#record=56f732f533055e86"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_financial_summary",
+          "layer": "L2",
+          "module": "企业基础信息"
+        },
+        {
+          "name": "get_financial_main_indicators",
+          "layer": "L3",
+          "module": "企业基础信息"
+        },
+        {
+          "name": "get_financial_data",
+          "layer": "L2",
+          "module": "企业基础信息"
+        }
+      ],
+      "diagnostic_class": "stale_or_scope_unverified",
+      "priority": "P0",
+      "diagnosis": "返回主要是2008—2010年指标，非近期财务覆盖；财务主体/合并口径待核。",
+      "next_validation": "明确年度及企业/集团/上市主体，校验适用性和时效，缺最新期保持不足。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 37,
+      "submodule_id": "income_statement",
+      "title": "利润表",
+      "section_id": "operations-analysis",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_income_statement",
+        "get_financial_data"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_income_statement",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-329c9c190bf7611ca87a1da0",
+          "source_tool": "get_income_statement",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:ebe11ff568e198482ce1a91728c18bdd90250cb121ac610e773ee8821e13b46e",
+          "raw_ref": "mcp://tianyancha/get_income_statement/mcp-06280db4eaaf7768e216340c#record=ebe11ff568e19848"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_income_statement",
+          "layer": "L3",
+          "module": "企业基础信息"
+        },
+        {
+          "name": "get_financial_data",
+          "layer": "L2",
+          "module": "企业基础信息"
+        }
+      ],
+      "diagnostic_class": "stale_or_scope_unverified",
+      "priority": "P0",
+      "diagnosis": "返回2021年一条利润记录，与2026年报告基准不等于近期完整利润表。",
+      "next_validation": "按可用年度下钻并核验主体口径、必需科目和比较期间。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 38,
+      "submodule_id": "balance_sheet",
+      "title": "资产负债表",
+      "section_id": "operations-analysis",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_balance_sheet",
+        "get_financial_data"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_balance_sheet",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-d413d51509c8973884d6511c",
+          "source_tool": "get_balance_sheet",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:66868113988911a321322e1249b4f1517a1ec079dc514563d63505a3b3dccc88",
+          "raw_ref": "mcp://tianyancha/get_balance_sheet/mcp-4b294f23c4313fa2b13e8197#record=66868113988911a3"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_balance_sheet",
+          "layer": "L3",
+          "module": "企业基础信息"
+        },
+        {
+          "name": "get_financial_data",
+          "layer": "L2",
+          "module": "企业基础信息"
+        }
+      ],
+      "diagnostic_class": "stale_or_scope_unverified",
+      "priority": "P0",
+      "diagnosis": "返回2021年资产/负债摘要，不能代表当前完整资产负债表。",
+      "next_validation": "明确年度与主体口径；补必需科目，无最新数据保留时效缺口。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 39,
+      "submodule_id": "cash_flow_statement",
+      "title": "现金流量表",
+      "section_id": "operations-analysis",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_cash_flow_statement",
+        "get_financial_data"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_cash_flow_statement",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-dd748564f76965a505ff8b75",
+          "source_tool": "get_cash_flow_statement",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:53d37580b4b5ab26701d4ef712b6388248316336a8c2c709a4d4d41d777e165b",
+          "raw_ref": "mcp://tianyancha/get_cash_flow_statement/mcp-da4b368fa1e45cf7c4897e4e#record=53d37580b4b5ab26"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_cash_flow_statement",
+          "layer": "L3",
+          "module": "企业基础信息"
+        },
+        {
+          "name": "get_financial_data",
+          "layer": "L2",
+          "module": "企业基础信息"
+        }
+      ],
+      "diagnostic_class": "payload_without_required_facts",
+      "priority": "P0",
+      "diagnosis": "返回 availableYears 和年度列表，没有经营/投资/筹资现金流数值，却被计有记录。",
+      "next_validation": "年度列表只能作导航；按 schema 下钻年度，三类现金流缺失不得标 complete。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 40,
+      "submodule_id": "intellectual_property",
+      "title": "知识产权",
+      "section_id": "operations-analysis",
+      "route_domain": "operations",
+      "coverage_domain": "operations",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_patent_info",
+        "get_software_copyright_info",
+        "get_trademark_info"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_patent_info",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-71c45f10eacbfc43ca3a6891",
+          "source_tool": "get_patent_info",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:2c456874cedfbdb0e5ae8d47a2c0fa7b9f1cbd9af6c7e2f6ea08a410a7a43a69",
+          "raw_ref": "mcp://tianyancha/get_patent_info/mcp-946d954c174607e74c7722dc#record=2c456874cedfbdb0"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_patent_info",
+          "layer": "L2",
+          "module": "知识产权"
+        },
+        {
+          "name": "get_trademark_info",
+          "layer": "L2",
+          "module": "知识产权"
+        },
+        {
+          "name": "get_software_copyright_info",
+          "layer": "L2",
+          "module": "知识产权"
+        }
+      ],
+      "diagnostic_class": "partial_dimension_and_pagination",
+      "priority": "P1",
+      "diagnosis": "仅取专利，文本129075条中返回20；候选工具被当替代项，没有组合商标/软著。",
+      "next_validation": "建立组合采集计划，每类分别计状态/分页，再汇总知产覆盖。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 41,
+      "submodule_id": "beneficial_owners",
+      "title": "受益所有人",
+      "section_id": "related-parties",
+      "route_domain": "governance",
+      "coverage_domain": "relationships",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_beneficial_owners",
+        "get_actual_controller"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_beneficial_owners",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-3ea0db2cb46f4b9be729597f",
+          "source_tool": "get_beneficial_owners",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:4bf4b3930ce6a5dbd66672d9aec162f9868ebcc1c54f6c164586df4b569e9c82",
+          "raw_ref": "mcp://tianyancha/get_beneficial_owners/mcp-24feae92c68a596022521518#record=4bf4b3930ce6a5db"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_beneficial_owners",
+          "layer": "L2",
+          "module": "企业基础信息"
+        }
+      ],
+      "diagnostic_class": "data_present_with_caveat",
+      "priority": "P1",
+      "diagnosis": "结果包含按关键决策人员视同受益人的说明，不等于已穿透持股超过25%的自然人。",
+      "next_validation": "保留认定依据、持股/控制区分；不能仅与实控人姓名不同就推断违规。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 42,
+      "submodule_id": "actual_controller",
+      "title": "疑似实际控制人",
+      "section_id": "related-parties",
+      "route_domain": "governance",
+      "coverage_domain": "relationships",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_actual_controller",
+        "get_beneficial_owners"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_actual_controller",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-f74bbddadffa715778de82f2",
+          "source_tool": "get_actual_controller",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:16adca32297c29afbae47fb7aa5a921c9e734839859bd2b408ee1f9cdd8daafb",
+          "raw_ref": "mcp://tianyancha/get_actual_controller/mcp-b0098a2c8963b9f2b2d33bb8#record=16adca32297c29af"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_actual_controller",
+          "layer": "L2",
+          "module": "企业基础信息"
+        }
+      ],
+      "diagnostic_class": "data_present_with_caveat",
+      "priority": "P1",
+      "diagnosis": "返回控制人及链路；比例单位和直接/间接控制口径待结构化核验。",
+      "next_validation": "保存原始比例、单位、路径和供应商判断属性，不把估计控制当法律定论。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 43,
+      "submodule_id": "legal_representative_investments",
+      "title": "法人对外投资",
+      "section_id": "related-parties",
+      "route_domain": "governance",
+      "coverage_domain": "relationships",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_legal_representative_investments",
+        "get_external_investments",
+        "get_relation_graph"
+      ],
+      "candidates_missing_from_public_catalog": [
+        "get_legal_representative_investments"
+      ],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_external_investments",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-3ffa5d01c2218f7d07996ae5",
+          "source_tool": "get_external_investments",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:31a097c9dc9d0e8fb462079c0f98036057095a156300d567fff7d55a35c41847",
+          "raw_ref": "mcp://tianyancha/get_external_investments/mcp-5128dbbb3cdbfc576c0bff23#record=31a097c9dc9d0e8f"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_personnel_related_companies",
+          "layer": "L3",
+          "module": "董监高"
+        }
+      ],
+      "diagnostic_class": "subject_scope_mismatch",
+      "priority": "P0",
+      "diagnosis": "实际调用企业 get_external_investments，查询的是企业投资而非当前法定代表人的个人投资。",
+      "next_validation": "锚定企业+当前法人姓名，取人员关联企业后按投资/股东角色过滤；无角色证据保留未知。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 44,
+      "submodule_id": "legal_representative_roles",
+      "title": "法人对外任职",
+      "section_id": "related-parties",
+      "route_domain": "governance",
+      "coverage_domain": "relationships",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_legal_representative_roles",
+        "get_relation_graph"
+      ],
+      "candidates_missing_from_public_catalog": [
+        "get_legal_representative_roles"
+      ],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_relation_graph",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-9ba45116a94034d2e4d77873",
+          "source_tool": "get_relation_graph",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:61e4328c0539e796369f3853b992be7c2c386d9b19a2700f674bc221c9af7cf8",
+          "raw_ref": "mcp://tianyancha/get_relation_graph/mcp-7b845c1b159c818c41a30893#record=61e4328c0539e796"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_personnel_positions",
+          "layer": "L2",
+          "module": "董监高"
+        },
+        {
+          "name": "get_personnel_legal_rep_roles",
+          "layer": "L3",
+          "module": "董监高"
+        }
+      ],
+      "diagnostic_class": "subject_scope_unverified",
+      "priority": "P0",
+      "diagnosis": "实际企业关系图包含多人多种边，未先锚定当前法人再筛任职。",
+      "next_validation": "企业+法人姓名双锚定；区分董监高任职与担任法定代表人。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 45,
+      "submodule_id": "competitors",
+      "title": "同类企业",
+      "section_id": "peer-analysis",
+      "route_domain": "peers",
+      "coverage_domain": "peers",
+      "original_status": "source_error",
+      "original_availability": "source_error",
+      "original_completeness": "unknown",
+      "original_record_count": 0,
+      "configured_candidates": [
+        "get_competitors"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": null,
+      "source_tool_basis": "not_preserved_in_result",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_competitors",
+          "layer": "L3",
+          "module": "经营与公示"
+        }
+      ],
+      "diagnostic_class": "source_error_unresolved",
+      "priority": "P1",
+      "diagnosis": "官方工具名与配置一致；失败详情未知，不能归因工具改名。",
+      "next_validation": "取实际参数 schema，保存真实错误码；先做最小单工具复验。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 46,
+      "submodule_id": "regional_industry_counts",
+      "title": "同行业同地区企业数量",
+      "section_id": "peer-analysis",
+      "route_domain": "peers",
+      "coverage_domain": "peers",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_ranking_list_info",
+        "get_competitors"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_ranking_list_info",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-f19fa0064fc70644b56fed0f",
+          "source_tool": "get_ranking_list_info",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:773e9f66a2237efba51cb0d775cfc81869ed84a58020aa1317226757a6420dd7",
+          "raw_ref": "mcp://tianyancha/get_ranking_list_info/mcp-fd2f6dce8f9c758b82c99926#record=773e9f66a2237efb"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "search_companies_by_industry_region",
+          "layer": "L3",
+          "module": "企业基础信息"
+        }
+      ],
+      "diagnostic_class": "semantic_mismatch",
+      "priority": "P0",
+      "diagnosis": "实际为企业上榜榜单，不是同地区同行业企业总数。",
+      "next_validation": "改为跨企业搜索；明确行业/地区代码及总数口径，不能把返回页长度当总量。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 47,
+      "submodule_id": "regional_industry_growth",
+      "title": "同行业同地区年度新增",
+      "section_id": "peer-analysis",
+      "route_domain": "peers",
+      "coverage_domain": "peers",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_ranking_list_info",
+        "get_competitors"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_ranking_list_info",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-f19fa0064fc70644b56fed0f",
+          "source_tool": "get_ranking_list_info",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:773e9f66a2237efba51cb0d775cfc81869ed84a58020aa1317226757a6420dd7",
+          "raw_ref": "mcp://tianyancha/get_ranking_list_info/mcp-fd2f6dce8f9c758b82c99926#record=773e9f66a2237efb"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "search_companies_by_industry_region",
+          "layer": "L3",
+          "module": "企业基础信息"
+        }
+      ],
+      "diagnostic_class": "semantic_mismatch",
+      "priority": "P0",
+      "diagnosis": "上榜榜单没有年度新设企业统计；官方搜索是否支持成立日期过滤需查 schema。",
+      "next_validation": "确定年度和地区/行业总体后计算；无时间过滤或全量数据时标无法计算。",
+      "runtime_retest_status": "not_run"
+    },
+    {
+      "index": 48,
+      "submodule_id": "industry_benchmarks",
+      "title": "行业参考指标",
+      "section_id": "peer-analysis",
+      "route_domain": "peers",
+      "coverage_domain": "peers",
+      "original_status": "verified_records",
+      "original_availability": "available",
+      "original_completeness": "complete",
+      "original_record_count": 1,
+      "configured_candidates": [
+        "get_ranking_list_info",
+        "get_competitors"
+      ],
+      "candidates_missing_from_public_catalog": [],
+      "company_manifest_matched_candidates": null,
+      "observed_source_tool": "get_ranking_list_info",
+      "source_tool_basis": "result.sections[].data.submodules[id].source_tool",
+      "request_attempted": true,
+      "request_attempted_basis": "inferred_from_availability_and_current_gateway_code_not_attempt_log",
+      "request_parameters": null,
+      "attempt_count": null,
+      "retry_count": null,
+      "final_retry_outcome": null,
+      "error_kind": null,
+      "http_status": null,
+      "business_error_code": null,
+      "evidence_refs": [
+        {
+          "evidence_id": "ev-tyc-f19fa0064fc70644b56fed0f",
+          "source_tool": "get_ranking_list_info",
+          "source_type": "tianyancha",
+          "content_hash": "sha256:773e9f66a2237efba51cb0d775cfc81869ed84a58020aa1317226757a6420dd7",
+          "raw_ref": "mcp://tianyancha/get_ranking_list_info/mcp-fd2f6dce8f9c758b82c99926#record=773e9f66a2237efb"
+        }
+      ],
+      "public_catalog_suggested_tools": [
+        {
+          "name": "get_ranking_list_info",
+          "layer": "L3",
+          "module": "经营与公示"
+        },
+        {
+          "name": "search_companies_by_industry_region",
+          "layer": "L3",
+          "module": "企业基础信息"
+        }
+      ],
+      "diagnostic_class": "semantic_mismatch",
+      "priority": "P0",
+      "diagnosis": "榜单排名不是行业财务中位数或参考阈值；仅有榜单参考证据。",
+      "next_validation": "明确指标定义和可比样本；榜单单独展示，财务基准需可靠统计或可比样本计算。",
+      "runtime_retest_status": "not_run"
+    }
+  ]
+}

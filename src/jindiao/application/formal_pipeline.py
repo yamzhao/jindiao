@@ -12,7 +12,8 @@ from typing import Any, cast
 
 from pydantic import JsonValue
 
-from jindiao.acquisition import ContextFreezer
+from jindiao.acquisition.catalog import ACQUISITION_CATALOG
+from jindiao.acquisition.context_freezer import ContextFreezer
 from jindiao.agents import (
     AgentTeamsInvestigatorTeam,
     DeepSearchAgent,
@@ -47,6 +48,7 @@ from jindiao.contracts.results import (
 )
 from jindiao.deepsearch import SupplementPolicy
 from jindiao.investigation import CHECK_CATALOG
+from jindiao.orchestration.accounted_runtime import BudgetedExecutionRuntime
 from jindiao.orchestration.agent_runtime import (
     AgentExecutionEvent,
     AgentExecutionEventType,
@@ -62,11 +64,10 @@ from jindiao.orchestration.base import (
     check_cancellation,
 )
 from jindiao.prompts import PromptBundle, load_prompt_bundle
-from jindiao.reporting.catalog import REPORT_CATALOG
 from jindiao.tianyancha import TianyanchaMcpGateway
 
 from .context import RunContext
-from .errors import AgentExecutionError
+from .errors import AgentExecutionError, JindiaoError
 
 _MODULE_DOMAINS = {
     "company-profile": "governance",
@@ -202,6 +203,24 @@ class FormalDueDiligencePipeline:
             )
         acquisition_started = self._clock()
         runtime_events: list[TeamRuntimeEvent] = []
+        received_events: list[AgentExecutionEvent] = []
+        acquisition_ledger = BudgetLedger(RunBudget.from_policy(context.policy))
+        acquisition_runtime = BudgetedExecutionRuntime(
+            self._agent_runtime, budget_ledger=acquisition_ledger
+        )
+
+        def accounted_cost() -> ExecutionCost:
+            cost = acquisition_ledger.to_execution_cost()
+            return cost.model_copy(
+                update={
+                    "mcp_calls": self._gateway.mcp_calls,
+                    "wall_time_ms": self._elapsed_ms(acquisition_started, self._clock()),
+                }
+            )
+
+        def require_complete_usage() -> None:
+            if not acquisition_ledger.error_details()["provider_usage_complete"]:
+                raise AgentExecutionError("Acquisition provider usage is incomplete")
 
         async def publish(event: TeamRuntimeEvent) -> None:
             runtime_events.append(event)
@@ -217,6 +236,7 @@ class FormalDueDiligencePipeline:
             )
 
             async def publish_context_event(event: AgentExecutionEvent) -> None:
+                received_events.append(event)
                 await self._publish_agent_events(publish, (event,))
 
             context_kwargs = self._optional_event_sink(
@@ -227,7 +247,7 @@ class FormalDueDiligencePipeline:
             )
             context_run = await self._context_agent.run(
                 context.requested_enterprise,
-                runtime=self._agent_runtime,
+                runtime=acquisition_runtime,
                 model_name=self._model_name,
                 model_provider=self._model_provider,
                 model_api_key=self._model_api_key,
@@ -236,6 +256,7 @@ class FormalDueDiligencePipeline:
                 model_temperature=self._model_temperature,
                 **context_kwargs,
             )
+            require_complete_usage()
 
             tasks = self._supplement_policy.plan(
                 subject=context_run.acquisition.subject,
@@ -265,7 +286,7 @@ class FormalDueDiligencePipeline:
                     tasks=tasks,
                     subject=context_run.acquisition.subject,
                     queried_at=self._clock(),
-                    runtime=self._agent_runtime,
+                    runtime=acquisition_runtime,
                     run_id=context.run_id,
                     model_name=self._model_name,
                     model_provider=self._model_provider,
@@ -276,14 +297,19 @@ class FormalDueDiligencePipeline:
                     max_iterations=max(2, len(tasks) * 2 + 1),
                     **deepsearch_kwargs,
                 )
+                require_complete_usage()
                 supplement_outcomes = deepsearch_run.outcomes
                 deepsearch_result = deepsearch_run.agent_result
                 acquisition_events = (*acquisition_events, *deepsearch_run.events)
 
-            acquisition_cost = self._execution_cost_from_events(
-                acquisition_events,
-                mcp_calls=self._gateway.mcp_calls,
-                wall_time_ms=self._elapsed_ms(acquisition_started, self._clock()),
+            acquisition_cost = (
+                accounted_cost()
+                if acquisition_ledger.snapshot().llm_requests
+                else self._execution_cost_from_events(
+                    acquisition_events,
+                    mcp_calls=self._gateway.mcp_calls,
+                    wall_time_ms=self._elapsed_ms(acquisition_started, self._clock()),
+                )
             )
             snapshot = self._context_freezer.freeze(
                 context_run.acquisition,
@@ -291,6 +317,8 @@ class FormalDueDiligencePipeline:
                 supplement_outcomes=supplement_outcomes,
                 deepsearch_agent_result=deepsearch_result,
                 shared_acquisition_cost=acquisition_cost,
+                business_context=context.business_context,
+                run_id=context.run_id,
             )
             await self._publish(
                 publish,
@@ -316,6 +344,31 @@ class FormalDueDiligencePipeline:
                 snapshot=snapshot,
                 events=tuple(runtime_events),
             )
+        except Exception as error:
+            observed_calls = acquisition_ledger.snapshot().llm_requests
+            cost = (
+                accounted_cost()
+                if observed_calls
+                else self._execution_cost_from_events(
+                    tuple(received_events),
+                    mcp_calls=self._gateway.mcp_calls,
+                    wall_time_ms=self._elapsed_ms(acquisition_started, self._clock()),
+                )
+            )
+            details = {
+                **(error.details if isinstance(error, JindiaoError) else {}),
+                **acquisition_ledger.error_details(),
+                "execution_cost": cost.model_dump(mode="json"),
+                "provider_usage_complete": (
+                    bool(acquisition_ledger.error_details()["provider_usage_complete"])
+                    if observed_calls
+                    else False
+                ),
+            }
+            if isinstance(error, JindiaoError):
+                error.details = details
+                raise
+            raise AgentExecutionError("Acquisition execution failed", details=details) from error
         finally:
             await self._gateway.aclose()
 
@@ -341,7 +394,63 @@ class FormalDueDiligencePipeline:
         async def publish_context_event(event: AgentExecutionEvent) -> None:
             await self._publish_agent_events(publish, (event,))
 
-        ledger = BudgetLedger(budget)
+        prior = snapshot.shared_acquisition_cost
+        limits = {
+            "max_llm_requests": budget.max_llm_requests - prior.llm_requests,
+            "timeout_seconds": budget.timeout_seconds - (prior.wall_time_ms + 999) // 1000,
+        }
+        if budget.enforce_token_budget:
+            limits.update(
+                max_input_tokens=budget.max_input_tokens - prior.input_tokens,
+                max_output_tokens=budget.max_output_tokens - prior.output_tokens,
+                max_total_tokens=budget.max_total_tokens - prior.total_tokens,
+            )
+        prior_complete = prior.provider_usage_requests == prior.llm_requests
+        if not prior_complete:
+            raise AgentExecutionError(
+                "Shared acquisition usage is incomplete; refusing another budget allocation",
+                details={
+                    "execution_cost": prior.model_dump(mode="json"),
+                    "provider_usage_complete": False,
+                },
+            )
+        if min(limits.values()) <= 0:
+            raise AgentExecutionError(
+                "Run budget exhausted by shared acquisition",
+                details={
+                    "execution_cost": prior.model_dump(mode="json"),
+                    "provider_usage_complete": prior_complete,
+                },
+            )
+        ledger = BudgetLedger(budget.model_copy(update=limits))
+
+        async def invoke_accounted(method: Any, **kwargs: Any) -> Any:
+            try:
+                reply = await method(**kwargs)
+                if not ledger.error_details()["provider_usage_complete"]:
+                    raise AgentExecutionError(
+                        "Investigation usage is incomplete; refusing another budget allocation"
+                    )
+                return reply
+            except Exception as error:
+                details = {
+                    **(error.details if isinstance(error, JindiaoError) else {}),
+                    **ledger.error_details(),
+                }
+                details["execution_cost"] = ExecutionCost.combine(
+                    prior, ledger.to_execution_cost()
+                ).model_dump(mode="json")
+                details["provider_usage_complete"] = (
+                    prior_complete and details["provider_usage_complete"]
+                )
+                if isinstance(error, JindiaoError):
+                    error.details = details
+                    raise
+                raise AgentExecutionError(
+                    "Investigator execution failed",
+                    details={"error_type": type(error).__name__, **details},
+                ) from error
+
         check_cancellation(cancellation_token)
         investigation_agent_results: tuple[AgentInvestigationResult, ...]
         review_issues: tuple[ReviewIssue, ...]
@@ -352,7 +461,8 @@ class FormalDueDiligencePipeline:
             single_kwargs.update(
                 self._optional_cancellation_token(self._single.run, cancellation_token)
             )
-            single_run = await self._single.run(
+            single_run = await invoke_accounted(
+                self._single.run,
                 snapshot=snapshot,
                 runtime=self._agent_runtime,
                 budget_ledger=ledger,
@@ -361,7 +471,7 @@ class FormalDueDiligencePipeline:
                 model_provider=self._model_provider,
                 model_api_key=self._model_api_key,
                 model_base_url=self._model_base_url,
-                timeout_seconds=context.policy.request_timeout_seconds,
+                timeout_seconds=ledger.budget.timeout_seconds,
                 model_temperature=self._model_temperature,
                 **single_kwargs,
             )
@@ -375,7 +485,8 @@ class FormalDueDiligencePipeline:
             multi_kwargs.update(
                 self._optional_cancellation_token(self._multi.run, cancellation_token)
             )
-            multi_run = await self._multi.run(
+            multi_run = await invoke_accounted(
+                self._multi.run,
                 snapshot=snapshot,
                 budget_ledger=ledger,
                 run_id=context.run_id,
@@ -383,7 +494,7 @@ class FormalDueDiligencePipeline:
                 model_provider=self._model_provider,
                 model_api_key=self._model_api_key,
                 model_base_url=self._model_base_url,
-                timeout_seconds=context.policy.request_timeout_seconds,
+                timeout_seconds=ledger.budget.timeout_seconds,
                 model_temperature=self._model_temperature,
                 **multi_kwargs,
             )
@@ -458,8 +569,9 @@ class FormalDueDiligencePipeline:
             random_seed=self._random_seed,
             common_prompt_sha256=common.core_sha256,
             check_catalog_sha256=self._model_sha256(CHECK_CATALOG.model_dump(mode="json")),
-            report_catalog_sha256=self._model_sha256(REPORT_CATALOG.model_dump(mode="json")),
+            report_catalog_sha256=self._model_sha256(ACQUISITION_CATALOG.model_dump(mode="json")),
             investigation_budget=InvestigationBudgetFingerprint(
+                enforce_token_budget=budget.enforce_token_budget,
                 max_llm_requests=budget.max_llm_requests,
                 max_input_tokens=budget.max_input_tokens,
                 max_output_tokens=budget.max_output_tokens,
@@ -546,7 +658,7 @@ class FormalDueDiligencePipeline:
         evidence_by_id = {item.evidence_id: item for item in snapshot.evidence}
         items: list[CoverageItem] = []
         for context in snapshot.submodules:
-            module_id = REPORT_CATALOG.module_for_submodule(context.submodule_id).module_id
+            domain = ACQUISITION_CATALOG.get(context.submodule_id).domain
             evidence_ids = (*context.evidence_ids, *context.supplemental_evidence_ids)
             if context.availability is SubmoduleAvailability.AVAILABLE:
                 status = next(
@@ -569,7 +681,7 @@ class FormalDueDiligencePipeline:
                 record_count = 0
             items.append(
                 CoverageItem(
-                    domain=_MODULE_DOMAINS[module_id],
+                    domain=domain,
                     capability=context.submodule_id,
                     status=status,
                     record_count=record_count,
@@ -663,8 +775,14 @@ class FormalDueDiligencePipeline:
             for event in events
             if event.event_type is AgentExecutionEventType.MODEL_REQUEST_COMPLETED
         )
-        input_tokens = sum(cls._usage_value(event.payload, "input_tokens") for event in completed)
-        output_tokens = sum(cls._usage_value(event.payload, "output_tokens") for event in completed)
+        usages = [event.payload.get("usage_metadata", {}) for event in completed]
+
+        def observed(usage: object, key: str) -> int | None:
+            value = usage.get(key) if isinstance(usage, Mapping) else None
+            return value if type(value) is int and value >= 0 else None
+
+        input_tokens = sum(observed(usage, "input_tokens") or 0 for usage in usages)
+        output_tokens = sum(observed(usage, "output_tokens") or 0 for usage in usages)
         tool_calls = sum(
             event.event_type is AgentExecutionEventType.TOOL_CALL_STARTED for event in events
         )
@@ -672,10 +790,9 @@ class FormalDueDiligencePipeline:
             llm_requests=len(completed),
             successful_llm_requests=len(completed),
             provider_usage_requests=sum(
-                cls._usage_value(event.payload, "total_tokens") > 0
-                or cls._usage_value(event.payload, "input_tokens") > 0
-                or cls._usage_value(event.payload, "output_tokens") > 0
-                for event in completed
+                observed(usage, "input_tokens") is not None
+                and observed(usage, "output_tokens") is not None
+                for usage in usages
             ),
             input_tokens=input_tokens,
             output_tokens=output_tokens,

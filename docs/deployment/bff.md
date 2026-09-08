@@ -92,7 +92,7 @@ curl --fail http://127.0.0.1:18082/healthz
 
 ```json
 {
-  "enterprise": {"company_name": "金调绿洲科技有限公司"},
+  "customerName": "乐视网信息技术（北京）股份有限公司",
   "scenario_id": "normal-enterprise",
   "mode": "multi",
   "execution_profile": "attached"

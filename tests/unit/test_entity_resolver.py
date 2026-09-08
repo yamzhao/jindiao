@@ -1,3 +1,4 @@
+# ruff: noqa: RUF001 -- official company name uses fullwidth parentheses
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -102,12 +103,12 @@ async def test_resolver_parses_markdown_candidates() -> None:
     text = """
 | 企业ID | 企业名称 | 统一社会信用代码 | 地区 | 经营状态 |
 | --- | --- | --- | --- | --- |
-| 123 | 金调绿洲科技有限公司 | 91110108MA01JD001A | 北京市 | 存续 |
+| 123 | 乐视网信息技术（北京）股份有限公司 | 91110108MA01JD001A | 北京市 | 存续 |
 """
     client = FakeClient(McpCallResult(text=(text,)))
 
     candidates = await TianyanchaEntityResolver(client, clock=lambda: NOW).search(
-        EnterpriseInput(company_name="金调绿洲科技有限公司")
+        EnterpriseInput(company_name="乐视网信息技术（北京）股份有限公司")
     )
 
     assert len(candidates) == 1

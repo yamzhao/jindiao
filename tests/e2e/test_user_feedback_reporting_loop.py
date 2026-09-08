@@ -1,3 +1,4 @@
+# ruff: noqa: RUF001 -- official company name uses fullwidth parentheses
 from __future__ import annotations
 
 import asyncio
@@ -13,9 +14,8 @@ from fastapi import FastAPI
 from jindiao.api.app import create_app
 from jindiao.application.service import DueDiligenceService
 from jindiao.application.settings import Settings
-from jindiao.contracts.entities import EnterpriseInput
 from jindiao.contracts.evidence import SourceStatus
-from jindiao.contracts.results import DueDiligenceResult
+from jindiao.contracts.product import ProductResult
 from jindiao.contracts.runs import RunCreateRequest
 from jindiao.orchestration.scenario_toolset import ScenarioToolset
 from jindiao.scenarios import ScenarioRepository
@@ -24,7 +24,7 @@ HEADERS = {"x-hw-agentgateway-user-id": "alice", "x-hw-agentarts-session-id": "d
 FEEDBACK = {
     "kind": "gap_disclosure_placement",
     "text": "司法缺口请就近披露",
-    "target_section_ids": ["judicial-risk"],
+    "target_section_ids": ["external_verification"],
 }
 
 
@@ -47,11 +47,11 @@ def demo_service(root: Path, *, enabled: bool = True) -> DueDiligenceService:
     )
 
 
-async def completed_run(app: FastAPI) -> tuple[str, DueDiligenceResult]:
+async def completed_run(app: FastAPI) -> tuple[str, ProductResult]:
     coordinator = app.state.run_coordinator
     run = await coordinator.create(
         RunCreateRequest(
-            enterprise=EnterpriseInput(company_name="金调绿洲科技有限公司"),
+            customerName="乐视网信息技术（北京）股份有限公司",
             scenario_id="normal-enterprise",
         ),
         owner_id="alice",
@@ -59,7 +59,7 @@ async def completed_run(app: FastAPI) -> tuple[str, DueDiligenceResult]:
     )
     await coordinator.execute(run.run_id)
     result = await coordinator.get_result(run.run_id, owner_id="alice", session_id="demo-session")
-    assert result is not None
+    assert isinstance(result, ProductResult)
     return run.run_id, result
 
 
@@ -107,8 +107,11 @@ async def test_demo_feedback_apply_new_run_and_reset(tmp_path: Path) -> None:
         assert applied.returncode == 0, applied.stderr
         _, new = await completed_run(app)
         assert new.report_markdown == source["after"]
-        assert new.decision == old.decision
-        assert new.meta.skill_versions["feedback-evolved-reporting"] == data["candidate_version"]
+        assert new.subject == old.subject
+        assert new.summary == old.summary
+        assert new.report == old.report
+        assert new.risk_findings == old.risk_findings
+        assert new.evidence == old.evidence
         reset = await asyncio.to_thread(
             subprocess.run,
             [*command, "reset", "--reason", "恢复基线"],
@@ -240,7 +243,7 @@ async def test_feedback_refuses_unready_or_invalid_snapshot(tmp_path: Path, cond
     if condition in {"accepted", "cancelled"}:
         run = await coordinator.create(
             RunCreateRequest(
-                enterprise=EnterpriseInput(company_name="金调绿洲科技有限公司"),
+                customerName="乐视网信息技术（北京）股份有限公司",
                 scenario_id="normal-enterprise",
             ),
             owner_id="alice",
@@ -329,8 +332,8 @@ async def test_legacy_feedback_http_is_deprecated_and_rejected(
 ) -> None:
     app = create_app(service=demo_service(tmp_path))
     schemas = app.openapi()["components"]["schemas"]
-    for name in ("RunCreateRequest", "DueDiligenceRequest"):
-        assert schemas[name]["properties"]["skill_feedback"]["deprecated"] is True
+    assert schemas["DueDiligenceRequest"]["properties"]["skill_feedback"]["deprecated"] is True
+    assert "skill_feedback" not in schemas["RunCreateRequest"]["properties"]
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),
         base_url="http://127.0.0.1",
@@ -338,7 +341,7 @@ async def test_legacy_feedback_http_is_deprecated_and_rejected(
         response = await client.post(
             endpoint,
             json={
-                "enterprise": {"company_name": "金调绿洲科技有限公司"},
+                "enterprise": {"company_name": "乐视网信息技术（北京）股份有限公司"},
                 "scenario_id": "normal-enterprise",
                 "skill_feedback": {
                     "source": "legacy",
@@ -348,13 +351,13 @@ async def test_legacy_feedback_http_is_deprecated_and_rejected(
                 },
             },
         )
-        if response.status_code == 202:
-            run_id = response.json()["run_id"]
-            await app.state.run_coordinator.execute(run_id)
-            response = await client.get(f"/api/v2/due-diligence/runs/{run_id}/result")
-        assert response.status_code == 200, response.text
-        assert response.json()["skill_evolution"]["status"] == "rejected"
-        assert response.json()["skill_evolution"]["reason_codes"] == ["use_feedback_api"]
+        if endpoint == "/api/v1/due-diligence/result":
+            assert response.status_code == 200, response.text
+            assert response.json()["schema_version"] == "prototype-v1"
+            assert "skill_evolution" not in response.json()
+        else:
+            assert response.status_code == 422
+            assert app.state.run_coordinator.active_runs() == 0
     assert not list((tmp_path / "skill-evolution").glob("candidates/*"))
 
 

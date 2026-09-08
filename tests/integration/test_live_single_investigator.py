@@ -9,6 +9,7 @@ from datetime import UTC, date, datetime
 import pytest
 from openjiuwen.core.runner import Runner
 
+from jindiao.acquisition.catalog import ACQUISITION_CATALOG
 from jindiao.agents import SingleInvestigatorAgent
 from jindiao.contracts.acquisition import (
     EnterpriseContextSnapshot,
@@ -20,7 +21,6 @@ from jindiao.contracts.evidence import CoverageCompleteness, Evidence, SourceTyp
 from jindiao.investigation import CHECK_CATALOG
 from jindiao.orchestration import BudgetLedger, OpenJiuwenAgentExecutionRuntime, RunBudget
 from jindiao.prompts import load_prompt_bundle
-from jindiao.reporting.catalog import REPORT_CATALOG
 
 if os.getenv("JINDIAO_RUN_LIVE_SINGLE") != "1":
     pytest.skip(
@@ -81,7 +81,7 @@ def _snapshot() -> EnterpriseContextSnapshot:
             evidence_ids=(registration.evidence_id,) if submodule_id == "registration" else (),
             unresolved_gap_ids=() if submodule_id == "registration" else (f"gap:{submodule_id}",),
         )
-        for submodule_id in REPORT_CATALOG.submodule_ids
+        for submodule_id in ACQUISITION_CATALOG.default_plan_ids
     )
     return EnterpriseContextSnapshot(
         schema_version=1,
@@ -90,14 +90,15 @@ def _snapshot() -> EnterpriseContextSnapshot:
         subject=subject,
         report_as_of=report_as_of,
         created_at=now,
-        report_catalog_version=REPORT_CATALOG.catalog_version,
+        acquisition_catalog_version=ACQUISITION_CATALOG.catalog_version,
+        planned_submodule_ids=ACQUISITION_CATALOG.default_plan_ids,
         source_manifest_version="live-smoke-v1",
         submodules=submodules,
         evidence=(registration,),
         supplement_tasks=(),
         unresolved_gaps=tuple(
             f"gap:{submodule_id}"
-            for submodule_id in REPORT_CATALOG.submodule_ids
+            for submodule_id in ACQUISITION_CATALOG.default_plan_ids
             if submodule_id != "registration"
         ),
         unresolved_conflicts=(),

@@ -156,6 +156,10 @@ class Settings(BaseSettings):
         ge=1,
         validation_alias=AliasChoices("max_input_tokens", "JINDIAO_MAX_INPUT_TOKENS"),
     )
+    enforce_token_budget: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("enforce_token_budget", "JINDIAO_ENFORCE_TOKEN_BUDGET"),
+    )
     max_output_tokens: int = Field(
         default=100_000,
         ge=1,

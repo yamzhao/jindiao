@@ -14,6 +14,7 @@ from jindiao.contracts.investigation import Finding, RiskClass
 from jindiao.contracts.report_policy import ReportPolicy
 from jindiao.contracts.reporting import DecisionBand, ReportViewModel
 from jindiao.reporting.gaps import GapAnnotation, GapAnnotationBuilder, coverage_gap_text
+from jindiao.reporting.product_markdown import ProductMarkdownRenderer, ProductReportView
 
 REPORT_RENDERER_VERSION = "report-renderer-v1.1"
 
@@ -32,6 +33,7 @@ _SOURCE_LABELS: Final = {
     SourceType.PUBLIC_WEB: "公开网页",
     SourceType.MOCK: "Mock",
     SourceType.DERIVED: "派生",
+    SourceType.USER_INPUT: "业务输入",
 }
 _SOURCE_STATUS_LABELS: Final = {
     SourceStatus.VERIFIED_RECORDS.value: "已核验有记录",
@@ -59,7 +61,14 @@ def _record_text(value: JsonValue) -> str:
 class MarkdownReportRenderer:
     """Deterministically render all report values from one immutable view model."""
 
-    def render(self, view: ReportViewModel, *, policy: ReportPolicy | None = None) -> str:
+    def render(
+        self,
+        view: ReportViewModel | ProductReportView,
+        *,
+        policy: ReportPolicy | None = None,
+    ) -> str:
+        if isinstance(view, ProductReportView):
+            return ProductMarkdownRenderer().render(view, policy=policy)
         selected_policy = policy or ReportPolicy()
         annotations = (
             GapAnnotationBuilder().build(view)

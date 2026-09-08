@@ -1,3 +1,4 @@
+# ruff: noqa: RUF001
 from __future__ import annotations
 
 import asyncio
@@ -17,11 +18,10 @@ from jindiao.application.service import DueDiligenceService
 from jindiao.application.settings import Settings
 from jindiao.contracts.entities import EnterpriseInput, ResolvedSubject
 from jindiao.contracts.events import EventSequencer, EventType, RunEvent
+from jindiao.contracts.product import ProductResult
 from jindiao.contracts.results import (
     DueDiligenceRequest,
-    DueDiligenceResult,
     SkillEvolutionFeedback,
-    SkillEvolutionStatus,
 )
 from jindiao.orchestration.base import DomainInvestigation
 from jindiao.orchestration.scenario_toolset import ScenarioToolset
@@ -54,23 +54,37 @@ def service(id_factory: IdFactory | None = None) -> DueDiligenceService:
 
 def request_body() -> dict[str, object]:
     return {
-        "enterprise": {"company_name": "金调绿洲科技有限公司"},
+        "enterprise": {"company_name": "乐视网信息技术（北京）股份有限公司"},
         "scenario_id": "normal-enterprise",
         "language": "zh-CN",
     }
+
+
+def test_openapi_exposes_fixed_product_result_for_json_result_paths() -> None:
+    schema = create_app(service=service()).openapi()
+
+    assert "ProductResult" in schema["components"]["schemas"]
+    for path, method in (
+        ("/api/v1/due-diligence/result", "post"),
+        ("/api/v2/due-diligence/runs/{run_id}/result", "get"),
+    ):
+        response = schema["paths"][path][method]["responses"]["200"]
+        assert response["content"]["application/json"]["schema"] == {
+            "$ref": "#/components/schemas/ProductResult"
+        }
 
 
 @pytest.mark.asyncio
 async def test_request_report_as_of_controls_review_and_decision_date() -> None:
     result = await service().run(
         DueDiligenceRequest(
-            enterprise=EnterpriseInput(company_name="金调绿洲科技有限公司"),
+            enterprise=EnterpriseInput(company_name="乐视网信息技术（北京）股份有限公司"),
             scenario_id="normal-enterprise",
             report_as_of=date(2026, 8, 1),
         )
     )
 
-    assert result.decision.as_of_date == date(2026, 8, 1)
+    assert result.meta.report_as_of == date(2026, 8, 1)
 
 
 @pytest.mark.asyncio
@@ -85,7 +99,7 @@ async def test_legacy_feedback_is_rejected_without_fake_candidate(tmp_path: Path
         clock=lambda: NOW,
     )
     request = DueDiligenceRequest(
-        enterprise=EnterpriseInput(company_name="金调绿洲科技有限公司"),
+        enterprise=EnterpriseInput(company_name="乐视网信息技术（北京）股份有限公司"),
         scenario_id="normal-enterprise",
         skill_feedback=SkillEvolutionFeedback(
             source="review_form",
@@ -98,11 +112,9 @@ async def test_legacy_feedback_is_rejected_without_fake_candidate(tmp_path: Path
     result = await runtime_service.run(request)
     streamed = [event async for event in runtime_service.stream(request)]
 
-    assert result.skill_evolution.status is SkillEvolutionStatus.REJECTED
-    assert result.skill_evolution.reason_codes == ("use_feedback_api",)
-    assert result.skill_evolution.candidate_version is None
+    assert not hasattr(result, "skill_evolution")
     assert not list((tmp_path / "skill-evolution" / "candidates").glob("*/metadata.json"))
-    assert EventType.SKILL_EVOLUTION_PROPOSED in {event.event_type for event in streamed}
+    assert EventType.SKILL_EVOLUTION_PROPOSED not in {event.event_type for event in streamed}
 
 
 class BlockingToolset:
@@ -141,7 +153,7 @@ async def test_service_stream_emits_progress_before_investigations_finish(tmp_pa
     )
     events = runtime_service.stream(
         DueDiligenceRequest(
-            enterprise=EnterpriseInput(company_name="金调绿洲科技有限公司"),
+            enterprise=EnterpriseInput(company_name="乐视网信息技术（北京）股份有限公司"),
             scenario_id="normal-enterprise",
         )
     )
@@ -180,31 +192,20 @@ async def test_app_registers_one_business_endpoint_and_returns_complete_json() -
         )
 
     assert response.status_code == 200
-    result = DueDiligenceResult.model_validate(response.json())
+    result = ProductResult.model_validate(response.json())
     assert result.meta.mode.value == "multi"
-    assert result.meta.status.value == "completed"
-    assert len(result.sections) == 8
-    assert result.report_markdown.startswith("# 企业信用与风控尽调报告")
+    assert result.meta.status.value == "partial"
+    assert len(type(result.report).model_fields) == 8
+    assert result.report_markdown.startswith(f"# {result.subject.company_name} 尽调报告")
     assert set(response.json()) == {
+        "schema_version",
         "meta",
         "subject",
-        "decision",
-        "risk_summary",
-        "coverage",
-        "sections",
-        "findings",
+        "summary",
+        "report",
+        "risk_findings",
         "evidence",
-        "agent_results",
-        "report_structure",
-        "context_snapshot",
-        "execution_cost",
-        "comparison_metadata",
-        "agent_trace",
-        "collaboration",
-        "evaluation",
-        "skill_evolution",
         "report_markdown",
-        "errors",
     }
 
 
@@ -222,6 +223,43 @@ async def test_result_endpoint_selects_single_mode_for_json() -> None:
 
     assert response.status_code == 200
     assert response.json()["meta"]["mode"] == "single"
+
+
+@pytest.mark.asyncio
+async def test_result_endpoint_maps_business_context_directly_into_business_plan() -> None:
+    app = create_app(service=service())
+    payload = {
+        **request_body(),
+        "business_context": {
+            "reporting_org": "城东支行",
+            "application_amount": 50_000_000,
+            "application_term_months": 12,
+            "fund_use": "经营周转",
+            "suggested_amount": 40_000_000,
+            "suggested_interest_rate": "LPR + 85BP",
+            "credit_info": {
+                "total_credit_limit": 65_000_000,
+                "used_credit_amount": 40_300_000,
+            },
+        },
+    }
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post(
+            "/api/v1/due-diligence/result",
+            json=payload,
+            headers={"Accept": "application/json"},
+        )
+
+    assert response.status_code == 200
+    result = ProductResult.model_validate(response.json())
+    assert result.report.business_plan.reporting_org == "城东支行"
+    assert result.report.business_plan.application_amount == 50_000_000
+    assert result.report.business_plan.suggested_amount == 40_000_000
+    assert "credit_usage_ratio=62.00%" in (
+        result.report.external_verification.credit.facts[0].description
+    )
 
 
 @pytest.mark.asyncio
@@ -290,7 +328,7 @@ async def test_sse_sequences_events_and_finishes_with_json_equivalent_result() -
     assert events[-1]["event_type"] == "report.completed"
     json_result = json_response.json()
     sse_result = events[-1]["payload"]["result"]
-    DueDiligenceResult.model_validate(sse_result)
+    ProductResult.model_validate(sse_result)
     assert set(sse_result) == set(json_result)
     for result in (json_result, sse_result):
         result["meta"] = {

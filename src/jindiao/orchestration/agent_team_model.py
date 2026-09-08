@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from contextlib import aclosing
 from typing import Any
 
 from openjiuwen.core.foundation.llm.model_clients import create_model_client
 from openjiuwen.core.foundation.llm.model_clients.base_model_client import BaseModelClient
 from openjiuwen.core.foundation.llm.schema.config import ModelClientConfig
 
+from jindiao.orchestration.budgeted_model import BudgetedModel
 from jindiao.orchestration.investigation_team_tools import (
     get_investigation_team_state,
 )
@@ -36,6 +38,8 @@ class BudgetedAgentTeamModelClient(BaseModelClient):  # type: ignore[misc]
             {
                 "client_id": f"{model_client_config.client_id}:inner",
                 "client_provider": inner_provider,
+                # Each paid attempt must pass through its own budget reservation.
+                "max_retries": 0,
             }
         )
         inner_data.pop("inner_provider", None)
@@ -63,31 +67,16 @@ class BudgetedAgentTeamModelClient(BaseModelClient):  # type: ignore[misc]
         return get_investigation_team_state(runtime_key).budget_ledger
 
     async def invoke(self, *args: Any, **kwargs: Any) -> Any:
-        await self._ledger.claim_llm_request("agent_team.model.invoke")
         kwargs["model"] = self._inner_model_name
-        async with self._ledger.operation_slot("agent_team.model.invoke"):
-            response = await self._inner.invoke(*args, **kwargs)
-        await self._record_usage(response)
-        return response
+        model = BudgetedModel(self._inner, budget_ledger=self._ledger)
+        return await model.invoke(*args, **kwargs)
 
     async def stream(self, *args: Any, **kwargs: Any) -> AsyncIterator[Any]:
-        await self._ledger.claim_llm_request("agent_team.model.stream")
         kwargs["model"] = self._inner_model_name
-        latest: object | None = None
-        async with self._ledger.operation_slot("agent_team.model.stream"):
-            async for chunk in self._inner.stream(*args, **kwargs):
-                if getattr(chunk, "usage_metadata", None) is not None:
-                    latest = chunk
+        model = BudgetedModel(self._inner, budget_ledger=self._ledger)
+        async with aclosing(model.stream(*args, **kwargs)) as source:
+            async for chunk in source:
                 yield chunk
-        await self._record_usage(latest)
-
-    async def _record_usage(self, value: object | None) -> None:
-        usage = getattr(value, "usage_metadata", None)
-        await self._ledger.record_llm_usage(
-            input_tokens=int(getattr(usage, "input_tokens", 0) or 0),
-            output_tokens=int(getattr(usage, "output_tokens", 0) or 0),
-            provider_usage=usage is not None,
-        )
 
     async def generate_image(self, *args: Any, **kwargs: Any) -> Any:
         return await self._inner.generate_image(*args, **kwargs)

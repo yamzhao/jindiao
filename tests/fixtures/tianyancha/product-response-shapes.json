@@ -1,0 +1,29 @@
+{
+  "markdown_detail": {
+    "text": "单位：万元；口径：合并\n\n| 年度 | 营业收入 | 净利润 |\n| --- | ---: | ---: |\n| 2025 | 1200 | 80 |\n| 2024 | 1000 | 60 |"
+  },
+  "year_directory": {
+    "structured_content": {
+      "result": {
+        "availableYears": [2025, 2023]
+      }
+    }
+  },
+  "link_only": {
+    "structured_content": {
+      "data": {
+        "snapshotUrl": "https://example.invalid/equity/snapshot.png",
+        "title": "股权结构快照"
+      }
+    }
+  },
+  "paginated": {
+    "structured_content": {
+      "items": [{"id": "case-1", "caseNo": "(2025)示执1号"}],
+      "pageNum": 1,
+      "pageSize": 1,
+      "total": 51,
+      "hasMore": true
+    }
+  }
+}

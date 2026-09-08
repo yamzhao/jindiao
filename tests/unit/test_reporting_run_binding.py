@@ -1,3 +1,4 @@
+# ruff: noqa: RUF001 -- official company name uses fullwidth parentheses
 from __future__ import annotations
 
 import json
@@ -10,10 +11,9 @@ from test_reporting_replay import source_snapshot
 from jindiao.application.run_coordinator import RunCoordinator
 from jindiao.application.service import DueDiligenceService
 from jindiao.application.settings import Settings
-from jindiao.contracts.entities import EnterpriseInput
+from jindiao.contracts.product import ProductResult
 from jindiao.contracts.results import (
     DueDiligenceRequest,
-    DueDiligenceResult,
     SkillEvolutionFeedback,
 )
 from jindiao.contracts.runs import RunCreateRequest
@@ -39,7 +39,7 @@ def make_service(root: Path, store: RunArtifactStore | None = None) -> DueDilige
 
 def request() -> RunCreateRequest:
     return RunCreateRequest(
-        enterprise=EnterpriseInput(company_name="金调绿洲科技有限公司"),
+        customerName="乐视网信息技术（北京）股份有限公司",
         scenario_id="normal-enterprise",
     )
 
@@ -63,17 +63,16 @@ async def test_accepted_run_and_idempotent_retry_keep_old_binding(tmp_path: Path
     await coordinator.execute(first.run_id)
     result = await coordinator.get_result(first.run_id, owner_id="alice")
     assert result is not None
-    assert result.meta.skill_versions["feedback-evolved-reporting"] == "1.1.0"
-    assert result.meta.report_replay_available
     artifacts = RunArtifactStore(tmp_path)
     assert artifacts.verify_manifest(first.run_id)
     replay = artifacts.load_replay(first.run_id)
     assert replay is not None and replay.binding == first.reporting_policy
+    assert replay.binding.version == "1.1.0"
     stored = artifacts.load_result(first.run_id)
     assert stored is not None and stored.meta == result.meta
     events = await coordinator.event_store.read_after(first.run_id, 0)
     completed = next(event for event in events if str(event.event_type) == "report.completed")
-    assert DueDiligenceResult.model_validate(completed.payload["result"]).meta == result.meta
+    assert ProductResult.model_validate(completed.payload["result"]).meta == result.meta
 
 
 @pytest.mark.asyncio
@@ -81,16 +80,14 @@ async def test_direct_service_saves_replay_and_rejects_old_feedback(tmp_path: Pa
     service = make_service(tmp_path)
     result = await service.run(
         DueDiligenceRequest(
-            enterprise=request().enterprise,
+            enterprise=request().to_execution_request().enterprise,
             scenario_id="normal-enterprise",
             skill_feedback=SkillEvolutionFeedback(
                 source="user", reference="old", text="请就近披露", evidence_refs=("old",)
             ),
         )
     )
-    assert result.skill_evolution.status.value == "rejected"
-    assert result.skill_evolution.reason_codes == ("use_feedback_api",)
-    assert result.meta.report_replay_available
+    assert not hasattr(result, "skill_evolution")
     data = json.loads((tmp_path / result.meta.run_id / "manifest.json").read_text())
     assert "report-replay.json" in data["files"]
 
@@ -106,9 +103,9 @@ class BrokenReplayStore(RunArtifactStore):
 @pytest.mark.asyncio
 async def test_replay_write_failure_does_not_fail_main_result(tmp_path: Path) -> None:
     store = BrokenReplayStore(tmp_path)
-    result = await make_service(tmp_path, store).run(request())
-    assert not result.meta.report_replay_available
-    assert result.meta.report_replay_reason
+    result = await make_service(tmp_path, store).run(request().to_execution_request())
+    assert not hasattr(result.meta, "report_replay_available")
+    assert store.load_replay(result.meta.run_id) is None
     assert store.verify_manifest(result.meta.run_id)
     saved = store.load_result(result.meta.run_id)
     assert saved is not None and saved.meta == result.meta
@@ -119,7 +116,7 @@ async def test_inflight_direct_stream_keeps_entry_binding(tmp_path: Path) -> Non
     from jindiao.contracts.events import EventType
 
     service = make_service(tmp_path)
-    stream = service.stream(request())
+    stream = service.stream(request().to_execution_request())
     accepted = await anext(stream)
     assert accepted.event_type is EventType.RUN_ACCEPTED
     store = service.reporting_demo_store
@@ -128,12 +125,13 @@ async def test_inflight_direct_stream_keeps_entry_binding(tmp_path: Path) -> Non
     store.apply(candidate.evolution_id, reason="在途应用")
     events = [event async for event in stream]
     completed = next(event for event in events if event.event_type is EventType.REPORT_COMPLETED)
-    result = DueDiligenceResult.model_validate(completed.payload["result"])
-    assert result.meta.skill_versions["feedback-evolved-reporting"] == "1.1.0"
-    next_result = await service.run(request())
-    assert (
-        next_result.meta.skill_versions["feedback-evolved-reporting"] == candidate.candidate.version
-    )
+    result = ProductResult.model_validate(completed.payload["result"])
+    first_snapshot = service.load_report_replay(result.meta.run_id)
+    assert first_snapshot is not None and first_snapshot.binding.version == "1.1.0"
+    next_result = await service.run(request().to_execution_request())
+    next_snapshot = service.load_report_replay(next_result.meta.run_id)
+    assert next_snapshot is not None
+    assert next_snapshot.binding.version == candidate.candidate.version
 
 
 @pytest.mark.asyncio
@@ -192,7 +190,7 @@ async def test_snapshot_disk_size_limit_controls_availability(
 
     # The limit applies to serialized disk bytes, not the smaller compact model JSON.
     service = make_service(tmp_path / "source")
-    result = await service.run(request())
+    result = await service.run(request().to_execution_request())
     snapshot = service.load_report_replay(result.meta.run_id)
     assert snapshot is not None
     compact_size = len(snapshot.model_dump_json().encode())
@@ -200,7 +198,7 @@ async def test_snapshot_disk_size_limit_controls_availability(
     monkeypatch.setattr(artifacts, "MAX_SNAPSHOT_BYTES", compact_size + 1)
     store = RunArtifactStore(tmp_path / "limited")
     saved = store.complete(result, metrics={}, replay_view=snapshot.view, binding=snapshot.binding)
-    assert not saved.meta.report_replay_available
+    assert saved == result
     assert store.load_replay(result.meta.run_id) is None
     assert store.verify_manifest(result.meta.run_id)
 

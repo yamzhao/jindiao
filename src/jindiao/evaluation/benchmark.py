@@ -18,8 +18,11 @@ from pydantic import JsonValue
 from jindiao.application.errors import error_to_record
 from jindiao.application.service import DueDiligenceService
 from jindiao.application.settings import Settings
-from jindiao.contracts.execution import FormalComparisonEligibility
+from jindiao.contracts.execution import ExecutionCost, FormalComparisonEligibility
+from jindiao.contracts.product import ProductResult
+from jindiao.contracts.report_inputs import ReviewedReportInputs
 from jindiao.contracts.results import (
+    AgentInvestigationResult,
     AgentResultPhase,
     DueDiligenceRequest,
     OrchestrationMode,
@@ -177,11 +180,30 @@ class BenchmarkRunner:
                 error_code=record.code,
             )
 
+        if not isinstance(result, ProductResult):
+            raise TypeError("benchmark new runs must return prototype-v1 results")
+        metrics = self._read_metrics(run_artifacts / run_id / "metrics.json")
+        internal = self._read_json(run_artifacts / run_id / "investigation.json")
+        reviewed = ReviewedReportInputs.model_validate(internal.get("reviewed"))
+        agent_results = tuple(
+            AgentInvestigationResult.model_validate(item)
+            for item in self._object_list(internal.get("agent_results"))
+        )
+        execution_cost = self._object_mapping(internal.get("execution_cost"))
+        shared_acquisition_cost = ExecutionCost.model_validate(
+            execution_cost.get("shared_acquisition", {})
+        )
+        investigation_cost = ExecutionCost.model_validate(execution_cost.get("investigation", {}))
         expected = self._expected.load(case.scenario_id, version=case.scenario_version)
-        quality = self._evaluator.evaluate(result, expected)
+        quality = self._evaluator.evaluate(
+            result,
+            expected,
+            reviewed=reviewed,
+            detected_conflicts=self._metric_int(metrics, "conflicts_detected"),
+        )
         check_ids = {
             check.check_id
-            for agent_result in result.agent_results
+            for agent_result in agent_results
             if agent_result.phase is AgentResultPhase.INVESTIGATION
             for check in agent_result.check_results
         }
@@ -189,7 +211,6 @@ class BenchmarkRunner:
         fixed_check_completed = len(check_ids & set(CHECK_CATALOG.check_ids))
         fixed_check_coverage = fixed_check_completed / fixed_check_total
         completed = result.meta.status is RunStatus.COMPLETED
-        metrics = self._read_metrics(run_artifacts / run_id / "metrics.json")
         canonical = json.dumps(
             result.model_dump(mode="json"),
             ensure_ascii=False,
@@ -208,17 +229,17 @@ class BenchmarkRunner:
             fairness_fingerprint=fingerprint,
             duration_ms=self._metric_int(metrics, "end_to_end_duration_ms"),
             first_valid_evidence_ms=self._metric_optional_int(metrics, "first_valid_evidence_ms"),
-            tool_calls=int(result.evaluation.metrics.get("tool_calls", 0)),
+            tool_calls=self._metric_int(metrics, "tool_calls"),
             token_count=self._metric_int(metrics, "token_count"),
-            conflicts_detected=result.collaboration.conflicts_detected,
-            repairs_requested=result.collaboration.repairs_requested,
+            conflicts_detected=self._metric_int(metrics, "conflicts_detected"),
+            repairs_requested=self._metric_int(metrics, "repairs_requested"),
             fixed_check_completed=fixed_check_completed,
             fixed_check_total=fixed_check_total,
             fixed_check_coverage=fixed_check_coverage,
             evidence_sufficiency=quality.evidence_support,
             structured_submission_success_rate=fixed_check_coverage,
-            shared_acquisition_cost=result.execution_cost.shared_acquisition_cost,
-            investigation_cost=result.execution_cost.investigation_cost,
+            shared_acquisition_cost=shared_acquisition_cost,
+            investigation_cost=investigation_cost,
             quality=quality,
             error_code=None if completed else "partial_result",
             result_hash=hashlib.sha256(canonical.encode()).hexdigest(),
@@ -230,6 +251,25 @@ class BenchmarkRunner:
             return {}
         raw: object = json.loads(path.read_text(encoding="utf-8"))
         return raw if isinstance(raw, dict) else {}
+
+    @staticmethod
+    def _read_json(path: Path) -> dict[str, JsonValue]:
+        raw: object = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(raw, dict):
+            raise ValueError(f"internal benchmark artifact must be an object: {path}")
+        return raw
+
+    @staticmethod
+    def _object_mapping(value: object) -> dict[str, JsonValue]:
+        if not isinstance(value, dict):
+            raise ValueError("internal benchmark execution cost must be an object")
+        return value
+
+    @staticmethod
+    def _object_list(value: object) -> list[dict[str, JsonValue]]:
+        if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
+            raise ValueError("internal benchmark agent results must be an array of objects")
+        return value
 
     @staticmethod
     def _metric_int(metrics: dict[str, JsonValue], name: str) -> int:

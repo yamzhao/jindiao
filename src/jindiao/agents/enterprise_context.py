@@ -15,11 +15,11 @@ from pydantic import Field, model_validator
 
 from jindiao.application.errors import AgentExecutionError, JindiaoError
 from jindiao.contracts.acquisition import SubmoduleAvailability, SubmoduleContext
+from jindiao.contracts.acquisition_catalog import AcquisitionCatalog
 from jindiao.contracts.base import ContractModel
 from jindiao.contracts.entities import EnterpriseInput, ResolvedSubject
 from jindiao.contracts.evidence import CoverageCompleteness, Evidence
 from jindiao.contracts.investigation import FactEvidenceRef
-from jindiao.contracts.reporting import ReportCatalog
 from jindiao.contracts.results import (
     AgentInvestigationResult,
     AgentResultPhase,
@@ -68,7 +68,8 @@ class _SubmissionState:
 class EnterpriseContextAcquisitionResult(ContractModel):
     subject: ResolvedSubject
     report_as_of: date
-    report_catalog_version: str = Field(min_length=1)
+    acquisition_catalog_version: str = Field(min_length=1)
+    planned_submodule_ids: tuple[str, ...] = Field(min_length=1)
     source_manifest_version: str = Field(pattern=r"^[0-9a-f]{64}$")
     capability_names: tuple[str, ...]
     submodules: tuple[SubmoduleContext, ...]
@@ -80,8 +81,10 @@ class EnterpriseContextAcquisitionResult(ContractModel):
     @model_validator(mode="after")
     def validate_acquisition(self) -> EnterpriseContextAcquisitionResult:
         submodule_ids = tuple(item.submodule_id for item in self.submodules)
-        if len(submodule_ids) != 48 or len(set(submodule_ids)) != 48:
-            raise ValueError("enterprise context acquisition requires 48 unique submodules")
+        if submodule_ids != self.planned_submodule_ids:
+            raise ValueError("acquisition submodules must preserve the planned id order")
+        if len(submodule_ids) != len(set(submodule_ids)):
+            raise ValueError("enterprise context acquisition ids must be unique")
         if self.agent_result.phase is not AgentResultPhase.ACQUISITION:
             raise ValueError("enterprise context contribution must be acquisition phase")
         if self.agent_result.risk_items or self.agent_result.check_results:
@@ -107,13 +110,14 @@ class EnterpriseContextAgent:
         *,
         gateway: TianyanchaMcpGateway,
         prompt_bundle: PromptBundle,
-        report_catalog: ReportCatalog,
+        acquisition_catalog: AcquisitionCatalog,
     ) -> None:
         if gateway.agent_id != self.agent_id:
             raise AgentExecutionError("Context Agent requires its own bound MCP gateway")
         self._gateway = gateway
         self._prompt_bundle = prompt_bundle
-        self._report_catalog = report_catalog
+        self._acquisition_catalog = acquisition_catalog
+        self._plan_ids = acquisition_catalog.default_plan_ids
         self._enterprise: EnterpriseInput | None = None
         self._acquire_lock = asyncio.Lock()
         self._acquire_task: asyncio.Task[EnterpriseContextAcquisitionResult] | None = None
@@ -174,7 +178,7 @@ class EnterpriseContextAgent:
             phase=AgentResultPhase.ACQUISITION,
             session_id=f"{self._gateway.run_id}:{self.agent_id}",
             query=invocation.user_payload_json,
-            task_ids=tuple(f"acquire:{item}" for item in self._report_catalog.submodule_ids),
+            task_ids=tuple(f"acquire:{item}" for item in self._plan_ids),
             prompt_version=invocation.prompt_version,
             prompt_sha256=invocation.prompt_sha256,
             timeout_seconds=timeout_seconds,
@@ -249,11 +253,11 @@ class EnterpriseContextAgent:
             submodule_ids: list[str],
         ) -> dict[str, object]:
             requested = tuple(submodule_ids)
-            if requested != self._report_catalog.submodule_ids:
-                missing = sorted(set(self._report_catalog.submodule_ids) - set(requested))
-                extra = sorted(set(requested) - set(self._report_catalog.submodule_ids))
+            if requested != self._plan_ids:
+                missing = sorted(set(self._plan_ids) - set(requested))
+                extra = sorted(set(requested) - set(self._plan_ids))
                 raise AgentExecutionError(
-                    "Context Agent must request the canonical 48-submodule plan",
+                    "Context Agent must request the frozen acquisition plan",
                     details={"missing": missing, "extra": extra},
                 )
             state.collection_attempts += 1
@@ -277,7 +281,7 @@ class EnterpriseContextAgent:
                 id=f"jindiao.{self._gateway.run_id}.context.submit",
                 name="submit_enterprise_context",
                 description=(
-                    "Submit the already collected 48-submodule Evidence and coverage manifest."
+                    "Submit the already collected acquisition Evidence and coverage manifest."
                 ),
                 input_params=SubmitEnterpriseContextInput.model_json_schema(),
                 stateless=False,
@@ -290,12 +294,12 @@ class EnterpriseContextAgent:
                 raise AgentExecutionError(
                     "Context Agent cannot submit before collecting the report catalog"
                 )
-            if len(state.acquisition.submodules) != 48:
+            if tuple(item.submodule_id for item in state.acquisition.submodules) != self._plan_ids:
                 raise AgentExecutionError("Context Agent submission coverage is incomplete")
             state.submitted = True
             return {
                 "status": "accepted",
-                "coverage_count": 48,
+                "coverage_count": len(self._plan_ids),
                 "evidence_count": len(state.acquisition.evidence),
             }
 
@@ -340,10 +344,7 @@ class EnterpriseContextAgent:
         invocation = self._prompt_invocation(enterprise)
         subject, manifest = await self._gateway.initialize(enterprise)
         observations = await asyncio.gather(
-            *(
-                self._collect_submodule(subject, submodule_id)
-                for submodule_id in self._report_catalog.submodule_ids
-            )
+            *(self._collect_submodule(subject, submodule_id) for submodule_id in self._plan_ids)
         )
         submodules = tuple(
             item if isinstance(item, SubmoduleContext) else item.to_submodule_context()
@@ -365,7 +366,7 @@ class EnterpriseContextAgent:
             )
             for item in evidence
         )
-        task_ids = tuple(f"acquire:{item}" for item in self._report_catalog.submodule_ids)
+        task_ids = tuple(f"acquire:{item}" for item in self._plan_ids)
         contribution = AgentInvestigationResult(
             agent_id=self.agent_id,
             role=self.role,
@@ -378,7 +379,8 @@ class EnterpriseContextAgent:
         return EnterpriseContextAcquisitionResult(
             subject=subject,
             report_as_of=self._gateway.report_as_of,
-            report_catalog_version=self._report_catalog.catalog_version,
+            acquisition_catalog_version=self._acquisition_catalog.catalog_version,
+            planned_submodule_ids=self._plan_ids,
             source_manifest_version=manifest.fingerprint,
             capability_names=manifest.tool_names,
             submodules=submodules,
@@ -396,8 +398,8 @@ class EnterpriseContextAgent:
                 "run_id": self._gateway.run_id,
                 "report_as_of": self._gateway.report_as_of.isoformat(),
                 "enterprise": enterprise.model_dump(mode="json"),
-                "report_catalog_version": self._report_catalog.catalog_version,
-                "submodules": list(self._report_catalog.submodule_ids),
+                "acquisition_catalog_version": self._acquisition_catalog.catalog_version,
+                "submodules": list(self._plan_ids),
             },
         )
 

@@ -1,5 +1,6 @@
 """Actual due-diligence contracts behind a local gateway adapter, not AgentArts."""
 
+# ruff: noqa: RUF001 -- official company name uses fullwidth parentheses
 from __future__ import annotations
 
 import json
@@ -85,7 +86,7 @@ async def test_bff_with_actual_runtime_contracts(tmp_path: Path, mode: str) -> N
 
         headers = await login("alice")
         payload: dict[str, Any] = {
-            "enterprise": {"company_name": "金调绿洲科技有限公司"},
+            "customerName": "乐视网信息技术（北京）股份有限公司",
             "scenario_id": "normal-enterprise",
             "mode": mode,
         }
@@ -96,14 +97,14 @@ async def test_bff_with_actual_runtime_contracts(tmp_path: Path, mode: str) -> N
         assert repeated.json()["run_id"] == run_id
         await runtime.state.run_coordinator.execute(run_id)
         status = await client.get(f"{RUNS}/{run_id}")
-        assert status.json()["status"] == "completed"
+        assert status.json()["status"] == "partial"
         assert "owner_id" not in status.json() and "session_id" not in status.json()
         events = await client.get(f"{RUNS}/{run_id}/events")
         assert events.status_code == 200 and "proxy.error" not in events.text
         parsed = [
             json.loads(line[6:]) for line in events.text.splitlines() if line.startswith("data: ")
         ]
-        assert parsed[-1]["event_type"] == "run.completed"
+        assert parsed[-1]["event_type"] == "run.partial"
         result = await client.get(f"{RUNS}/{run_id}/result")
         assert result.status_code == 200 and result.json()["meta"]["run_id"] == run_id
         assert key not in result.text + events.text + status.text

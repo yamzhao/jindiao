@@ -10,9 +10,11 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
 from jindiao.application.run_coordinator import RunCoordinator
+from jindiao.contracts.product import ProductResult
 from jindiao.contracts.report_policy import ReportFeedbackRequest
 from jindiao.contracts.results import RunStatus
 from jindiao.reporting.demo_store import DemoCandidate, ReportingDemoStore
+from jindiao.reporting.product_markdown import SECTION_TITLES, ProductReportView
 
 router = APIRouter()
 
@@ -101,13 +103,25 @@ async def submit_feedback(
     ):
         raise HTTPException(409, detail="run_not_feedback_ready")
     snapshot = coordinator.service.load_report_replay(run_id)
-    if snapshot is None or not result.meta.report_replay_available:
+    if snapshot is None or (
+        not isinstance(result, ProductResult) and not result.meta.report_replay_available
+    ):
         raise HTTPException(409, detail="run_not_replayable")
     if resource.reporting_policy != snapshot.binding:
         raise HTTPException(409, detail="run_not_replayable")
-    if not set(body.target_section_ids) <= {item.section_id for item in snapshot.view.sections}:
+    section_ids = (
+        set(SECTION_TITLES)
+        if isinstance(snapshot.view, ProductReportView)
+        else {item.section_id for item in snapshot.view.sections}
+    )
+    evidence_ids = (
+        {item.id for item in snapshot.view.evidence}
+        if isinstance(snapshot.view, ProductReportView)
+        else {item.evidence_id for item in snapshot.view.evidence}
+    )
+    if not set(body.target_section_ids) <= section_ids:
         raise HTTPException(422, detail="invalid_section_reference")
-    if not set(body.evidence_ids) <= {item.evidence_id for item in snapshot.view.evidence}:
+    if not set(body.evidence_ids) <= evidence_ids:
         raise HTTPException(422, detail="invalid_evidence_reference")
     key = request.headers.get("idempotency-key", "")
     if not key.strip() or len(key) > 128:

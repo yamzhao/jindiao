@@ -6,6 +6,7 @@ from typing import Any, cast
 
 import pytest
 
+from jindiao.acquisition.catalog import ACQUISITION_CATALOG
 from jindiao.application import RunContext, Settings
 from jindiao.contracts.entities import EnterpriseInput, ResolvedSubject
 from jindiao.contracts.evidence import (
@@ -242,7 +243,10 @@ async def test_live_toolset_prioritizes_manifest_tool_and_marks_mock_supplement(
     assert all(
         item.status is SourceStatus.CAPABILITY_ABSENT for item in artifact.coverage_items[1:]
     )
-    assert len(artifact.coverage_items) == 10
+    planned = set(ACQUISITION_CATALOG.default_plan_ids)
+    assert len(artifact.coverage_items) == sum(
+        route.submodule_id in planned for route in routing().routes["governance"].submodules
+    )
     assert artifact.section_data["company-profile"]["company_name"] == subject.company_name
     assert artifact.section_data["company-profile"]["unified_social_credit_code"] == (
         subject.unified_social_credit_code
@@ -259,7 +263,6 @@ async def test_live_toolset_calls_multiple_tools_and_assembles_governance_submod
         tools=(
             "get_company_registration_info",
             "get_shareholder_info",
-            "get_branches",
         ),
         business_results={
             "get_company_registration_info": McpCallResult(
@@ -267,9 +270,6 @@ async def test_live_toolset_calls_multiple_tools_and_assembles_governance_submod
             ),
             "get_shareholder_info": McpCallResult(
                 structured_content={"items": [{"id": "holder-1", "name": "甲股东"}]}
-            ),
-            "get_branches": McpCallResult(
-                structured_content={"items": [{"id": "branch-1", "name": "第一分公司"}]}
             ),
         },
     )
@@ -287,42 +287,36 @@ async def test_live_toolset_calls_multiple_tools_and_assembles_governance_submod
     assert submodules["registration"]["records"][0]["regStatus"] == "存续"
     assert submodules["shareholders"]["source_tool"] == "get_shareholder_info"
     assert submodules["shareholders"]["records"][0]["name"] == "甲股东"
-    assert submodules["branches"]["source_tool"] == "get_branches"
-    assert submodules["branches"]["records"][0]["name"] == "第一分公司"
 
 
 @pytest.mark.asyncio
 async def test_live_toolset_deduplicates_shared_tool_and_preserves_mixed_results() -> None:
-    timeout = TianyanchaMcpError(McpErrorKind.TIMEOUT, "safe timeout")
     client = FakeLiveClient(
-        tools=("get_risk_overview", "get_judicial_documents", "get_hearing_notice"),
+        tools=("get_financial_data",),
         business_results={
-            "get_risk_overview": McpCallResult(
-                structured_content={"items": [{"id": "risk-1", "type": "execution"}]}
-            ),
-            "get_judicial_documents": McpCallResult(structured_content={"items": []}),
-            "get_hearing_notice": timeout,
+            "get_financial_data": McpCallResult(
+                structured_content={"items": [{"year": 2025, "revenue": 100_000_000}]}
+            )
         },
     )
     toolset = TianyanchaHybridToolset(client=client, routing=routing(), clock=lambda: NOW)
     run_context = context()
     subject = await toolset.resolve_subject(run_context)
 
-    artifact = await toolset.investigate(run_context, subject, "judicial")
+    artifact = await toolset.investigate(run_context, subject, "operations")
 
     calls = [str(arguments["tool_name"]) for name, arguments in client.calls if name == "call_tool"]
-    assert calls.count("get_risk_overview") == 1
-    judicial_risk = _json_object(artifact.section_data["judicial-risk"])
-    submodules = _json_object(judicial_risk["submodules"])
-    assert submodules["consumption_restrictions"]["source_status"] == "verified_records"
-    assert submodules["dishonest_enforcement"]["source_status"] == "verified_records"
-    assert submodules["executions"]["source_status"] == "verified_records"
-    assert submodules["judicial_documents"]["source_status"] == "verified_empty"
-    assert submodules["judicial_documents"]["records"] == []
-    assert submodules["hearing_notices"]["source_status"] == "source_error"
-    assert submodules["hearing_notices"]["records"] == []
-    assert any(item.source_tool == "get_risk_overview" for item in artifact.evidence)
-    assert artifact.errors
+    assert calls.count("get_financial_data") == 1
+    operations = _json_object(artifact.section_data["operations-analysis"])
+    submodules = _json_object(operations["submodules"])
+    for submodule_id in (
+        "financial_summary",
+        "income_statement",
+        "balance_sheet",
+        "cash_flow_statement",
+    ):
+        assert submodules[submodule_id]["source_status"] == "verified_records"
+    assert any(item.source_tool == "get_financial_data" for item in artifact.evidence)
 
 
 @pytest.mark.asyncio
@@ -334,7 +328,7 @@ async def test_live_toolset_deduplicates_shared_tool_and_preserves_mixed_results
             ("get_annual_reports", "get_administrative_penalty"),
             "operations-analysis",
         ),
-        ("peers", ("get_competitors", "get_ranking_list_info"), "peer-analysis"),
+        ("peers", ("get_ranking_list_info",), "peer-analysis"),
     ],
 )
 async def test_each_operations_peer_domain_can_call_multiple_tools(

@@ -10,6 +10,7 @@ from types import MappingProxyType
 from jindiao.contracts.evidence import CoverageItem, Evidence, SourceStatus, SourceType
 from jindiao.contracts.reporting import ReportViewModel
 from jindiao.reporting.catalog import REPORT_CATALOG
+from jindiao.reporting.product_markdown import ProductReportView, gap_annotations
 
 GAP_MAPPING_VERSION = "gap-mapping-v1"
 
@@ -57,7 +58,12 @@ class GapAnnotation:
 class GapAnnotationBuilder:
     """Map only already disclosed coverage gaps; never infer findings or risks."""
 
-    def build(self, view: ReportViewModel) -> tuple[GapAnnotation, ...]:
+    def build(self, view: ReportViewModel | ProductReportView) -> tuple[GapAnnotation, ...]:
+        if isinstance(view, ProductReportView):
+            return tuple(
+                GapAnnotation(identity, (section,), text)
+                for identity, section, text in gap_annotations(view)
+            )
         present = {section.section_id for section in view.sections}
         annotations: dict[str, GapAnnotation] = {}
         for item in view.coverage.items:

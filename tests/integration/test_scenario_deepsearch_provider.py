@@ -1,3 +1,4 @@
+# ruff: noqa: RUF001 -- official company name uses fullwidth parentheses
 from __future__ import annotations
 
 from pathlib import Path
@@ -19,7 +20,7 @@ from jindiao.scenarios import ScenarioRepository, ScenarioSnapshot
 def snapshot() -> ScenarioSnapshot:
     return ScenarioRepository(Path("mock_data/scenarios")).load(
         "normal-enterprise",
-        EnterpriseInput(company_name="金调绿洲科技有限公司"),
+        EnterpriseInput(company_name="乐视网信息技术（北京）股份有限公司"),
     )
 
 
@@ -90,7 +91,7 @@ async def test_same_query_never_returns_another_scenario_corpus() -> None:
     normal = ScenarioDeepSearchProvider(
         repository.load(
             "normal-enterprise",
-            EnterpriseInput(company_name="金调绿洲科技有限公司"),
+            EnterpriseInput(company_name="乐视网信息技术（北京）股份有限公司"),
         )
     )
     conflict = ScenarioDeepSearchProvider(

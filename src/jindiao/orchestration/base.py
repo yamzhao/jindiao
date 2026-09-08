@@ -6,6 +6,7 @@ import asyncio
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Set
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from typing import Any, Protocol, cast, runtime_checkable
 
 from pydantic import Field, JsonValue, field_validator, model_validator
@@ -31,6 +32,7 @@ class RunBudget(ContractModel):
     max_input_tokens: int = Field(default=300_000, ge=1)
     max_output_tokens: int = Field(default=100_000, ge=1)
     max_total_tokens: int = Field(default=400_000, ge=1)
+    enforce_token_budget: bool = True
     max_schema_retries: int = Field(default=4, ge=0)
     max_snapshot_reads: int = Field(default=240, ge=1)
 
@@ -49,6 +51,7 @@ class RunBudget(ContractModel):
             max_repair_rounds=policy.max_repair_rounds,
             max_llm_requests=policy.max_llm_requests,
             max_input_tokens=policy.max_input_tokens,
+            enforce_token_budget=policy.enforce_token_budget,
             max_output_tokens=policy.max_output_tokens,
             max_total_tokens=policy.max_total_tokens,
             max_schema_retries=policy.max_schema_retries,
@@ -137,6 +140,19 @@ class BudgetUsageSnapshot(ContractModel):
     wall_time_ms: int = Field(ge=0)
     deadline_remaining_ms: int = Field(ge=0)
     exhausted_reason: str | None = None
+    reserved_input_tokens: int = Field(default=0, ge=0)
+    reserved_output_tokens: int = Field(default=0, ge=0)
+    unknown_usage_requests: int = Field(default=0, ge=0)
+    unreported_input_tokens: int = Field(default=0, ge=0)
+    unreported_output_tokens: int = Field(default=0, ge=0)
+
+
+@dataclass(frozen=True, eq=False)
+class LLMReservation:
+    """Opaque, ledger-owned claim; estimates are never reported as actual usage."""
+
+    input_tokens: int
+    output_tokens: int
 
 
 class BudgetLedger:
@@ -159,6 +175,13 @@ class BudgetLedger:
         self._provider_usage_requests = 0
         self._input_tokens = 0
         self._output_tokens = 0
+        self._legacy_pending_requests = 0
+        self._reservations: set[LLMReservation] = set()
+        self._reserved_input_tokens = 0
+        self._reserved_output_tokens = 0
+        self._unknown_usage_requests = 0
+        self._unreported_input_tokens = 0
+        self._unreported_output_tokens = 0
         self._schema_retries = 0
         self._repair_rounds = 0
         self._active_operations = 0
@@ -209,6 +232,107 @@ class BudgetLedger:
                     limit=self.budget.max_llm_requests,
                 )
             self._llm_requests += 1
+            self._legacy_pending_requests += 1
+
+    async def reserve_llm_request(
+        self, operation: str, *, input_tokens: int, output_tokens: int
+    ) -> LLMReservation:
+        """Atomically reserve input plus a bounded output allowance before dispatch."""
+
+        if input_tokens < 0 or output_tokens < 1:
+            raise ValueError("LLM reservation needs nonnegative input and positive output")
+        async with self._lock:
+            self._ensure_available(operation)
+            if self._llm_requests >= self.budget.max_llm_requests:
+                self._exhaust(
+                    "orchestration LLM-request budget exhausted",
+                    operation=operation,
+                    limit=self.budget.max_llm_requests,
+                )
+            committed_input = (
+                self._input_tokens + self._reserved_input_tokens + self._unreported_input_tokens
+            )
+            committed_output = (
+                self._output_tokens + self._reserved_output_tokens + self._unreported_output_tokens
+            )
+            bounded_output = output_tokens
+            if self.budget.enforce_token_budget:
+                bounded_output = min(
+                    output_tokens,
+                    self.budget.max_output_tokens - committed_output,
+                    self.budget.max_total_tokens
+                    - committed_input
+                    - committed_output
+                    - input_tokens,
+                )
+            if self.budget.enforce_token_budget and (
+                committed_input + input_tokens > self.budget.max_input_tokens or bounded_output < 1
+            ):
+                self._exhaust(
+                    "orchestration token budget exhausted before model request",
+                    operation=operation,
+                    estimated_input_tokens=input_tokens,
+                    requested_output_tokens=output_tokens,
+                )
+            reservation = LLMReservation(input_tokens=input_tokens, output_tokens=bounded_output)
+            self._reservations.add(reservation)
+            self._reserved_input_tokens += reservation.input_tokens
+            self._reserved_output_tokens += reservation.output_tokens
+            self._llm_requests += 1
+            return reservation
+
+    async def release_llm_request(self, reservation: LLMReservation) -> None:
+        """Release a provably undispatched request; repeated cleanup is harmless."""
+
+        async with self._lock:
+            if self._remove_reservation(reservation):
+                self._llm_requests -= 1
+
+    async def complete_llm_request(
+        self,
+        reservation: LLMReservation,
+        *,
+        input_tokens: int | None,
+        output_tokens: int | None,
+        provider_usage: bool,
+        succeeded: bool = True,
+    ) -> None:
+        """Settle dispatched work even after cancellation, exhaustion or its deadline.
+
+        Missing provider usage remains an explicitly unknown budget hold, not zero
+        cost. Observed partial stream usage is a lower bound on interrupted work;
+        its unobserved remainder stays held until the Run ends.
+        """
+
+        if input_tokens is not None and input_tokens < 0:
+            raise ValueError("LLM token usage cannot be negative")
+        if output_tokens is not None and output_tokens < 0:
+            raise ValueError("LLM token usage cannot be negative")
+        async with self._lock:
+            if not self._remove_reservation(reservation):
+                return
+            known = provider_usage and input_tokens is not None and output_tokens is not None
+            observed_input = input_tokens or 0
+            observed_output = output_tokens or 0
+            self._successful_llm_requests += int(succeeded or known)
+            self._provider_usage_requests += int(known)
+            self._input_tokens += observed_input
+            self._output_tokens += observed_output
+            if not known or not succeeded:
+                self._unknown_usage_requests += 1
+                self._unreported_input_tokens += max(0, reservation.input_tokens - observed_input)
+                self._unreported_output_tokens += max(
+                    0, reservation.output_tokens - observed_output
+                )
+            self._check_recorded_usage("complete_llm_request")
+
+    def _remove_reservation(self, reservation: LLMReservation) -> bool:
+        if reservation not in self._reservations:
+            return False
+        self._reservations.remove(reservation)
+        self._reserved_input_tokens -= reservation.input_tokens
+        self._reserved_output_tokens -= reservation.output_tokens
+        return True
 
     async def record_llm_usage(
         self,
@@ -220,31 +344,36 @@ class BudgetLedger:
         if input_tokens < 0 or output_tokens < 0:
             raise ValueError("LLM token usage cannot be negative")
         async with self._lock:
-            self._ensure_deadline("record_llm_usage")
-            if self._successful_llm_requests >= self._llm_requests:
+            if self._legacy_pending_requests < 1:
                 raise AgentExecutionError(
                     "LLM usage has no claimed request",
-                    details={"operation": "record_llm_usage"},
+                    details={"operation": "record_llm_usage", **self.error_details()},
                 )
+            self._legacy_pending_requests -= 1
             self._successful_llm_requests += 1
             if provider_usage:
                 self._provider_usage_requests += 1
+            else:
+                self._unknown_usage_requests += 1
             self._input_tokens += input_tokens
             self._output_tokens += output_tokens
-            total_tokens = self._input_tokens + self._output_tokens
-            exceeded = (
-                self._input_tokens > self.budget.max_input_tokens
-                or self._output_tokens > self.budget.max_output_tokens
-                or total_tokens > self.budget.max_total_tokens
+            self._check_recorded_usage("record_llm_usage")
+
+    def _check_recorded_usage(self, operation: str) -> None:
+        total_tokens = self._input_tokens + self._output_tokens
+        if self.budget.enforce_token_budget and (
+            self._input_tokens > self.budget.max_input_tokens
+            or self._output_tokens > self.budget.max_output_tokens
+            or total_tokens > self.budget.max_total_tokens
+        ):
+            self._exhaust(
+                "orchestration token budget exhausted",
+                operation=operation,
+                input_tokens=self._input_tokens,
+                output_tokens=self._output_tokens,
+                total_tokens=total_tokens,
             )
-            if exceeded:
-                self._exhaust(
-                    "orchestration token budget exhausted",
-                    operation="record_llm_usage",
-                    input_tokens=self._input_tokens,
-                    output_tokens=self._output_tokens,
-                    total_tokens=total_tokens,
-                )
+        self._ensure_deadline(operation)
 
     async def claim_schema_retry(self, operation: str) -> None:
         async with self._lock:
@@ -279,7 +408,11 @@ class BudgetLedger:
             if self._active_operations >= self.budget.max_concurrency:
                 raise AgentExecutionError(
                     "orchestration concurrency budget exhausted",
-                    details={"operation": operation, "limit": self.budget.max_concurrency},
+                    details={
+                        "operation": operation,
+                        "limit": self.budget.max_concurrency,
+                        **self.error_details(),
+                    },
                 )
             self._active_operations += 1
             self._peak_concurrency = max(
@@ -310,6 +443,11 @@ class BudgetLedger:
             wall_time_ms=max(0, round((now - self._started_at) * 1000)),
             deadline_remaining_ms=max(0, round((self._deadline - now) * 1000)),
             exhausted_reason=self._exhausted_reason,
+            reserved_input_tokens=self._reserved_input_tokens,
+            reserved_output_tokens=self._reserved_output_tokens,
+            unknown_usage_requests=self._unknown_usage_requests,
+            unreported_input_tokens=self._unreported_input_tokens,
+            unreported_output_tokens=self._unreported_output_tokens,
         )
 
     def to_execution_cost(self) -> ExecutionCost:
@@ -333,7 +471,7 @@ class BudgetLedger:
         if self._exhausted_reason is not None:
             raise AgentExecutionError(
                 self._exhausted_reason,
-                details={"operation": operation},
+                details={"operation": operation, **self.error_details()},
             )
 
     def _ensure_deadline(self, operation: str) -> None:
@@ -341,12 +479,26 @@ class BudgetLedger:
             self._exhausted_reason = "orchestration deadline exceeded"
             raise AgentExecutionError(
                 self._exhausted_reason,
-                details={"operation": operation},
+                details={"operation": operation, **self.error_details()},
             )
 
     def _exhaust(self, message: str, **details: object) -> None:
         self._exhausted_reason = message
-        raise AgentExecutionError(message, details=dict(details))
+        raise AgentExecutionError(message, details={**details, **self.error_details()})
+
+    def error_details(self) -> dict[str, object]:
+        """Safe accounting-only metadata for durable error/termination paths."""
+
+        return {
+            "execution_cost": self.to_execution_cost().model_dump(mode="json"),
+            "token_budget_enforced": self.budget.enforce_token_budget,
+            "budget_usage": self.snapshot().model_dump(mode="json"),
+            "provider_usage_complete": (
+                self._provider_usage_requests == self._llm_requests
+                and self._unknown_usage_requests == 0
+                and not self._reservations
+            ),
+        }
 
 
 class DomainInvestigation(ContractModel):

@@ -1,4 +1,6 @@
 .PHONY: install dev format lint type-check test check mock-demo benchmark compare-agents report verify-install verify-tianyancha docker-build docker-run
+.PHONY: local ecs-package agentarts
+.PHONY: local-start local-restart local-stop
 
 install:
 	uv sync --frozen --group dev --extra agentarts
@@ -43,3 +45,22 @@ docker-build:
 
 docker-run:
 	docker compose up --build
+
+# Deployment arguments contain paths/options only, never credential values.
+local:
+	./bin/local $(ARGS)
+
+local-start:
+	./bin/start.sh $(ARGS)
+
+local-restart:
+	./bin/restart.sh $(ARGS)
+
+local-stop:
+	./bin/stop.sh $(ARGS)
+
+ecs-package:
+	./bin/ecs-package $(ARGS)
+
+agentarts:
+	./bin/agentarts $(ARGS)

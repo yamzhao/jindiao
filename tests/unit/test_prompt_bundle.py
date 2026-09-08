@@ -26,8 +26,8 @@ def test_acquisition_prompts_encode_coverage_evidence_and_trust_boundaries() -> 
     assert all(
         marker in context.system_prompt
         for marker in (
-            "8 个模块",
-            "48 个标准子模块",
+            "AcquisitionCatalog",
+            "计划采集项",
             "Evidence",
             "available",
             "verified_empty",
@@ -178,7 +178,7 @@ def test_prompt_bundle_rejects_missing_required_fragment(tmp_path: Path) -> None
     prompt_path = target / document["path"]
     prompt_path.parent.mkdir(parents=True)
     prompt_path.write_text("Only incomplete instructions.", encoding="utf-8")
-    document["required_fragments"] = ["48 个标准子模块"]
+    document["required_fragments"] = ["不存在的采集目录说明"]
     (target / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False),
         encoding="utf-8",

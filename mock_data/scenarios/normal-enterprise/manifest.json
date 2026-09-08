@@ -4,19 +4,19 @@
     "aliases": [
       "金调绿洲科技"
     ],
-    "company_name": "金调绿洲科技有限公司",
+    "company_name": "乐视网信息技术（北京）股份有限公司",
     "unified_social_credit_code": "91110108MA01JD001A"
   },
   "files": [
     {
       "path": "company.json",
       "role": "runtime",
-      "sha256": "8e2a0e2fd92917c986ad5f0bb874a5ec0701a0521a02f63d8b8c459a0d8baee3"
+      "sha256": "4c575651cd834466e292aaf07b488b3658bd02b39a9a3e21ceee73814db0c3e9"
     },
     {
       "path": "corpus/operating-notes.md",
       "role": "runtime",
-      "sha256": "6281d47734d4e540a5033387a91b4c562e6d2985f2b582fb3b6f35ad47be3792"
+      "sha256": "d49a541bac4d0aa90e174c66490ef6b4071bb2834506318d601ad75c873aaa5d"
     },
     {
       "path": "expected/decision.json",

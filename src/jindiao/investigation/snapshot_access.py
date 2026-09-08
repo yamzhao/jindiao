@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from openjiuwen.core.foundation.tool import ToolCard, tool
 from pydantic import AwareDatetime, Field, JsonValue, model_validator
 
 from jindiao.contracts.acquisition import EnterpriseContextSnapshot
 from jindiao.contracts.base import ContractModel
-from jindiao.reporting.catalog import REPORT_CATALOG
 from jindiao.security import redact_json
+
+from .compact_context import compact_assigned_context
 
 
 class SnapshotReadGrant(ContractModel):
@@ -28,9 +30,6 @@ class SnapshotReadGrant(ContractModel):
             raise ValueError("snapshot grant check ids must be unique")
         if len(self.allowed_submodule_ids) != len(set(self.allowed_submodule_ids)):
             raise ValueError("snapshot grant submodule ids must be unique")
-        unknown = set(self.allowed_submodule_ids) - set(REPORT_CATALOG.submodule_ids)
-        if unknown:
-            raise ValueError(f"snapshot grant contains unknown submodules: {sorted(unknown)}")
         return self
 
 
@@ -169,7 +168,8 @@ class SnapshotReadToolset:
                 )
 
         submodule_order = {
-            submodule_id: index for index, submodule_id in enumerate(REPORT_CATALOG.submodule_ids)
+            submodule_id: index
+            for index, submodule_id in enumerate(self.snapshot.planned_submodule_ids)
         }
         submodules: list[dict[str, object]] = []
         for submodule_id in sorted(scope, key=submodule_order.__getitem__):
@@ -278,7 +278,11 @@ class SnapshotReadToolset:
             }
         )
 
-    def build_tools(self) -> tuple[Any, Any, Any]:
+    def build_tools(
+        self, *, evidence_aliases: dict[str, str] | None = None
+    ) -> tuple[Any, Any, Any]:
+        aliases = dict(evidence_aliases or {})
+
         """Build Agent-owned tools; no external data capability is registered."""
 
         @tool(  # type: ignore[untyped-decorator]
@@ -296,7 +300,63 @@ class SnapshotReadToolset:
             )
         )
         async def read_assigned_snapshot_context() -> dict[str, JsonValue]:
-            return await self.read_assigned_context()
+            result = await self.read_assigned_context()
+            if evidence_aliases is None:
+                return result
+            # Audit IDs and the snapshot remain canonical; compact only the model view.
+            evidence_by_id = {item.evidence_id: item for item in self.snapshot.evidence}
+            for module in cast(list[dict[str, Any]], result["submodules"]):
+                module["evidence_items"] = [
+                    {
+                        key: value
+                        for key, value in item.items()
+                        if key not in {"source_ref", "content_hash", "source_record_id"}
+                    }
+                    for item in module["evidence_items"]
+                ]
+                records = module["facts"].get("records")
+                if isinstance(records, list):
+                    identities_by_value: dict[str, list[str]] = {}
+                    for identity in dict.fromkeys(
+                        (*module["evidence_ids"], *module["supplemental_evidence_ids"])
+                    ):
+                        evidence = evidence_by_id[identity]
+                        key = json.dumps(redact_json(evidence.value), sort_keys=True)
+                        identities_by_value.setdefault(key, []).append(identity)
+                    module["record_evidence_ids"] = [
+                        [
+                            aliases.get(identity, identity)
+                            for identity in identities_by_value.get(
+                                json.dumps(record, sort_keys=True), []
+                            )
+                        ]
+                        for record in records
+                    ]
+                # Only generated reference fields are aliases. Source facts and
+                # metadata text can legitimately equal an ID and must stay exact.
+                for key in ("evidence_ids", "supplemental_evidence_ids", "conflict_evidence_ids"):
+                    module[key] = [aliases.get(identity, identity) for identity in module[key]]
+                for item in module["evidence_items"]:
+                    item["evidence_id"] = aliases.get(item["evidence_id"], item["evidence_id"])
+            scope: dict[str, list[str]] = {}
+            for grant in self._grants.values():
+                identities = list(
+                    dict.fromkeys(
+                        identity
+                        for submodule_id in grant.allowed_submodule_ids
+                        for identity in (
+                            *self.snapshot.submodule(submodule_id).evidence_ids,
+                            *self.snapshot.submodule(submodule_id).supplemental_evidence_ids,
+                        )
+                    )
+                )
+                for check_id in grant.check_ids:
+                    scope[check_id] = list(dict.fromkeys((*scope.get(check_id, []), *identities)))
+            result["check_evidence_scope"] = {
+                key: [aliases.get(identity, identity) for identity in identities]
+                for key, identities in scope.items()
+            }
+            return compact_assigned_context(result)
 
         @tool(  # type: ignore[untyped-decorator]
             card=ToolCard(

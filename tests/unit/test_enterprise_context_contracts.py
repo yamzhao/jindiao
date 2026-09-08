@@ -6,8 +6,8 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
+from jindiao.acquisition.catalog import ACQUISITION_CATALOG
 from jindiao.contracts.entities import ResolvedSubject, SubjectSource
-from jindiao.reporting.catalog import REPORT_CATALOG
 
 NOW = datetime(2026, 9, 5, tzinfo=UTC)
 REPORT_AS_OF = date(2026, 8, 31)
@@ -40,7 +40,7 @@ def _empty_submodules(module: Any) -> tuple[Any, ...]:
             availability=module.SubmoduleAvailability.NOT_REQUESTED,
             completeness="unknown",
         )
-        for submodule_id in REPORT_CATALOG.submodule_ids
+        for submodule_id in ACQUISITION_CATALOG.default_plan_ids
     )
 
 
@@ -76,7 +76,7 @@ def test_supplement_task_distinguishes_baseline_enrichment_from_evidence_gap() -
         )
 
 
-def test_enterprise_context_snapshot_is_immutable_and_contains_canonical_48() -> None:
+def test_enterprise_context_snapshot_is_immutable_and_preserves_frozen_plan() -> None:
     module = _contracts()
     submodules = _empty_submodules(module)
 
@@ -87,7 +87,8 @@ def test_enterprise_context_snapshot_is_immutable_and_contains_canonical_48() ->
         subject=_subject(),
         report_as_of=REPORT_AS_OF,
         created_at=NOW,
-        report_catalog_version=REPORT_CATALOG.catalog_version,
+        acquisition_catalog_version=ACQUISITION_CATALOG.catalog_version,
+        planned_submodule_ids=ACQUISITION_CATALOG.default_plan_ids,
         source_manifest_version="tianyancha-capabilities-v1",
         submodules=submodules,
         evidence=(),
@@ -96,7 +97,7 @@ def test_enterprise_context_snapshot_is_immutable_and_contains_canonical_48() ->
         unresolved_conflicts=(),
     )
 
-    assert len(snapshot.submodules) == 48
+    assert len(snapshot.submodules) == len(ACQUISITION_CATALOG.default_plan_ids)
     assert snapshot.submodule("annual_reports").availability.value == "not_requested"
     with pytest.raises(ValidationError, match="frozen"):
         snapshot.submodules[0].availability = module.SubmoduleAvailability.AVAILABLE
@@ -121,7 +122,8 @@ def test_snapshot_rejects_unknown_evidence_references() -> None:
             subject=_subject(),
             report_as_of=REPORT_AS_OF,
             created_at=NOW,
-            report_catalog_version=REPORT_CATALOG.catalog_version,
+            acquisition_catalog_version=ACQUISITION_CATALOG.catalog_version,
+            planned_submodule_ids=ACQUISITION_CATALOG.default_plan_ids,
             source_manifest_version="tianyancha-capabilities-v1",
             submodules=tuple(submodules),
             evidence=(),
@@ -131,10 +133,10 @@ def test_snapshot_rejects_unknown_evidence_references() -> None:
         )
 
 
-def test_snapshot_requires_exactly_forty_eight_unique_submodules() -> None:
+def test_snapshot_requires_submodules_to_match_the_frozen_plan() -> None:
     module = _contracts()
 
-    with pytest.raises(ValueError, match="exactly 48"):
+    with pytest.raises(ValueError, match="frozen acquisition plan"):
         module.EnterpriseContextSnapshot(
             schema_version=1,
             snapshot_id="snapshot:invalid",
@@ -142,7 +144,8 @@ def test_snapshot_requires_exactly_forty_eight_unique_submodules() -> None:
             subject=_subject(),
             report_as_of=REPORT_AS_OF,
             created_at=NOW,
-            report_catalog_version=REPORT_CATALOG.catalog_version,
+            acquisition_catalog_version=ACQUISITION_CATALOG.catalog_version,
+            planned_submodule_ids=ACQUISITION_CATALOG.default_plan_ids,
             source_manifest_version="tianyancha-capabilities-v1",
             submodules=_empty_submodules(module)[:-1],
             evidence=(),

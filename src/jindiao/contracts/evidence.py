@@ -16,6 +16,7 @@ class SourceType(StrEnum):
     PUBLIC_WEB = "public_web"
     MOCK = "mock"
     DERIVED = "derived"
+    USER_INPUT = "user_input"
 
 
 class SourceStatus(StrEnum):

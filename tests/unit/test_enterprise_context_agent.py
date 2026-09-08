@@ -12,6 +12,7 @@ from openjiuwen.core.foundation.llm import AssistantMessage, ToolCall, UsageMeta
 from openjiuwen.core.foundation.llm.schema.message_chunk import AssistantMessageChunk
 from openjiuwen.core.runner import Runner
 
+from jindiao.acquisition.catalog import ACQUISITION_CATALOG
 from jindiao.agents import EnterpriseContextAgent
 from jindiao.agents.specialists import (
     GovernanceAgent,
@@ -25,7 +26,6 @@ from jindiao.contracts.results import AgentResultPhase
 from jindiao.orchestration import AgentExecutionEventType, OpenJiuwenAgentExecutionRuntime
 from jindiao.orchestration.react_model import JINDIAO_OPENAI_COMPATIBLE_PROVIDER
 from jindiao.prompts import load_prompt_bundle
-from jindiao.reporting.catalog import REPORT_CATALOG
 from jindiao.tianyancha import (
     CapabilityRoutingConfig,
     GatewayBudget,
@@ -122,20 +122,22 @@ def _gateway(client: ContextSampleClient) -> TianyanchaMcpGateway:
 
 
 @pytest.mark.asyncio
-async def test_one_context_agent_owns_subject_capability_and_all_48_coverage() -> None:
+async def test_one_context_agent_owns_subject_capability_and_full_plan_coverage() -> None:
     client = ContextSampleClient()
     gateway = _gateway(client)
     agent = EnterpriseContextAgent(
         gateway=gateway,
         prompt_bundle=load_prompt_bundle(),
-        report_catalog=REPORT_CATALOG,
+        acquisition_catalog=ACQUISITION_CATALOG,
     )
 
     result = await agent.acquire(EnterpriseInput(company_name="公平对比样本有限公司"))
 
     assert result.subject.subject_id == "tyc:sample-1"
-    assert tuple(item.submodule_id for item in result.submodules) == (REPORT_CATALOG.submodule_ids)
-    assert len(result.submodules) == 48
+    assert tuple(item.submodule_id for item in result.submodules) == (
+        ACQUISITION_CATALOG.default_plan_ids
+    )
+    assert len(result.submodules) == len(ACQUISITION_CATALOG.default_plan_ids)
     assert result.agent_result.agent_id == EnterpriseContextAgent.agent_id
     assert result.agent_result.phase is AgentResultPhase.ACQUISITION
     assert result.agent_result.check_results == ()
@@ -154,7 +156,7 @@ async def test_context_agent_deduplicates_a_shared_capability_across_coverage_ta
     agent = EnterpriseContextAgent(
         gateway=gateway,
         prompt_bundle=load_prompt_bundle(),
-        report_catalog=REPORT_CATALOG,
+        acquisition_catalog=ACQUISITION_CATALOG,
     )
 
     first, second = await asyncio.gather(
@@ -173,7 +175,7 @@ async def test_context_agent_react_loop_collects_and_explicitly_submits_coverage
     agent = EnterpriseContextAgent(
         gateway=_gateway(client),
         prompt_bundle=load_prompt_bundle(),
-        report_catalog=REPORT_CATALOG,
+        acquisition_catalog=ACQUISITION_CATALOG,
     )
     model = ScriptedContextModel(
         [
@@ -184,7 +186,7 @@ async def test_context_agent_react_loop_collects_and_explicitly_submits_coverage
                         type="function",
                         name="collect_enterprise_context",
                         arguments=json.dumps(
-                            {"submodule_ids": list(REPORT_CATALOG.submodule_ids)},
+                            {"submodule_ids": list(ACQUISITION_CATALOG.default_plan_ids)},
                             ensure_ascii=False,
                         ),
                     )
@@ -218,7 +220,7 @@ async def test_context_agent_react_loop_collects_and_explicitly_submits_coverage
         await Runner.stop()
 
     assert completed.acquisition.agent_result.prompt_version == "enterprise-context-v2"
-    assert len(completed.acquisition.submodules) == 48
+    assert len(completed.acquisition.submodules) == len(ACQUISITION_CATALOG.default_plan_ids)
     assert model.calls == 3
     assert any(
         event.event_type is AgentExecutionEventType.MODEL_REQUEST_COMPLETED
@@ -232,7 +234,7 @@ async def test_context_agent_reports_safe_state_when_model_omits_submission() ->
     agent = EnterpriseContextAgent(
         gateway=_gateway(ContextSampleClient()),
         prompt_bundle=load_prompt_bundle(),
-        report_catalog=REPORT_CATALOG,
+        acquisition_catalog=ACQUISITION_CATALOG,
     )
     model = ScriptedContextModel(
         [
@@ -243,7 +245,7 @@ async def test_context_agent_reports_safe_state_when_model_omits_submission() ->
                         type="function",
                         name="collect_enterprise_context",
                         arguments=json.dumps(
-                            {"submodule_ids": list(REPORT_CATALOG.submodule_ids)},
+                            {"submodule_ids": list(ACQUISITION_CATALOG.default_plan_ids)},
                             ensure_ascii=False,
                         ),
                     )
@@ -290,7 +292,7 @@ async def test_context_agent_marks_unrequested_catalog_items_when_budget_is_exha
     agent = EnterpriseContextAgent(
         gateway=constrained_gateway,
         prompt_bundle=load_prompt_bundle(),
-        report_catalog=REPORT_CATALOG,
+        acquisition_catalog=ACQUISITION_CATALOG,
     )
 
     result = await agent.acquire(EnterpriseInput(company_name="公平对比样本有限公司"))
@@ -304,7 +306,7 @@ def test_context_builder_is_the_only_agent_surface_with_tianyancha_gateway_acces
     agent = EnterpriseContextAgent(
         gateway=_gateway(ContextSampleClient()),
         prompt_bundle=load_prompt_bundle(),
-        report_catalog=REPORT_CATALOG,
+        acquisition_catalog=ACQUISITION_CATALOG,
     )
     react_agent, _ = agent.build_react_agent(
         EnterpriseInput(company_name="公平对比样本有限公司"),

@@ -11,6 +11,8 @@ from jindiao.application.errors import JindiaoError, error_to_record, http_statu
 from jindiao.application.run_coordinator import RunCoordinator
 from jindiao.application.service import DueDiligenceService
 from jindiao.application.settings import Settings
+from jindiao.contracts.errors import ErrorCode
+from jindiao.contracts.product import ProductResult
 from jindiao.contracts.results import DueDiligenceRequest, OrchestrationMode
 from jindiao.contracts.runs import (
     ExecutionProfile,
@@ -83,7 +85,11 @@ def create_app(
             content={"error": record.model_dump(mode="json")},
         )
 
-    @app.post(RESULT_PATH, response_model=None)
+    @app.post(
+        RESULT_PATH,
+        response_model=None,
+        responses={200: {"model": ProductResult, "description": "prototype-v1 result"}},
+    )
     async def result_endpoint(
         body: DueDiligenceRequest,
         request: Request,
@@ -163,7 +169,11 @@ def create_app(
             ping=15,
         )
 
-    @app.get("/api/v2/due-diligence/runs/{run_id}/result", response_model=None)
+    @app.get(
+        "/api/v2/due-diligence/runs/{run_id}/result",
+        response_model=None,
+        responses={200: {"model": ProductResult, "description": "prototype-v1 result"}},
+    )
     async def run_result_endpoint(run_id: str, request: Request) -> Response:
         owner_id, _ = principal(request)
         coordinator: RunCoordinator = request.app.state.run_coordinator
@@ -176,7 +186,9 @@ def create_app(
         if result is None:
             if resource.error is not None:
                 return JSONResponse(
-                    status_code=500,
+                    status_code=(
+                        504 if resource.error.code is ErrorCode.AGENT_EXECUTION_TIMEOUT else 500
+                    ),
                     content={"error": resource.error.model_dump(mode="json")},
                 )
             return JSONResponse(

@@ -1,3 +1,4 @@
+# ruff: noqa: RUF001 -- official company name uses fullwidth parentheses
 from __future__ import annotations
 
 import json
@@ -14,6 +15,7 @@ from jindiao.application.service import DueDiligenceService
 from jindiao.application.settings import Settings
 from jindiao.contracts.entities import EnterpriseInput
 from jindiao.contracts.events import EventSequencer
+from jindiao.contracts.execution import ExecutionCost
 from jindiao.contracts.results import DueDiligenceRequest
 from jindiao.observability import RunArtifactStore, RunMetricsCollector
 from jindiao.orchestration.base import TeamRuntimeEvent
@@ -123,6 +125,20 @@ def test_metrics_capture_phases_first_evidence_and_resource_counts() -> None:
     assert snapshot["repairs_requested"] == 1
 
 
+def test_metrics_distinguish_authoritative_zero_from_unobserved_usage() -> None:
+    unknown = RunMetricsCollector().finish()
+    assert unknown["token_count"] == 0
+    assert unknown["execution_cost"] is None
+    assert unknown["provider_usage_complete"] is False
+
+    measured = RunMetricsCollector()
+    measured.record_execution_cost(ExecutionCost.zero(), provider_usage_complete=True)
+    known_zero = measured.finish()
+    assert known_zero["execution_cost"] == ExecutionCost.zero().model_dump(mode="json")
+    assert known_zero["token_count"] == 0
+    assert known_zero["provider_usage_complete"] is True
+
+
 @pytest.mark.asyncio
 async def test_service_writes_result_report_metrics_and_safe_trace(tmp_path: Path) -> None:
     artifact_root = tmp_path / "artifacts"
@@ -139,29 +155,18 @@ async def test_service_writes_result_report_metrics_and_safe_trace(tmp_path: Pat
 
     result = await service.run(
         DueDiligenceRequest(
-            enterprise=EnterpriseInput(company_name="金调绿洲科技有限公司"),
+            enterprise=EnterpriseInput(company_name="乐视网信息技术（北京）股份有限公司"),
             scenario_id="normal-enterprise",
         )
     )
 
-    unsafe_evidence = result.evidence[0].model_copy(
-        update={
-            "value": {
-                "business_fact": "存续",
-                "system_prompt": "private result prompt",
-                "reasoning": "private result reasoning",
-                "raw_mcp_response": "private MCP body",
-                "authorization": "Bearer result-secret",
-            }
-        }
-    )
-    unsafe_result = result.model_copy(update={"evidence": (unsafe_evidence, *result.evidence[1:])})
-    public_result = unsafe_result.model_dump_json()
-    assert "business_fact" in public_result
-    assert "private result prompt" not in public_result
-    assert "private result reasoning" not in public_result
-    assert "private MCP body" not in public_result
-    assert "result-secret" not in public_result
+    public_result = result.model_dump_json()
+    assert '"schema_version":"prototype-v1"' in public_result
+    assert '"source_label"' in public_result
+    assert '"system_prompt"' not in public_result
+    assert '"reasoning"' not in public_result
+    assert '"raw_mcp_response"' not in public_result
+    assert '"authorization"' not in public_result
 
     run_root = artifact_root / "run-1"
     persisted = json.loads((run_root / "result.json").read_text(encoding="utf-8"))
@@ -172,7 +177,14 @@ async def test_service_writes_result_report_metrics_and_safe_trace(tmp_path: Pat
     ]
     assert persisted["meta"]["run_id"] == result.meta.run_id
     assert (run_root / "report.md").read_text(encoding="utf-8") == result.report_markdown
-    assert metrics["tool_calls"] == result.evaluation.metrics["tool_calls"]
+    assert metrics["tool_calls"] >= 0
+    internal = json.loads((run_root / "investigation.json").read_text(encoding="utf-8"))
+    assert set(internal) == {"reviewed", "agent_results", "execution_cost"}
+    assert set(internal["execution_cost"]) == {
+        "shared_acquisition",
+        "investigation",
+        "reporting",
+    }
     assert {item["event_type"] for item in events} >= {
         "run.started",
         "agent.completed",

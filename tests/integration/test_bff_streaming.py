@@ -119,7 +119,7 @@ async def test_real_tcp_first_frame_concurrency_and_disconnect_cleanup() -> None
                     "Origin": origin,
                     "X-CSRF-Token": login.json()["csrf_token"],
                 },
-                json={"enterprise": {"company_name": "本地测试企业"}},
+                json={"customerName": "本地测试企业"},
             )
             assert created.status_code == 202
             with anyio.fail_after(3):

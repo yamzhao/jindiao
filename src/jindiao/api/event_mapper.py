@@ -130,7 +130,7 @@ class EventMapper:
 
     @staticmethod
     def _stage_for(event: TeamRuntimeEvent) -> RunStage:
-        raw = event.payload.get("stage")
+        raw = event.payload.get("stage") or event.payload.get("phase")
         if isinstance(raw, str):
             try:
                 return RunStage(raw)

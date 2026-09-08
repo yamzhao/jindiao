@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from jindiao.acquisition.catalog import ACQUISITION_CATALOG
+from jindiao.contracts.acquisition_catalog import AcquisitionCatalog
 from jindiao.contracts.investigation import DueDiligenceCheckCatalog
-from jindiao.contracts.reporting import ReportCatalog
 from jindiao.paths import project_root
-from jindiao.reporting.catalog import REPORT_CATALOG
 
 DEFAULT_CHECK_CATALOG_PATH = project_root() / "config" / "due-diligence-check-catalog-v1.json"
 
@@ -26,8 +26,12 @@ REQUIRED_CHECK_IDS = frozenset(
         "cash-flow-pressure",
         "revenue-anomaly",
         "related-party-control-risk",
-        "peer-performance-deviation",
         "employment-scale-consistency",
+        "supply-chain-concentration",
+        "receivables-cashflow-divergence",
+        "related-transaction-guarantee",
+        "tax-public-opinion-risk",
+        "bank-credit-summary-risk",
     }
 )
 
@@ -35,21 +39,30 @@ REQUIRED_CHECK_IDS = frozenset(
 def load_check_catalog(
     path: Path = DEFAULT_CHECK_CATALOG_PATH,
     *,
-    report_catalog: ReportCatalog = REPORT_CATALOG,
+    acquisition_catalog: AcquisitionCatalog = ACQUISITION_CATALOG,
 ) -> DueDiligenceCheckCatalog:
     catalog = DueDiligenceCheckCatalog.model_validate_json(path.read_text(encoding="utf-8"))
-    if catalog.report_catalog_version != report_catalog.catalog_version:
-        raise ValueError("check catalog report_catalog_version does not match ReportCatalog")
+    if catalog.acquisition_catalog_version != acquisition_catalog.catalog_version:
+        raise ValueError("check catalog acquisition_catalog_version does not match catalog")
 
-    known_submodules = set(report_catalog.submodule_ids)
-    known_sections = set(report_catalog.module_ids)
+    known_submodules = set(acquisition_catalog.acquisition_ids)
+    known_sections = {
+        "business_plan",
+        "company_profile",
+        "ownership",
+        "business_analysis",
+        "financial_analysis",
+        "bank_flow_analysis",
+        "external_verification",
+        "risk_points",
+    }
     for check in catalog.checks:
         unknown_submodules = (
             set(check.required_submodule_ids) | set(check.optional_submodule_ids)
         ) - known_submodules
         if unknown_submodules:
             raise ValueError(
-                f"check {check.check_id} references unknown report submodules: "
+                f"check {check.check_id} references unknown acquisition items: "
                 f"{sorted(unknown_submodules)}"
             )
         unknown_sections = set(check.report_section_ids) - known_sections

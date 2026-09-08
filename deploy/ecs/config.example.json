@@ -1,0 +1,9 @@
+{
+  "remote_root": "/opt/jindiao",
+  "container": "jindiao-ecs",
+  "docker_bin": "/opt/jindiao/tools/docker/docker",
+  "docker_host": "unix:///run/jindiao-docker.sock",
+  "runtime_env": "/opt/jindiao/runtime/ecs-20260907-230420.env",
+  "port": 8080,
+  "preflight_port": 18081
+}

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+from contextvars import ContextVar
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -54,6 +56,96 @@ async def test_openjiuwen_runtime_uses_runner_stream_and_redacts_private_payload
     assert events[0].event_type == "member.completed"
     assert events[0].member_name == "governance-agent"
     assert "reasoning_content" not in events[0].payload
+
+
+@pytest.mark.asyncio
+async def test_native_stream_preserves_task_local_session_between_chunks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from jindiao.orchestration import team_runtime
+
+    context: ContextVar[str] = ContextVar("native_session", default="unbound")
+    observed = []
+
+    async def stream(**kwargs):  # type: ignore[no-untyped-def]
+        del kwargs
+        token = context.set("bound-session")
+        try:
+            yield SimpleNamespace(payload={"event_type": "member.started"})
+            observed.append(context.get())
+            yield SimpleNamespace(payload={"event_type": "member.completed"})
+        finally:
+            context.reset(token)
+
+    monkeypatch.setattr(team_runtime.Runner, "run_agent_team_streaming", stream)
+    spec = build_due_diligence_team_spec(
+        team_name="context-test", model_name="test", max_review_rounds=1
+    )
+    events = [e async for e in OpenJiuwenTeamRuntime().stream(spec, {}, session_id="bound-session")]
+    assert len(events) == 2
+    assert observed == ["bound-session"]
+    assert context.get() == "unbound"
+
+
+@pytest.mark.asyncio
+async def test_idle_terminal_team_releases_stream_for_business_recovery(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from jindiao.orchestration import team_runtime
+
+    monkeypatch.setattr(team_runtime, "_QUIESCENCE_CHECK_SECONDS", 0.01, raising=False)
+    closed = asyncio.Event()
+    reads = 0
+    stopped = []
+
+    async def stream(**kwargs):  # type: ignore[no-untyped-def]
+        del kwargs
+        try:
+            yield SimpleNamespace(payload={"event_type": "team.runtime_ready"})
+            await asyncio.Event().wait()
+        finally:
+            closed.set()
+
+    class Monitor:
+        async def start(self):  # type: ignore[no-untyped-def]
+            pass
+
+        async def stop(self):  # type: ignore[no-untyped-def]
+            pass
+
+        async def get_tasks(self):  # type: ignore[no-untyped-def]
+            return [SimpleNamespace(status="completed")]
+
+        async def get_members(self):  # type: ignore[no-untyped-def]
+            nonlocal reads
+            reads += 1
+            return [
+                SimpleNamespace(
+                    status="ready", execution_status="running" if reads == 1 else "idle"
+                )
+            ]
+
+    async def monitor(**kwargs):  # type: ignore[no-untyped-def]
+        del kwargs
+        return Monitor()
+
+    async def stop(**kwargs):  # type: ignore[no-untyped-def]
+        del kwargs
+        stopped.append(True)
+        return True
+
+    monkeypatch.setattr(team_runtime.Runner, "run_agent_team_streaming", stream)
+    monkeypatch.setattr(team_runtime.Runner, "get_agent_team_monitor", monitor)
+    monkeypatch.setattr(team_runtime.Runner, "stop_agent_team", stop)
+    monkeypatch.setattr(team_runtime.Runner, "delete_agent_team", stop)
+    spec = build_due_diligence_team_spec(
+        team_name="idle-recovery", model_name="test", max_review_rounds=1
+    )
+    async with asyncio.timeout(0.5):
+        events = [e async for e in OpenJiuwenTeamRuntime().stream(spec, {}, session_id="idle")]
+    assert events[-1].event_type == "team.runtime.quiescent"
+    assert reads >= 3  # A running model prevents the first terminal-task observation from exiting.
+    assert closed.is_set() and len(stopped) == 2
 
 
 @pytest.mark.asyncio
