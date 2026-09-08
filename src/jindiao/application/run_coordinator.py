@@ -11,13 +11,16 @@ from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
 
+from jindiao.application.execution_steps import ExecutionProjectionEvent, ExecutionStepProjector
 from jindiao.contracts.entities import EnterpriseInput
 from jindiao.contracts.events import EventSequencer, EventType, LifecycleEventType, RunEvent
-from jindiao.contracts.results import DueDiligenceResult, RunStatus
+from jindiao.contracts.public_result import PublicResult
+from jindiao.contracts.results import RunStatus
 from jindiao.contracts.runs import (
     ExecutionProfile,
     ExecutionProfileConfig,
     RunCreateRequest,
+    RunExecutionRequest,
     RunLink,
     RunResource,
     RunStage,
@@ -78,13 +81,16 @@ class RunCoordinator:
         self.id_factory = id_factory
         self.clock = clock
         self._projections: dict[str, RunProjection] = {}
+        self._hydrated_projections: set[str] = set()
+        self._hydration_locks: dict[str, asyncio.Lock] = {}
         self._publishers: dict[str, RunEventPublisher] = {}
-        self._results: dict[str, DueDiligenceResult] = {}
-        self._requests: dict[str, RunCreateRequest] = {}
+        self._results: dict[str, PublicResult] = {}
+        self._requests: dict[str, RunExecutionRequest] = {}
         self._tokens: dict[str, RunCancellationToken] = {}
         self._tasks: dict[str, asyncio.Task[None]] = {}
         self._locks: dict[str, asyncio.Lock] = {}
         self._exceptions: dict[str, Exception] = {}
+        self._execution_steps: dict[str, ExecutionStepProjector] = {}
         self._mapper: Any | None = None
         self._recovery_lock = asyncio.Lock()
         self._recovered = False
@@ -92,6 +98,21 @@ class RunCoordinator:
     async def create(
         self,
         request: RunCreateRequest,
+        *,
+        owner_id: str = "anonymous",
+        idempotency_key: str | None = None,
+        session_id: str | None = None,
+    ) -> RunResource:
+        return await self._create(
+            request.to_execution_request(),
+            owner_id=owner_id,
+            idempotency_key=idempotency_key,
+            session_id=session_id,
+        )
+
+    async def _create(
+        self,
+        request: RunExecutionRequest,
         *,
         owner_id: str = "anonymous",
         idempotency_key: str | None = None,
@@ -141,6 +162,7 @@ class RunCoordinator:
         if stored.run_id not in self._projections:
             self._requests[stored.run_id] = request
             self._projections[stored.run_id] = RunProjection(stored)
+            self._hydrated_projections.add(stored.run_id)
             self._publishers[stored.run_id] = RunEventPublisher(
                 self.event_store,
                 projection=self._projections[stored.run_id],
@@ -189,6 +211,9 @@ class RunCoordinator:
                 stage=RunStage.ACQUISITION,
             )
             try:
+                steps = ExecutionStepProjector(mode=latest.mode, clock=self.clock)
+                self._execution_steps[run_id] = steps
+                await self._publish_execution(run_id, (steps.start(),))
                 result = await self.service._run_impl(
                     self._request_for_resource(latest),
                     mode=latest.mode,
@@ -202,6 +227,7 @@ class RunCoordinator:
                 save_result = getattr(self.repository, "save_result", None)
                 if save_result is not None:
                     await save_result(run_id, result)
+                await self._publish_execution(run_id, steps.complete(result))
                 await publisher.complete(result, persist=self.repository.save)
                 self._results[run_id] = result
             except asyncio.CancelledError:
@@ -215,6 +241,9 @@ class RunCoordinator:
             except Exception as error:
                 self._exceptions[run_id] = error
                 record = error_to_record(error)
+                active_steps = self._execution_steps.get(run_id)
+                if active_steps is not None:
+                    await self._publish_execution(run_id, active_steps.fail_active())
                 await publisher.publish(
                     "run.failed",
                     {"error": record.model_dump(mode="json")},
@@ -227,6 +256,8 @@ class RunCoordinator:
                 if save_error is not None:
                     await save_error(run_id, record)
                 await self.repository.save(self._projection(run_id).resource)
+            finally:
+                self._execution_steps.pop(run_id, None)
 
     async def execute_compat(
         self,
@@ -237,7 +268,7 @@ class RunCoordinator:
         run_id: str | None = None,
         event_sink: Callable[[Any], Any] | None = None,
         cancellation_token: object | None = None,
-    ) -> DueDiligenceResult:
+    ) -> PublicResult:
         """Execute a legacy request through the canonical Run lifecycle.
 
         ``request_id`` and ``run_id`` are accepted for compatibility with the
@@ -248,11 +279,9 @@ class RunCoordinator:
         del request_id, run_id, event_sink
         if cancellation_token is not None and getattr(cancellation_token, "cancelled", False):
             raise asyncio.CancelledError()
-        from jindiao.contracts.runs import RunCreateRequest
-
         payload = request.model_dump(mode="json")
         payload["mode"] = mode.value if hasattr(mode, "value") else mode
-        resource = await self.create(RunCreateRequest.model_validate(payload))
+        resource = await self._create(RunExecutionRequest.model_validate(payload))
         task = self.start(resource.run_id)
         await task
         error = self._exceptions.get(resource.run_id)
@@ -271,11 +300,9 @@ class RunCoordinator:
     ) -> AsyncIterator[RunEvent]:
         """Yield the historical v1 event vocabulary from canonical Run events."""
 
-        from jindiao.contracts.runs import RunCreateRequest
-
         payload = request.model_dump(mode="json")
         payload["mode"] = mode.value if hasattr(mode, "value") else mode
-        resource = await self.create(RunCreateRequest.model_validate(payload))
+        resource = await self._create(RunExecutionRequest.model_validate(payload))
         self.start(resource.run_id)
         sequencer = EventSequencer(request_id=resource.request_id, run_id=resource.run_id)
         legacy_types = set(EventType)
@@ -317,7 +344,7 @@ class RunCoordinator:
         owner_id: str = "anonymous",
         admin: bool = False,
         session_id: str | None = None,
-    ) -> DueDiligenceResult | None:
+    ) -> PublicResult | None:
         resource = await self.get(run_id, owner_id=owner_id, admin=admin, session_id=session_id)
         if not resource.result_available or resource.status not in {
             RunStatus.COMPLETED,
@@ -330,7 +357,7 @@ class RunCoordinator:
         load_result = getattr(self.repository, "get_result", None)
         if callable(load_result):
             loaded = await load_result(run_id)
-            if loaded is None or isinstance(loaded, DueDiligenceResult):
+            if loaded is None or isinstance(loaded, PublicResult):
                 return loaded
         return None
 
@@ -450,19 +477,35 @@ class RunCoordinator:
             self._recovered = True
 
     async def _hydrate_projection(self, run_id: str, resource: RunResource) -> None:
-        if run_id in self._projections and self._projections[run_id].resource.latest_sequence:
+        if run_id in self._hydrated_projections:
             return
-        self._publisher_for(resource)
-        projection = self._projections[run_id]
-        # The durable resource is already folded through latest_sequence.
-        # Reapplying older events would double-count repair/report progress.
-        events = await self.event_store.read_after(run_id, projection.resource.latest_sequence)
-        for event in events:
-            projection.apply(event)
+        async with self._hydration_locks.setdefault(run_id, asyncio.Lock()):
+            if run_id in self._hydrated_projections:
+                return
+            self._publisher_for(resource)
+            projection = self._projections[run_id]
+            # Rebuild only product-step state from history. Other domain counters
+            # are already persisted and must not be counted again after restart.
+            events = await self.event_store.read_after(run_id)
+            watermark = projection.resource.latest_sequence
+            projection.restore_execution_progress(e for e in events if e.sequence <= watermark)
+            for event in events:
+                if event.sequence > watermark:
+                    projection.apply(event)
+            self._hydrated_projections.add(run_id)
 
     def _runtime_sink(self, run_id: str) -> Callable[[TeamRuntimeEvent], Any]:
+        lock = asyncio.Lock()
+
         async def sink(event: TeamRuntimeEvent) -> None:
+            async with lock:
+                await publish(event)
+
+        async def publish(event: TeamRuntimeEvent) -> None:
             resource = self._projection(run_id).resource
+            steps = self._execution_steps.get(run_id)
+            if steps is not None:
+                await self._publish_execution(run_id, steps.observe(event))
             if self._mapper is None:
                 from jindiao.api.event_mapper import EventMapper
 
@@ -487,6 +530,15 @@ class RunCoordinator:
 
         return sink
 
+    async def _publish_execution(
+        self, run_id: str, events: tuple[ExecutionProjectionEvent, ...]
+    ) -> None:
+        publisher = self._publisher_for(self._projection(run_id).resource)
+        for event in events:
+            await publisher.publish(
+                event.event_type, event.payload, stage=event.stage, actor=event.actor
+            )
+
     def _projection(self, run_id: str) -> RunProjection:
         return self._projections[run_id]
 
@@ -506,16 +558,16 @@ class RunCoordinator:
         self._publisher_for(resource)
         return resource
 
-    def _request_for_resource(self, resource: RunResource) -> RunCreateRequest:
+    def _request_for_resource(self, resource: RunResource) -> RunExecutionRequest:
         existing = self._requests.get(resource.run_id)
         if existing is not None:
             return existing
         raw = resource.metadata.get("request")
         if isinstance(raw, dict):
-            return RunCreateRequest.model_validate(raw)
+            return RunExecutionRequest.model_validate(raw)
         # Metadata stores the canonical request at creation time in newer callers;
         # this fallback keeps repository records created by older code executable.
-        return RunCreateRequest(
+        return RunExecutionRequest(
             enterprise=EnterpriseInput(company_name=str(resource.metadata.get("company_name", ""))),
             mode=resource.mode,
             execution_profile=resource.profile,

@@ -11,6 +11,7 @@ from jindiao.application.service import DueDiligenceService
 from jindiao.application.settings import Settings
 from jindiao.contracts.entities import EnterpriseInput
 from jindiao.contracts.execution import ExecutionCost
+from jindiao.contracts.report_inputs import ReviewedReportInputs
 from jindiao.contracts.results import DueDiligenceRequest, OrchestrationMode
 from jindiao.evaluation.benchmark import BenchmarkRunner
 from jindiao.evaluation.metrics import BenchmarkEvaluator, QualityBreakdown
@@ -94,7 +95,9 @@ async def test_quality_metrics_are_weighted_and_recomputable_from_raw_counts(
     )
     result = await service.run(
         DueDiligenceRequest(
-            enterprise=EnterpriseInput(company_name="金调绿洲科技有限公司"),
+            enterprise=EnterpriseInput(
+                company_name="乐视网信息技术（北京）股份有限公司"  # noqa: RUF001
+            ),
             scenario_id="normal-enterprise",
         ),
         mode=OrchestrationMode.MULTI,
@@ -103,7 +106,15 @@ async def test_quality_metrics_are_weighted_and_recomputable_from_raw_counts(
     )
     expected = ExpectedResultLoader(ROOT).load("normal-enterprise", version="v1.0.0")
 
-    breakdown = BenchmarkEvaluator().evaluate(result, expected)
+    internal = json.loads((tmp_path / "run-metrics" / "investigation.json").read_text())
+    reviewed = ReviewedReportInputs.model_validate(internal["reviewed"])
+    metrics = json.loads((tmp_path / "run-metrics" / "metrics.json").read_text())
+    breakdown = BenchmarkEvaluator().evaluate(
+        result,
+        expected,
+        reviewed=reviewed,
+        detected_conflicts=metrics["conflicts_detected"],
+    )
 
     assert breakdown.weights == {
         "coverage": 0.30,
@@ -293,7 +304,7 @@ async def test_runner_exports_paired_raw_and_recomputable_summaries(tmp_path: Pa
         for record in records
         if record.quality is not None
     )
-    assert all(record.fixed_check_total == 15 for record in records)
+    assert all(record.fixed_check_total == 19 for record in records)
     assert all(0 <= record.fixed_check_coverage <= 1 for record in records)
     assert all(0 <= record.evidence_sufficiency <= 1 for record in records)
     assert all(0 <= record.structured_submission_success_rate <= 1 for record in records)

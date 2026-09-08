@@ -1,7 +1,7 @@
 {
   "subject": {
     "subject_id": "mock:normal-enterprise",
-    "company_name": "金调绿洲科技有限公司",
+    "company_name": "乐视网信息技术（北京）股份有限公司",
     "unified_social_credit_code": "91110108MA01JD001A",
     "region": "某市",
     "registration_status": "存续",
@@ -173,7 +173,7 @@
         "ev-governance"
       ],
       "data": {
-        "company_name": "金调绿洲科技有限公司",
+        "company_name": "乐视网信息技术（北京）股份有限公司",
         "unified_social_credit_code": "91110108MA01JD001A",
         "region": "某市",
         "registration_status": "存续"
@@ -255,7 +255,7 @@
       "title": "任务状态",
       "data": {
         "subject_id": "mock:normal-enterprise",
-        "company_name": "金调绿洲科技有限公司",
+        "company_name": "乐视网信息技术（北京）股份有限公司",
         "report_as_of": "2026-08-31",
         "source_disclosure": [
           "Mock 数据为固定版本化场景数据, 不代表真实企业信息。",
@@ -383,7 +383,7 @@
       "view_id": "company-profile",
       "title": "企业画像",
       "data": {
-        "company_name": "金调绿洲科技有限公司",
+        "company_name": "乐视网信息技术（北京）股份有限公司",
         "unified_social_credit_code": "91110108MA01JD001A",
         "region": "某市",
         "registration_status": "存续"

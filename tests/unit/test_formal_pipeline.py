@@ -1,13 +1,14 @@
+# ruff: noqa: RUF001 -- official company name uses fullwidth parentheses
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from contextlib import suppress
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
-from typing import ClassVar, cast
+from typing import Any, ClassVar, cast
 
 import pytest
 from pydantic import SecretStr
@@ -22,29 +23,270 @@ from jindiao.agents import (
     EnterpriseContextAgent,
     SingleInvestigatorAgent,
 )
+from jindiao.application.errors import AgentExecutionError
 from jindiao.application.formal_pipeline import FormalDueDiligencePipeline
 from jindiao.application.service import DueDiligenceService
 from jindiao.application.settings import Settings
 from jindiao.contracts.entities import EnterpriseInput
 from jindiao.contracts.execution import ExecutionCost, RunTermination, RunTerminationReason
 from jindiao.contracts.investigation import CheckResult, CheckStatus, FactEvidenceRef
+from jindiao.contracts.product import ProductResult
 from jindiao.contracts.results import (
     AgentInvestigationResult,
     AgentResultPhase,
     AgentStatus,
     DueDiligenceRequest,
-    DueDiligenceResult,
     OrchestrationMode,
 )
 from jindiao.deepsearch import SupplementPolicy
 from jindiao.investigation import CHECK_CATALOG
 from jindiao.investigation.blackboard import ReviewSubmission
 from jindiao.orchestration import BudgetLedger, RunBudget
-from jindiao.orchestration.agent_runtime import AgentExecutionRuntime
+from jindiao.orchestration.agent_runtime import (
+    AgentExecutionEvent,
+    AgentExecutionEventType,
+    AgentExecutionRuntime,
+)
 from jindiao.scenarios import ScenarioRepository
 from jindiao.tianyancha import TianyanchaMcpGateway
 
 NOW = datetime(2026, 9, 5, 22, 0, tzinfo=UTC)
+
+
+@pytest.mark.parametrize(
+    "usage,complete,known_input",
+    [
+        ({"input_tokens": 0, "output_tokens": 0}, True, 0),
+        ({"input_tokens": 20}, False, 20),
+        ({"total_tokens": 20}, False, 0),
+        ({"input_tokens": 20, "output_tokens": -1}, False, 20),
+        ({"input_tokens": 20, "output_tokens": 5}, True, 20),
+    ],
+)
+def test_acquisition_usage_completeness_checks_presence_not_positive_values(
+    usage: dict[str, int],
+    complete: bool,
+    known_input: int,
+) -> None:
+    event = AgentExecutionEvent.model_validate(
+        {
+            "run_id": "r",
+            "agent_id": "a",
+            "role": "enterprise-context",
+            "phase": "acquisition",
+            "sequence": 1,
+            "event_type": AgentExecutionEventType.MODEL_REQUEST_COMPLETED,
+            "occurred_at": NOW,
+            "prompt_version": "v1",
+            "prompt_sha256": "a" * 64,
+            "payload": {"usage_metadata": usage},
+        }
+    )
+    cost = FormalDueDiligencePipeline._execution_cost_from_events(
+        (event,), mcp_calls=0, wall_time_ms=0
+    )
+    assert (cost.provider_usage_requests == cost.llm_requests) is complete
+    assert cost.input_tokens == known_input
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mixed", [False, True])
+async def test_acquisition_missing_usage_events_cannot_be_treated_as_zero_calls(
+    mixed: bool,
+) -> None:
+    calls: list[str] = []
+
+    class Provider:
+        count = 0
+
+        async def invoke(self, **kwargs: object) -> object:
+            self.count += 1
+            return SimpleNamespace(
+                content="ok",
+                usage_metadata=(
+                    SimpleNamespace(input_tokens=5, output_tokens=2)
+                    if mixed and self.count == 1
+                    else None
+                ),
+            )
+
+        async def stream(self, **kwargs: object) -> AsyncIterator[object]:
+            yield await self.invoke(**kwargs)
+
+    provider = Provider()
+
+    class Agent:
+        model: Any = provider
+
+        def _get_llm(self) -> Any:
+            return self.model
+
+        def set_llm(self, value: object) -> None:
+            self.model = value
+
+    class Delegate:
+        async def stream(self, agent: Any, request: Any, **kwargs: object) -> AsyncIterator[Any]:
+            await agent._get_llm().invoke(messages=[{"role": "user", "content": "fixture"}])
+            await agent._get_llm().invoke(messages=[{"role": "user", "content": "fixture"}])
+            # A provider may complete without any SDK llm_usage event.
+            if False:
+                yield None
+
+    class Context(RecordingContextAgent):
+        async def run(self, enterprise: EnterpriseInput, **kwargs: object) -> object:
+            runtime = cast(Any, kwargs["runtime"])
+            async for _ in runtime.stream(Agent(), SimpleNamespace()):
+                pass
+            return await super().run(enterprise, **kwargs)
+
+    target = pipeline_with_test_doubles(
+        context_agent=Context(calls),
+        supplement_policy=RecordingPolicy(calls),
+        deepsearch_agent=None,
+        context_freezer=RecordingFreezer(calls),
+        single_investigator=ForbiddenSingleInvestigator(),
+        multi_investigator=ForbiddenMultiInvestigator(),
+        agent_runtime=Delegate(),
+        gateway=FakeGateway(),
+        model_name="scripted",
+        model_provider="scripted",
+        model_api_key="test-only",
+        model_base_url="http://model.test/v1",
+    )
+    with pytest.raises(AgentExecutionError, match="usage") as failure:
+        await target.acquire(
+            replace(base_context(), requested_enterprise=EnterpriseInput(company_name="测试企业"))
+        )
+    assert provider.count == 2
+    assert failure.value.details["execution_cost"]["llm_requests"] == 2
+    assert failure.value.details["execution_cost"]["total_tokens"] == (7 if mixed else 0)
+    assert failure.value.details["provider_usage_complete"] is False
+    assert "freeze" not in calls
+
+
+@pytest.mark.asyncio
+async def test_failed_investigation_accounts_prior_cost_and_reduces_remaining_budget() -> None:
+    prior = ExecutionCost.zero().model_copy(
+        update={
+            "llm_requests": 1,
+            "successful_llm_requests": 1,
+            "provider_usage_requests": 1,
+            "input_tokens": 20,
+            "output_tokens": 3,
+            "total_tokens": 23,
+            "mcp_calls": 2,
+        }
+    )
+    snapshot = base_snapshot().model_copy(update={"shared_acquisition_cost": prior})
+    budget = RunBudget(
+        max_tool_calls=60,
+        max_concurrency=1,
+        timeout_seconds=30,
+        max_repair_rounds=0,
+        max_input_tokens=1000,
+        max_output_tokens=1000,
+        max_total_tokens=2000,
+    )
+    observed: list[RunBudget] = []
+
+    class FailingInvestigator:
+        async def run(self, *, budget_ledger: BudgetLedger, **kwargs: object) -> object:
+            observed.append(budget_ledger.budget)
+            await budget_ledger.claim_llm_request("fixture")
+            await budget_ledger.record_llm_usage(
+                input_tokens=5, output_tokens=2, provider_usage=True
+            )
+            # The real pipeline must preserve its ledger even if an Agent throws
+            # an application error without attaching diagnostic details itself.
+            raise AgentExecutionError("fixture failure")
+
+    target = pipeline_with_test_doubles(
+        context_agent=RecordingContextAgent([]),
+        supplement_policy=RecordingPolicy([]),
+        deepsearch_agent=None,
+        context_freezer=RecordingFreezer([]),
+        single_investigator=FailingInvestigator(),
+        multi_investigator=ForbiddenMultiInvestigator(),
+        agent_runtime=SimpleNamespace(),
+        gateway=FakeGateway(),
+        model_name="scripted",
+        model_provider="scripted",
+        model_api_key="test-only",
+        model_base_url="http://model.test/v1",
+    )
+    with pytest.raises(AgentExecutionError) as failure:
+        await target.investigate(
+            base_context(), snapshot=snapshot, mode=OrchestrationMode.SINGLE, budget=budget
+        )
+    assert observed[0].max_input_tokens == 980
+    assert observed[0].max_output_tokens == 997
+    assert observed[0].max_total_tokens == 1977
+    assert observed[0].max_llm_requests == budget.max_llm_requests - 1
+    assert failure.value.details["execution_cost"]["total_tokens"] == 30
+    assert failure.value.details["execution_cost"]["mcp_calls"] == 2
+    assert failure.value.details["provider_usage_complete"] is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["unknown_usage", "provider_error"])
+async def test_investigation_cannot_lose_unknown_holds_or_generic_provider_cost(mode: str) -> None:
+    prior = ExecutionCost.zero().model_copy(
+        update={
+            "input_tokens": 20,
+            "output_tokens": 3,
+            "total_tokens": 23,
+            "llm_requests": 1,
+            "successful_llm_requests": 1,
+            "provider_usage_requests": 1,
+        }
+    )
+    frozen = base_snapshot().model_copy(update={"shared_acquisition_cost": prior})
+
+    class UnreliableInvestigator(RecordingSingleInvestigator):
+        async def run(
+            self, *, snapshot: object, budget_ledger: BudgetLedger, **kwargs: object
+        ) -> object:
+            reservation = await budget_ledger.reserve_llm_request(
+                "provider", input_tokens=100, output_tokens=100
+            )
+            await budget_ledger.complete_llm_request(
+                reservation,
+                input_tokens=None if mode == "unknown_usage" else 5,
+                output_tokens=None if mode == "unknown_usage" else 2,
+                provider_usage=mode == "provider_error",
+                succeeded=mode == "unknown_usage",
+            )
+            if mode == "provider_error":
+                raise RuntimeError("provider token=must-not-leak")
+            return await super().run(snapshot=snapshot, budget_ledger=budget_ledger, **kwargs)
+
+    target = pipeline_with_test_doubles(
+        context_agent=RecordingContextAgent([]),
+        supplement_policy=RecordingPolicy([]),
+        deepsearch_agent=None,
+        context_freezer=RecordingFreezer([]),
+        single_investigator=UnreliableInvestigator([]),
+        multi_investigator=ForbiddenMultiInvestigator(),
+        agent_runtime=SimpleNamespace(),
+        gateway=FakeGateway(),
+        model_name="scripted",
+        model_provider="scripted",
+        model_api_key="test-only",
+        model_base_url="http://model.test/v1",
+    )
+    with pytest.raises(AgentExecutionError) as failure:
+        await target.investigate(
+            base_context(),
+            snapshot=frozen,
+            mode=OrchestrationMode.SINGLE,
+            budget=RunBudget.from_policy(base_context().policy),
+        )
+    assert failure.value.details["execution_cost"]["total_tokens"] == (
+        23 if mode == "unknown_usage" else 30
+    )
+    assert failure.value.details["provider_usage_complete"] is False
+    assert failure.value.details["budget_usage"]["unknown_usage_requests"] == 1
+    assert "must-not-leak" not in str(failure.value)
 
 
 def pipeline_with_test_doubles(
@@ -102,7 +344,8 @@ def acquisition() -> EnterpriseContextAcquisitionResult:
     return EnterpriseContextAcquisitionResult(
         subject=frozen.subject,
         report_as_of=frozen.report_as_of,
-        report_catalog_version=frozen.report_catalog_version,
+        acquisition_catalog_version=frozen.acquisition_catalog_version,
+        planned_submodule_ids=frozen.planned_submodule_ids,
         source_manifest_version="d" * 64,
         capability_names=("get_company_registration_info",),
         submodules=frozen.submodules,
@@ -412,7 +655,7 @@ async def test_service_formal_mode_uses_snapshot_pipeline_not_legacy_strategy(
 
     result = await service.run(
         request=DueDiligenceRequest(
-            enterprise=EnterpriseInput(company_name="金调绿洲科技有限公司"),
+            enterprise=EnterpriseInput(company_name="乐视网信息技术（北京）股份有限公司"),
             scenario_id="normal-enterprise",
         ),
         mode=OrchestrationMode.SINGLE,
@@ -421,15 +664,21 @@ async def test_service_formal_mode_uses_snapshot_pipeline_not_legacy_strategy(
     )
 
     assert calls[-1] == "single-investigation"
-    assert result.context_snapshot is not None
-    assert result.context_snapshot.snapshot_id.startswith("snapshot:")
-    assert result.comparison_metadata is not None
-    assert result.comparison_metadata.formal_agent_run is True
-    assert result.comparison_metadata.topology is OrchestrationMode.SINGLE
-    assert [item.agent_id for item in result.agent_results] == [
-        "enterprise-context-agent",
-        "single-investigator",
-    ]
+    assert result.schema_version == "prototype-v1"
+    assert result.meta.request_id == "req-formal-service"
+    assert result.meta.run_id == "run-formal-service"
+    assert tuple(type(result.report).model_fields) == (
+        "business_plan",
+        "company_profile",
+        "ownership",
+        "business_analysis",
+        "financial_analysis",
+        "bank_flow_analysis",
+        "external_verification",
+        "risk_points",
+    )
+    assert not hasattr(result, "context_snapshot")
+    assert not hasattr(result, "agent_results")
 
 
 @pytest.mark.asyncio
@@ -518,7 +767,7 @@ async def test_formal_service_stream_orders_and_correlates_pipeline_events(
         formal_pipeline_factory=pipeline_factory,
     )
     request = DueDiligenceRequest(
-        enterprise=EnterpriseInput(company_name="金调绿洲科技有限公司"),
+        enterprise=EnterpriseInput(company_name="乐视网信息技术（北京）股份有限公司"),
         scenario_id="normal-enterprise",
     )
 
@@ -536,10 +785,10 @@ async def test_formal_service_stream_orders_and_correlates_pipeline_events(
     assert [event.sequence for event in events] == list(range(1, len(events) + 1))
     assert {event.request_id for event in events} == {"req-formal-stream"}
     assert {event.run_id for event in events} == {"run-formal-stream"}
-    final_result = DueDiligenceResult.model_validate(events[-1].payload["result"])
-    assert final_result.context_snapshot is not None
-    assert final_result.comparison_metadata is not None
-    assert final_result.comparison_metadata.formal_agent_run is True
+    final_result = ProductResult.model_validate(events[-1].payload["result"])
+    assert final_result.meta.request_id == "req-formal-stream"
+    assert final_result.meta.run_id == "run-formal-stream"
+    assert not hasattr(final_result, "context_snapshot")
     assert "test-only" not in events[-1].model_dump_json()
 
 
@@ -581,7 +830,7 @@ async def test_closing_formal_service_stream_cancels_pipeline_and_closes_gateway
     )
     stream = service.stream(
         DueDiligenceRequest(
-            enterprise=EnterpriseInput(company_name="金调绿洲科技有限公司"),
+            enterprise=EnterpriseInput(company_name="乐视网信息技术（北京）股份有限公司"),
             scenario_id="normal-enterprise",
         ),
         mode=OrchestrationMode.SINGLE,

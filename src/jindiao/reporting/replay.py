@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 from typing import Literal, Self
 
-from pydantic import Field, model_validator
+from pydantic import Field, TypeAdapter, model_validator
 
 from jindiao.contracts.base import ContractModel
 from jindiao.contracts.report_policy import ReportingPolicyBinding, ReportPolicy
@@ -20,6 +20,7 @@ from jindiao.paths import project_root
 from jindiao.reporting.catalog import DEFAULT_REPORT_CATALOG_PATH
 from jindiao.reporting.gaps import GapAnnotationBuilder
 from jindiao.reporting.markdown import MarkdownReportRenderer
+from jindiao.reporting.product_markdown import SECTION_TITLES, ProductReportView
 from jindiao.security import redact_json, redact_text
 
 SUITE_PATH = project_root() / "config/report-replay-suite-v1.json"
@@ -56,7 +57,10 @@ def implementation_fingerprint() -> str:
     )
 
 
-def validate_references(view: ReportViewModel) -> None:
+def validate_references(view: ReportViewModel | ProductReportView) -> None:
+    if isinstance(view, ProductReportView):
+        view.validate_references()
+        return
     evidence_ids = {item.evidence_id for item in view.evidence}
     finding_ids = {item.finding_id for item in view.findings}
     if len(evidence_ids) != len(view.evidence) or len(finding_ids) != len(view.findings):
@@ -81,10 +85,10 @@ def validate_references(view: ReportViewModel) -> None:
 
 
 class ReplaySnapshot(ContractModel):
-    schema_version: Literal[1] = 1
+    schema_version: Literal[1, 2] = 1
     run_id: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_:.\-]+$")
     binding: ReportingPolicyBinding
-    view: ReportViewModel
+    view: ProductReportView | ReportViewModel
     view_sha256: str
     report: str
     report_sha256: str
@@ -92,13 +96,21 @@ class ReplaySnapshot(ContractModel):
 
     @classmethod
     def freeze(
-        cls, *, run_id: str, view: ReportViewModel, binding: ReportingPolicyBinding, report: str
+        cls,
+        *,
+        run_id: str,
+        view: ProductReportView | ReportViewModel,
+        binding: ReportingPolicyBinding,
+        report: str,
     ) -> Self:
-        safe = ReportViewModel.model_validate(redact_json(view.model_dump(mode="json")))
+        safe: ProductReportView | ReportViewModel = TypeAdapter(
+            ProductReportView | ReportViewModel
+        ).validate_python(redact_json(view.model_dump(mode="json")))
         safe_report = redact_text(report)
         if MarkdownReportRenderer().render(safe, policy=binding.policy) != safe_report:
             raise ValueError("safe report reproduction failed")
         result = cls(
+            schema_version=2 if isinstance(safe, ProductReportView) else 1,
             run_id=run_id,
             binding=binding,
             view=safe,
@@ -113,6 +125,8 @@ class ReplaySnapshot(ContractModel):
 
     @model_validator(mode="after")
     def verify(self) -> Self:
+        if (self.schema_version == 2) != isinstance(self.view, ProductReportView):
+            raise ValueError("replay version does not match its view")
         validate_references(self.view)
         if self.view_sha256 != digest(canonical(self.view.model_dump(mode="json"))):
             raise ValueError("view hash mismatch")
@@ -131,7 +145,7 @@ class ExpectedGap(ContractModel):
 
 class ReplayCase(ContractModel):
     case_id: str
-    view: ReportViewModel
+    view: ProductReportView | ReportViewModel
     expected: tuple[ExpectedGap, ...]
 
 
@@ -174,14 +188,18 @@ def load_suite(path: Path = SUITE_PATH) -> tuple[ReplayCase, ...]:
 
 
 _BLOCK = re.compile(
-    r"\n\n<!-- jindiao:gap-begin id=(gap-[a-f0-9]{64}) section=([a-z][a-z0-9-]*) -->"
+    r"\n\n<!-- jindiao:gap-begin id=(gap-[a-f0-9]{64}) section=([a-z][a-z0-9_-]*) -->"
     r"\n> 数据缺口\(原附录披露\):\n> ([^\n]*)\n<!-- jindiao:gap-end -->"
 )
 
 
 def _inspect(case: ReplayCase, markdown: str) -> tuple[str, set[tuple[str, str]], bool]:
     expected = {(item.gap_id, item.section_id): item.text for item in case.expected}
-    titles = {section.title: section.section_id for section in case.view.sections}
+    titles = (
+        {title: identity for identity, title in SECTION_TITLES.items()}
+        if isinstance(case.view, ProductReportView)
+        else {section.title: section.section_id for section in case.view.sections}
+    )
     found: set[tuple[str, str]] = set()
     valid = True
     for match in _BLOCK.finditer(markdown):

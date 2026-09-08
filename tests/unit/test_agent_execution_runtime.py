@@ -199,3 +199,51 @@ async def test_openjiuwen_agent_runtime_cancellation_still_cleans_resources(
         ]
 
     assert agent.cleared is True
+
+
+@pytest.mark.asyncio
+async def test_agent_deadline_has_public_timeout_code_and_cleans_resources(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from jindiao.application.errors import AgentExecutionError, error_to_record
+
+    closed = []
+
+    async def blocked(**kwargs: object) -> AsyncIterator[SimpleNamespace]:
+        del kwargs
+        try:
+            yield SimpleNamespace(type="llm_output", payload={})
+            await asyncio.Event().wait()
+        finally:
+            closed.append(True)
+
+    monkeypatch.setattr(Runner, "run_agent_streaming", blocked)
+    agent = SimpleNamespace(
+        ability_manager=SimpleNamespace(teardown_tools=lambda: closed.append(True))
+    )
+    request = runtime.AgentExecutionRequest(
+        run_id="run-timeout",
+        agent_id="single-investigator",
+        role="single-investigator",
+        phase=AgentResultPhase.INVESTIGATION,
+        session_id="timeout-session",
+        query="test",
+        task_ids=("check:all",),
+        prompt_version="v1",
+        prompt_sha256="e" * 64,
+        timeout_seconds=0.01,
+    )
+    events = []
+    with pytest.raises(AgentExecutionError) as caught:
+        async for event in runtime.OpenJiuwenAgentExecutionRuntime().stream(agent, request):
+            events.append(event)
+    record = error_to_record(caught.value)
+    assert record.code == "agent_execution_timeout"
+    assert record.recoverable
+    assert record.details == {
+        "agent_id": request.agent_id,
+        "phase": "investigation",
+        "timeout_seconds": 0.01,
+    }
+    assert events[-1].event_type == runtime.AgentExecutionEventType.FAILED
+    assert len(closed) == 2

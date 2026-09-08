@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -9,6 +10,7 @@ from jindiao.contracts.entities import EnterpriseInput, ResolvedSubject, Subject
 from jindiao.contracts.evidence import CoverageSummary, Evidence, SourceType
 from jindiao.contracts.execution import ExecutionCost, LayeredExecutionCost
 from jindiao.contracts.investigation import Finding, FindingStatus, RiskClass, Severity
+from jindiao.contracts.public_result import parse_public_result
 from jindiao.contracts.reporting import (
     Decision,
     DecisionBand,
@@ -32,6 +34,7 @@ from jindiao.contracts.results import (
     SkillEvolutionSummary,
     SnapshotSummary,
 )
+from jindiao.observability import RunArtifactStore
 from jindiao.reporting.catalog import REPORT_CATALOG
 
 NOW = datetime(2026, 9, 3, tzinfo=UTC)
@@ -48,7 +51,7 @@ def test_due_diligence_request_has_safe_defaults() -> None:
     assert request.report_as_of is None
 
 
-def test_result_contains_every_frontend_and_report_field() -> None:
+def test_result_contains_every_frontend_and_report_field(tmp_path: Path) -> None:
     subject = ResolvedSubject(
         subject_id="mock:normal-enterprise",
         company_name="示例科技有限公司",
@@ -216,6 +219,23 @@ def test_result_contains_every_frontend_and_report_field() -> None:
     assert result.report_structure.module_count == 8
     assert result.report_structure.submodule_count == 48
     assert DueDiligenceResult.model_validate_json(result.model_dump_json()) == result
+    restored = parse_public_result(result.model_dump(mode="json"))
+    assert isinstance(restored, DueDiligenceResult)
+    assert restored == result
+    persisted = RunArtifactStore(tmp_path, clock=lambda: NOW).complete(result, metrics={})
+    assert persisted == result
+    assert RunArtifactStore(tmp_path).load_result("run-1") == result
+    from jindiao.application.execution_steps import ExecutionStepProjector
+    from jindiao.contracts.execution_steps import ExecutionStepSnapshot
+
+    projector = ExecutionStepProjector(mode=OrchestrationMode.MULTI)
+    projector.start()
+    steps = [
+        ExecutionStepSnapshot.model_validate(e.payload["step"]) for e in projector.complete(result)
+    ]
+    assert len(steps) == 7
+    assert all(not item.key_facts and not item.source_tags for item in steps)
+    assert all(item.outcome == "inconclusive" for item in steps[:6])
 
 
 def test_completed_result_meta_requires_completion_fields() -> None:

@@ -8,16 +8,29 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol, cast
 
 from pydantic import JsonValue
 
-from jindiao.contracts.events import EventSequencer, EventType, LifecycleEventType, RunEvent
+from jindiao.acquisition.catalog import ACQUISITION_CATALOG
+from jindiao.contracts.events import (
+    EventSequencer,
+    EventType,
+    ExecutionEventType,
+    LifecycleEventType,
+    RunEvent,
+)
 from jindiao.contracts.execution import RunTermination, RunTerminationReason
-from jindiao.contracts.results import AgentStatus, DueDiligenceResult, RunStatus
+from jindiao.contracts.execution_steps import (
+    ExecutionPlan,
+    ExecutionStepSnapshot,
+    ExecutionStepState,
+)
+from jindiao.contracts.public_result import PublicResult, parse_public_result
+from jindiao.contracts.results import AgentStatus, RunStatus
 from jindiao.contracts.runs import (
     ActorView,
     AgentView,
@@ -57,9 +70,9 @@ class RunRepository(Protocol):
 
     async def save(self, resource: RunResource) -> RunResource: ...
 
-    async def save_result(self, run_id: str, result: DueDiligenceResult) -> None: ...
+    async def save_result(self, run_id: str, result: PublicResult) -> None: ...
 
-    async def get_result(self, run_id: str) -> DueDiligenceResult | None: ...
+    async def get_result(self, run_id: str) -> PublicResult | None: ...
 
     async def save_error(self, run_id: str, error: object) -> None: ...
 
@@ -78,7 +91,7 @@ class InMemoryRunRepository:
     def __init__(self) -> None:
         self._runs: dict[str, RunResource] = {}
         self._idempotency: dict[tuple[str, str], tuple[str, str]] = {}
-        self._results: dict[str, DueDiligenceResult] = {}
+        self._results: dict[str, PublicResult] = {}
         self._lock = asyncio.Lock()
 
     async def create(
@@ -115,13 +128,13 @@ class InMemoryRunRepository:
             self._runs[resource.run_id] = resource
             return resource
 
-    async def save_result(self, run_id: str, result: DueDiligenceResult) -> None:
+    async def save_result(self, run_id: str, result: PublicResult) -> None:
         async with self._lock:
             if run_id not in self._runs:
                 raise KeyError(run_id)
             self._results[run_id] = result
 
-    async def get_result(self, run_id: str) -> DueDiligenceResult | None:
+    async def get_result(self, run_id: str) -> PublicResult | None:
         async with self._lock:
             return self._results.get(run_id)
 
@@ -234,7 +247,7 @@ class JsonRunRepository(InMemoryRunRepository):
         self._write(self._path(resource.run_id), resource.model_dump(mode="json"))
         return await super().save(resource)
 
-    async def save_result(self, run_id: str, result: DueDiligenceResult) -> None:
+    async def save_result(self, run_id: str, result: PublicResult) -> None:
         if await self.get(run_id) is None:
             raise KeyError(run_id)
         self._write(
@@ -243,14 +256,14 @@ class JsonRunRepository(InMemoryRunRepository):
         )
         await super().save_result(run_id, result)
 
-    async def get_result(self, run_id: str) -> DueDiligenceResult | None:
+    async def get_result(self, run_id: str) -> PublicResult | None:
         result = await super().get_result(run_id)
         if result is not None:
             return result
         path = self.root / _safe_segment(run_id) / "result.json"
         if not path.is_file():
             return None
-        loaded = DueDiligenceResult.model_validate(json.loads(path.read_text(encoding="utf-8")))
+        loaded = parse_public_result(json.loads(path.read_text(encoding="utf-8")))
         self._results[run_id] = loaded
         return loaded
 
@@ -331,6 +344,9 @@ class InMemoryEventStore:
                         "run.cancelled",
                         "submission.accepted",
                         "review.submitted",
+                        "execution.plan.created",
+                        "execution.step.completed",
+                        "execution.step.failed",
                     }:
                         continue
                     try:
@@ -364,13 +380,23 @@ class InMemoryEventStore:
         try:
             # Register first, then replay, and dedupe by sequence to avoid a gap.
             history = await self.read_after(run_id, after)
-            seen = {event.sequence for event in history}
             for event in history:
+                after = event.sequence
                 yield event
             while True:
                 event = await queue.get()
-                if event.sequence > after and event.sequence not in seen:
-                    seen.add(event.sequence)
+                if event.sequence <= after:
+                    continue
+                # A later protected snapshot can evict an earlier protected one.
+                # Fill the gap from storage before advancing the client's cursor.
+                if event.sequence > after + 1:
+                    for missed in await self.read_after(run_id, after):
+                        if missed.sequence >= event.sequence:
+                            break
+                        after = missed.sequence
+                        yield missed
+                if event.sequence > after:
+                    after = event.sequence
                     yield event
         finally:
             await self._unregister(run_id, queue)
@@ -457,9 +483,53 @@ class RunProjection:
 
     def __init__(self, resource: RunResource) -> None:
         self.resource = resource
+        self._execution_states: dict[str, ExecutionStepState] = {}
+        self._execution_sequences: dict[str, int] = {}
+
+    def restore_execution_progress(self, events: Iterable[RunEvent]) -> None:
+        """Rebuild the derived step count without reapplying persisted domain counters."""
+        for event in events:
+            progress = self._execution_progress(event)
+            if progress is not None:
+                self.resource = self.resource.model_copy(update={"progress": progress})
+
+    def _execution_progress(self, event: RunEvent) -> RunProgress | None:
+        event_type = str(event.event_type)
+        if event_type == "execution.plan.created":
+            plan = ExecutionPlan.model_validate(event.payload["plan"])
+            for definition in plan.steps:
+                self._execution_states.setdefault(definition.step_id, ExecutionStepState.PENDING)
+        elif (
+            event_type
+            in {
+                "execution.step.started",
+                "execution.step.progress",
+                "execution.step.completed",
+                "execution.step.failed",
+            }
+            and self._execution_states
+        ):
+            step = ExecutionStepSnapshot.model_validate(event.payload["step"])
+            if (
+                step.step_id not in self._execution_states
+                or event.sequence <= self._execution_sequences.get(step.step_id, 0)
+            ):
+                return None
+            self._execution_states[step.step_id] = step.state
+            self._execution_sequences[step.step_id] = event.sequence
+        else:
+            return None
+        return RunProgress(
+            completed=sum(
+                state is ExecutionStepState.COMPLETED for state in self._execution_states.values()
+            ),
+            total=len(self._execution_states),
+        )
 
     def apply(self, event: RunEvent) -> RunResource:
         current = self.resource
+        if event.sequence <= current.latest_sequence:
+            return current
         status = current.status
         stage = current.stage
         values: dict[str, object] = {
@@ -469,6 +539,9 @@ class RunProjection:
             event.event_type.value if hasattr(event.event_type, "value") else str(event.event_type)
         )
         payload = event.payload
+        progress = self._execution_progress(event)
+        if progress is not None:
+            values["progress"] = progress
         if event_type in {"run.started", "run.accepted"}:
             status = RunStatus.RUNNING if event_type == "run.started" else RunStatus.ACCEPTED
             values["started_at"] = current.started_at or event.occurred_at
@@ -505,10 +578,14 @@ class RunProjection:
             values["termination"] = RunTermination(reason=RunTerminationReason.CANCELLED)
         elif event_type in {"acquisition.started", "acquisition.completed"}:
             stage = RunStage.ACQUISITION
+            acquisition_total = len(ACQUISITION_CATALOG.default_plan_ids)
             if event_type == "acquisition.started":
-                values["acquisition"] = RunProgress(completed=0, total=48)
+                values["acquisition"] = RunProgress(completed=0, total=acquisition_total)
             elif event_type == "acquisition.completed":
-                values["acquisition"] = RunProgress(completed=48, total=48)
+                values["acquisition"] = RunProgress(
+                    completed=acquisition_total,
+                    total=acquisition_total,
+                )
             else:
                 values["acquisition"] = self._progress_from_payload(
                     current.acquisition, payload.get("acquisition")
@@ -669,7 +746,7 @@ class RunEventPublisher:
 
     async def complete(
         self,
-        result: DueDiligenceResult,
+        result: PublicResult,
         *,
         persist: Callable[[RunResource], Awaitable[RunResource]],
     ) -> None:
@@ -716,7 +793,7 @@ class RunEventPublisher:
 
     async def publish(
         self,
-        event_type: EventType | LifecycleEventType | str,
+        event_type: EventType | LifecycleEventType | ExecutionEventType | str,
         payload: dict[str, JsonValue],
         *,
         stage: RunStage | None = None,

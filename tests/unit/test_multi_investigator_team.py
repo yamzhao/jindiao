@@ -10,6 +10,7 @@ from openjiuwen.core.foundation.llm import AssistantMessage, ToolCall, UsageMeta
 from openjiuwen.core.foundation.llm.schema.message_chunk import AssistantMessageChunk
 from openjiuwen.core.runner import Runner
 
+from jindiao.acquisition.catalog import ACQUISITION_CATALOG
 from jindiao.agents import MultiInvestigatorTeam
 from jindiao.application.errors import AgentExecutionError
 from jindiao.contracts.acquisition import (
@@ -30,7 +31,6 @@ from jindiao.investigation import CHECK_CATALOG, CheckAssignment, CheckAssignmen
 from jindiao.investigation.blackboard import ReviewSubmission
 from jindiao.orchestration import BudgetLedger, OpenJiuwenAgentExecutionRuntime, RunBudget
 from jindiao.prompts import load_prompt_bundle
-from jindiao.reporting.catalog import REPORT_CATALOG
 
 NOW = datetime(2026, 9, 5, 19, 0, tzinfo=UTC)
 REPORT_AS_OF = date(2026, 8, 31)
@@ -83,7 +83,7 @@ def snapshot() -> EnterpriseContextSnapshot:
             evidence_ids=(evidence.evidence_id,) if submodule_id == "registration" else (),
             unresolved_gap_ids=(() if submodule_id == "registration" else (f"gap:{submodule_id}",)),
         )
-        for submodule_id in REPORT_CATALOG.submodule_ids
+        for submodule_id in ACQUISITION_CATALOG.default_plan_ids
     )
     return EnterpriseContextSnapshot(
         schema_version=1,
@@ -92,13 +92,14 @@ def snapshot() -> EnterpriseContextSnapshot:
         subject=subject,
         report_as_of=REPORT_AS_OF,
         created_at=NOW,
-        report_catalog_version=REPORT_CATALOG.catalog_version,
+        acquisition_catalog_version=ACQUISITION_CATALOG.catalog_version,
+        planned_submodule_ids=ACQUISITION_CATALOG.default_plan_ids,
         source_manifest_version="manifest-v1",
         submodules=submodules,
         evidence=(evidence,),
         supplement_tasks=(),
         unresolved_gaps=tuple(
-            f"gap:{item}" for item in REPORT_CATALOG.submodule_ids if item != "registration"
+            f"gap:{item}" for item in ACQUISITION_CATALOG.default_plan_ids if item != "registration"
         ),
         unresolved_conflicts=(),
     )

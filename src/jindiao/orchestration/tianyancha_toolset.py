@@ -10,6 +10,7 @@ from typing import Protocol, cast
 
 from pydantic import JsonValue
 
+from jindiao.acquisition.catalog import ACQUISITION_CATALOG
 from jindiao.agents.deepsearch_agent import DeepSearchCapabilityAgent, DeepSearchEvidenceAgent
 from jindiao.application.context import RunContext
 from jindiao.application.errors import SourceUnavailableError, error_to_record
@@ -162,8 +163,15 @@ class TianyanchaHybridToolset:
         subject: ResolvedSubject,
     ) -> Mapping[str, tuple[str, ...]]:
         manifest = await self._get_manifest(subject)
+        planned = set(ACQUISITION_CATALOG.default_plan_ids)
         return {
-            domain: tuple(tool.name for tool in self._routing.select(manifest, domain))
+            domain: tuple(
+                dict.fromkeys(
+                    tool.name
+                    for route, tool in self._routing.select_submodules(manifest, domain)
+                    if route.submodule_id in planned and tool is not None
+                )
+            )
             for domain in _DOMAINS
         }
 
@@ -180,7 +188,12 @@ class TianyanchaHybridToolset:
         if domain not in _DOMAINS:
             raise ValueError(f"unsupported Tianyancha domain: {domain}")
         manifest = await self._get_manifest(subject)
-        routes = self._routing.select_submodules(manifest, domain)
+        planned = set(ACQUISITION_CATALOG.default_plan_ids)
+        routes = tuple(
+            (route, tool)
+            for route, tool in self._routing.select_submodules(manifest, domain)
+            if route.submodule_id in planned
+        )
         supplement = await self._scenario_toolset.investigate(context, subject, domain)
         selected_by_name = {tool.name: tool for _, tool in routes if tool is not None}
         outcomes = await self._query_tools(

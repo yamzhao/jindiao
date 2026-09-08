@@ -19,6 +19,7 @@ from typing import Protocol
 from openjiuwen.core.runner import Runner
 from pydantic import AwareDatetime, BaseModel, Field, JsonValue, field_validator
 
+from jindiao.application.errors import AgentTimeoutError
 from jindiao.contracts.base import ContractModel
 from jindiao.contracts.results import AgentResultPhase
 from jindiao.security import redact_json
@@ -173,6 +174,20 @@ class OpenJiuwenAgentExecutionRuntime:
             yield event(AgentExecutionEventType.COMPLETED)
         except asyncio.CancelledError:
             raise
+        except TimeoutError as error:
+            public_error = AgentTimeoutError(
+                "Agent execution timed out",
+                details={
+                    "agent_id": request.agent_id,
+                    "phase": request.phase.value,
+                    "timeout_seconds": request.timeout_seconds,
+                },
+            )
+            yield event(
+                AgentExecutionEventType.FAILED,
+                payload={"error_type": "TimeoutError", "message": public_error.message},
+            )
+            raise public_error from error
         except Exception as error:
             yield event(
                 AgentExecutionEventType.FAILED,

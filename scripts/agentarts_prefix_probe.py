@@ -14,6 +14,7 @@ The application itself registers ``/api/v2/...`` and never registers a
 event sequence metadata.
 """
 
+# ruff: noqa: RUF001 -- official company name uses fullwidth parentheses
 from __future__ import annotations
 
 import argparse
@@ -118,7 +119,7 @@ def main() -> int:
     if prefix:
         headers["Authorization"] = auth
     body = {
-        "enterprise": {"company_name": "金调绿洲科技有限公司"},
+        "customerName": "乐视网信息技术（北京）股份有限公司",
         "scenario_id": "normal-enterprise",
         "mode": "single",
     }

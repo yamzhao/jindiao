@@ -27,6 +27,7 @@ class ErrorCode(StrEnum):
     ENTITY_AMBIGUOUS = "entity_ambiguous"
     SOURCE_UNAVAILABLE = "source_unavailable"
     AGENT_EXECUTION_FAILED = "agent_execution_failed"
+    AGENT_EXECUTION_TIMEOUT = "agent_execution_timeout"
     EVIDENCE_REVIEW_FAILED = "evidence_review_failed"
     RISK_RULE_FAILED = "risk_rule_failed"
     REPORT_GENERATION_FAILED = "report_generation_failed"

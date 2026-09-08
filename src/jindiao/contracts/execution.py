@@ -150,6 +150,7 @@ class RunTermination(ContractModel):
 
 
 class InvestigationBudgetFingerprint(ContractModel):
+    enforce_token_budget: bool = True
     max_llm_requests: int = Field(ge=1)
     max_input_tokens: int = Field(ge=1)
     max_output_tokens: int = Field(ge=1)

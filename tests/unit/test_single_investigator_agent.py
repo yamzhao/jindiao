@@ -10,6 +10,7 @@ from openjiuwen.core.foundation.llm import AssistantMessage, ToolCall, UsageMeta
 from openjiuwen.core.foundation.llm.schema.message_chunk import AssistantMessageChunk
 from openjiuwen.core.runner import Runner
 
+from jindiao.acquisition.catalog import ACQUISITION_CATALOG
 from jindiao.agents import SingleInvestigatorAgent
 from jindiao.application.errors import AgentExecutionError
 from jindiao.contracts.acquisition import (
@@ -35,7 +36,6 @@ from jindiao.orchestration import (
 )
 from jindiao.orchestration.react_model import JINDIAO_OPENAI_COMPATIBLE_PROVIDER
 from jindiao.prompts import load_prompt_bundle
-from jindiao.reporting.catalog import REPORT_CATALOG
 
 NOW = datetime(2026, 9, 5, 17, 0, tzinfo=UTC)
 REPORT_AS_OF = date(2026, 8, 31)
@@ -82,7 +82,7 @@ def context_snapshot() -> EnterpriseContextSnapshot:
             evidence_ids=(evidence.evidence_id,) if submodule_id == "registration" else (),
             unresolved_gap_ids=(() if submodule_id == "registration" else (f"gap:{submodule_id}",)),
         )
-        for submodule_id in REPORT_CATALOG.submodule_ids
+        for submodule_id in ACQUISITION_CATALOG.default_plan_ids
     )
     return EnterpriseContextSnapshot(
         schema_version=1,
@@ -91,13 +91,14 @@ def context_snapshot() -> EnterpriseContextSnapshot:
         subject=subject,
         report_as_of=REPORT_AS_OF,
         created_at=NOW,
-        report_catalog_version=REPORT_CATALOG.catalog_version,
+        acquisition_catalog_version=ACQUISITION_CATALOG.catalog_version,
+        planned_submodule_ids=ACQUISITION_CATALOG.default_plan_ids,
         source_manifest_version="manifest-v1",
         submodules=submodules,
         evidence=(evidence,),
         supplement_tasks=(),
         unresolved_gaps=tuple(
-            f"gap:{item}" for item in REPORT_CATALOG.submodule_ids if item != "registration"
+            f"gap:{item}" for item in ACQUISITION_CATALOG.default_plan_ids if item != "registration"
         ),
         unresolved_conflicts=(),
     )
@@ -230,22 +231,20 @@ def complete_responses() -> list[AssistantMessage]:
                 ]
             )
         )
-    responses.extend(
-        (
-            message(
-                tool_calls=[
-                    ToolCall(
-                        id="self-check",
-                        type="function",
-                        name="submit_investigation_self_check",
-                        arguments="{}",
-                    )
-                ]
-            ),
-            message("all fixed checks submitted"),
-        )
-    )
-    return responses
+    decisions = [json.loads(item.tool_calls[0].arguments)["result"] for item in responses[1:]]
+    return [
+        responses[0],
+        message(
+            tool_calls=[
+                ToolCall(
+                    id="submit-all-checks",
+                    type="function",
+                    name="submit_investigation_results",
+                    arguments=json.dumps({"results": decisions}, ensure_ascii=False),
+                )
+            ]
+        ),
+    ]
 
 
 def _replace_check_submission(
@@ -256,21 +255,23 @@ def _replace_check_submission(
 ) -> list[AssistantMessage]:
     for index, response in enumerate(responses):
         for call in response.tool_calls or ():
-            if call.name != "submit_check_result":
+            if call.name != "submit_investigation_results":
                 continue
             payload = json.loads(call.arguments)
-            if payload["result"]["check_id"] != result.check_id:
+            decisions = payload["results"]
+            matching = [
+                i for i, draft in enumerate(decisions) if draft["check_id"] == result.check_id
+            ]
+            if not matching:
                 continue
+            decisions[matching[0]] = bound_decision(result)
             replacement = message(
                 tool_calls=[
                     ToolCall(
                         id=f"submit-{result.check_id}-replacement",
                         type="function",
-                        name="submit_check_result",
-                        arguments=json.dumps(
-                            {"result": bound_decision(result)},
-                            ensure_ascii=False,
-                        ),
+                        name="submit_investigation_results",
+                        arguments=json.dumps({"results": decisions}, ensure_ascii=False),
                     )
                 ]
             )
@@ -407,9 +408,11 @@ def ledger() -> BudgetLedger:
             timeout_seconds=30,
             max_repair_rounds=0,
             max_llm_requests=80,
-            max_input_tokens=10_000,
-            max_output_tokens=10_000,
-            max_total_tokens=20_000,
+            # Admission now accounts the real serialized prompts/tools, not just
+            # the scripted provider's tiny reported usage. Use production limits.
+            max_input_tokens=300_000,
+            max_output_tokens=100_000,
+            max_total_tokens=400_000,
             max_schema_retries=2,
             max_snapshot_reads=40,
         )
@@ -417,9 +420,52 @@ def ledger() -> BudgetLedger:
 
 
 @pytest.mark.asyncio
-async def test_single_react_agent_reads_one_snapshot_submits_all_checks_and_self_checks() -> None:
+async def test_single_budget_failure_preserves_usage_from_swallowed_framework_error() -> None:
     model = ScriptedModel(complete_responses())
-    budget = ledger()
+    budget = BudgetLedger(ledger().budget.model_copy(update={"max_llm_requests": 1}))
+    agent = SingleInvestigatorAgent(prompt_bundle=load_prompt_bundle())
+    await Runner.start()
+    try:
+        with pytest.raises(AgentExecutionError) as failure:
+            await agent.run(
+                snapshot=context_snapshot(),
+                runtime=OpenJiuwenAgentExecutionRuntime(clock=lambda: NOW),
+                budget_ledger=budget,
+                run_id="run-budget-accounting",
+                model_name="scripted",
+                model_provider="scripted",
+                model=cast(Any, model),
+                timeout_seconds=20,
+                max_iterations=40,
+            )
+    finally:
+        await Runner.stop()
+    assert model.calls == 1
+    assert failure.value.details["execution_cost"]["total_tokens"] == 7
+    assert failure.value.details["budget_usage"]["reserved_input_tokens"] == 0
+    assert failure.value.details["provider_usage_complete"] is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("use_alias", [False, True])
+async def test_single_react_agent_reads_one_snapshot_submits_all_checks_and_self_checks(
+    use_alias: bool,
+) -> None:
+    responses = complete_responses()
+    if use_alias:
+        original = responses[1].tool_calls[0]
+        responses[1] = message(
+            tool_calls=[
+                ToolCall(
+                    id=original.id,
+                    type="function",
+                    name=original.name,
+                    arguments=original.arguments.replace('"ev-registration"', '"e0"'),
+                )
+            ]
+        )
+    model = ScriptedModel(responses)
+    budget = BudgetLedger(ledger().budget.model_copy(update={"max_llm_requests": 2}))
     agent = SingleInvestigatorAgent(prompt_bundle=load_prompt_bundle())
 
     await Runner.start()
@@ -451,7 +497,8 @@ async def test_single_react_agent_reads_one_snapshot_submits_all_checks_and_self
     assert budget.snapshot().llm_requests == model.calls
     assert budget.snapshot().provider_usage_requests == model.calls
     assert budget.snapshot().snapshot_reads == 1
-    assert budget.snapshot().tool_calls == len(CHECK_CATALOG.checks) + 2
+    assert model.calls == 2
+    assert budget.snapshot().tool_calls == 2
     assert all("system_prompt" not in event.payload for event in completed.events)
 
 
@@ -478,6 +525,46 @@ async def test_single_agent_never_fills_missing_checks_after_model_stops() -> No
         await Runner.stop()
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("defect", ["missing", "duplicate"])
+async def test_invalid_batch_cannot_complete_investigation(defect: str) -> None:
+    responses = complete_responses()
+    decisions = json.loads(responses[1].tool_calls[0].arguments)["results"]
+    if defect == "missing":
+        decisions.pop()
+    else:
+        decisions[-1] = decisions[0]
+    responses[1] = message(
+        tool_calls=[
+            ToolCall(
+                id="invalid-batch",
+                type="function",
+                name="submit_investigation_results",
+                arguments=json.dumps({"results": decisions}, ensure_ascii=False),
+            )
+        ]
+    )
+    responses.append(message("finished without valid results"))
+    model = ScriptedModel(responses)
+    await Runner.start()
+    try:
+        with pytest.raises(AgentExecutionError, match="missing fixed checks"):
+            await SingleInvestigatorAgent(prompt_bundle=load_prompt_bundle()).run(
+                snapshot=context_snapshot(),
+                runtime=OpenJiuwenAgentExecutionRuntime(clock=lambda: NOW),
+                budget_ledger=ledger(),
+                run_id=f"run-batch-{defect}",
+                model_name="single-scripted-model",
+                model_provider="scripted",
+                model=cast(Any, model),
+                timeout_seconds=20,
+                max_iterations=40,
+            )
+    finally:
+        await Runner.stop()
+    assert model.calls == 3
+
+
 def test_single_builder_exposes_no_external_or_multi_agent_tools() -> None:
     agent = SingleInvestigatorAgent(prompt_bundle=load_prompt_bundle())
     bindings = agent.build_react_agent(
@@ -497,16 +584,16 @@ def test_single_builder_exposes_no_external_or_multi_agent_tools() -> None:
     try:
         assert {item.name for item in bindings.agent.ability_manager.list()} == {
             "read_assigned_snapshot_context",
-            "submit_check_result",
-            "submit_investigation_self_check",
+            "submit_investigation_results",
         }
         abilities = {item.name: item for item in bindings.agent.ability_manager.list()}
-        submit_schema = abilities["submit_check_result"].input_params
-        result_ref = submit_schema["properties"]["result"]["$ref"]
+        submit_schema = abilities["submit_investigation_results"].input_params
+        batch_schema = submit_schema["properties"]["results"]
+        assert batch_schema["minItems"] == batch_schema["maxItems"] == len(CHECK_CATALOG.checks)
+        result_ref = batch_schema["items"]["$ref"]
         result_name = result_ref.rsplit("/", maxsplit=1)[-1]
         result_properties = submit_schema["$defs"][result_name]["properties"]
         assert "snapshot_id" not in result_properties
-        assert abilities["submit_investigation_self_check"].input_params["properties"] == {}
         client_config = bindings.agent._config.model_client_config
         request_config = bindings.agent._config.model_config_obj
         assert client_config is not None
@@ -518,7 +605,7 @@ def test_single_builder_exposes_no_external_or_multi_agent_tools() -> None:
         assert request_config is not None
         assert request_config.model_name == "qwen-plus"
         assert request_config.temperature == 0.25
-        assert bindings.agent._config.parallel_tool_calls is True
+        assert bindings.agent._config.parallel_tool_calls is False
     finally:
         bindings.agent.ability_manager.teardown_tools()
 
@@ -619,8 +706,8 @@ async def test_single_agent_converges_to_inconclusive_for_conflicting_evidence()
 @pytest.mark.asyncio
 async def test_single_agent_allows_model_to_correct_invalid_schema_once() -> None:
     responses = complete_responses()
-    valid = json.loads(responses[1].tool_calls[0].arguments)["result"]
-    invalid = {**valid, "status": "risk", "risk_items": []}
+    valid = json.loads(responses[1].tool_calls[0].arguments)["results"]
+    invalid = [{**valid[0], "status": "risk", "risk_items": []}, *valid[1:]]
     responses.insert(
         1,
         message(
@@ -628,8 +715,8 @@ async def test_single_agent_allows_model_to_correct_invalid_schema_once() -> Non
                 ToolCall(
                     id="submit-registration-invalid",
                     type="function",
-                    name="submit_check_result",
-                    arguments=json.dumps({"result": invalid}, ensure_ascii=False),
+                    name="submit_investigation_results",
+                    arguments=json.dumps({"results": invalid}, ensure_ascii=False),
                 )
             ]
         ),

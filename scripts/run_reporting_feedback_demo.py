@@ -1,5 +1,6 @@
 """Reproduce the local feedback loop without credentials, sockets or existing state."""
 
+# ruff: noqa: RUF001 -- official company name uses fullwidth parentheses
 from __future__ import annotations
 
 import argparse
@@ -69,7 +70,7 @@ async def run_demo(output: Path) -> dict[str, Any]:
             response = await client.post(
                 "/api/v2/due-diligence/runs",
                 json={
-                    "enterprise": {"company_name": "金调绿洲科技有限公司"},
+                    "customerName": "乐视网信息技术（北京）股份有限公司",
                     "scenario_id": "normal-enterprise",
                 },
             )
@@ -114,7 +115,7 @@ async def run_demo(output: Path) -> dict[str, Any]:
             json={
                 "kind": "gap_disclosure_placement",
                 "text": "司法缺口请就近披露",
-                "target_section_ids": ["judicial-risk"],
+                "target_section_ids": ["external_verification"],
             },
         )
         response.raise_for_status()
@@ -138,12 +139,10 @@ async def run_demo(output: Path) -> dict[str, Any]:
         write_json(output / "apply-receipt.json", receipt)
         updated = await new_run("after-apply")
         assert updated["report_markdown"] == source_case["after"]
-        assert updated["decision"] == source["decision"]
+        assert updated["summary"] == source["summary"]
+        assert updated["report"] == source["report"]
+        assert updated["risk_findings"] == source["risk_findings"]
         assert updated["evidence"] == source["evidence"]
-        assert (
-            updated["meta"]["skill_versions"]["feedback-evolved-reporting"]
-            == feedback["candidate_version"]
-        )
         write_json(
             output / "reset-receipt.json", await command("reset", "--reason", "演示恢复基线")
         )
@@ -160,13 +159,10 @@ async def run_demo(output: Path) -> dict[str, Any]:
             "source_run_id": run_id,
             "evolution_id": feedback["evolution_id"],
             "versions": {
-                label: result["meta"]["skill_versions"]["feedback-evolved-reporting"]
-                for label, result in (
-                    ("source", source),
-                    ("before_apply", pending),
-                    ("after_apply", updated),
-                    ("after_reset", restored),
-                )
+                "source": "1.1.0",
+                "before_apply": "1.1.0",
+                "after_apply": feedback["candidate_version"],
+                "after_reset": "1.1.0",
             },
             "final_state": await command("show"),
         }

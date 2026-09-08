@@ -9,6 +9,8 @@ from datetime import UTC, date, datetime
 
 from pydantic import JsonValue
 
+from jindiao.acquisition.business_input import business_input_evidence
+from jindiao.acquisition.catalog import ACQUISITION_CATALOG
 from jindiao.agents.deepsearch_agent import DeepSearchSupplementOutcome
 from jindiao.agents.enterprise_context import EnterpriseContextAcquisitionResult
 from jindiao.contracts.acquisition import (
@@ -18,10 +20,10 @@ from jindiao.contracts.acquisition import (
     SupplementTask,
     SupplementTaskReason,
 )
+from jindiao.contracts.business import BusinessContext
 from jindiao.contracts.evidence import CoverageCompleteness, Evidence, SourceStatus, SourceType
 from jindiao.contracts.execution import ExecutionCost
 from jindiao.contracts.results import AgentInvestigationResult
-from jindiao.reporting.catalog import REPORT_CATALOG
 
 
 def _canonical_json(value: object) -> str:
@@ -55,6 +57,8 @@ class ContextFreezer:
         supplement_outcomes: tuple[DeepSearchSupplementOutcome, ...],
         deepsearch_agent_result: AgentInvestigationResult | None,
         shared_acquisition_cost: ExecutionCost,
+        business_context: BusinessContext | None = None,
+        run_id: str = "unbound",
     ) -> EnterpriseContextSnapshot:
         self._validate_acquisition(acquisition)
         task_by_id = {item.task_id: item for item in supplement_tasks}
@@ -67,6 +71,14 @@ class ContextFreezer:
             raise ValueError("every frozen SupplementTask requires exactly one outcome")
 
         evidence_by_id = {item.evidence_id: item for item in acquisition.evidence}
+        frozen_business_context = business_context or BusinessContext()
+        for item in business_input_evidence(
+            frozen_business_context,
+            subject_id=acquisition.subject.subject_id,
+            run_id=run_id,
+            queried_at=self._clock(),
+        ):
+            evidence_by_id[item.evidence_id] = item
         submodules = {item.submodule_id: item for item in acquisition.submodules}
         unresolved_gaps = {
             gap for item in acquisition.submodules for gap in item.unresolved_gap_ids
@@ -120,7 +132,7 @@ class ContextFreezer:
             unresolved_conflicts.update(conflicts)
 
         ordered_submodules = tuple(
-            submodules[submodule_id] for submodule_id in REPORT_CATALOG.submodule_ids
+            submodules[submodule_id] for submodule_id in acquisition.planned_submodule_ids
         )
         combined_evidence = tuple(evidence_by_id.values())
         agent_results = (acquisition.agent_result,) + (
@@ -134,7 +146,8 @@ class ContextFreezer:
             "schema_version": 1,
             "subject": acquisition.subject.model_dump(mode="json"),
             "report_as_of": acquisition.report_as_of.isoformat(),
-            "report_catalog_version": acquisition.report_catalog_version,
+            "acquisition_catalog_version": acquisition.acquisition_catalog_version,
+            "planned_submodule_ids": list(acquisition.planned_submodule_ids),
             "source_manifest_version": acquisition.source_manifest_version,
             "submodules": [item.model_dump(mode="json") for item in ordered_submodules],
             "evidence": [item.model_dump(mode="json") for item in combined_evidence],
@@ -143,6 +156,7 @@ class ContextFreezer:
             "unresolved_conflicts": sorted(unresolved_conflicts),
             "acquisition_agent_results": [item.model_dump(mode="json") for item in agent_results],
             "shared_acquisition_cost": shared_acquisition_cost.model_dump(mode="json"),
+            "business_context": frozen_business_context.model_dump(mode="json"),
         }
         digest = hashlib.sha256(_canonical_json(content).encode()).hexdigest()
         return EnterpriseContextSnapshot(
@@ -152,7 +166,8 @@ class ContextFreezer:
             subject=acquisition.subject,
             report_as_of=acquisition.report_as_of,
             created_at=self._clock(),
-            report_catalog_version=acquisition.report_catalog_version,
+            acquisition_catalog_version=acquisition.acquisition_catalog_version,
+            planned_submodule_ids=acquisition.planned_submodule_ids,
             source_manifest_version=acquisition.source_manifest_version,
             submodules=ordered_submodules,
             evidence=combined_evidence,
@@ -161,15 +176,17 @@ class ContextFreezer:
             unresolved_conflicts=tuple(sorted(unresolved_conflicts)),
             acquisition_agent_results=agent_results,
             shared_acquisition_cost=shared_acquisition_cost,
+            business_context=frozen_business_context,
         )
 
     @staticmethod
     def _validate_acquisition(acquisition: EnterpriseContextAcquisitionResult) -> None:
-        if acquisition.report_catalog_version != REPORT_CATALOG.catalog_version:
-            raise ValueError("acquisition report catalog version does not match runtime")
+        if acquisition.acquisition_catalog_version != ACQUISITION_CATALOG.catalog_version:
+            raise ValueError("acquisition catalog version does not match runtime")
         actual = tuple(item.submodule_id for item in acquisition.submodules)
-        if actual != REPORT_CATALOG.submodule_ids:
-            raise ValueError("acquisition must preserve canonical 48-submodule order")
+        expected = ACQUISITION_CATALOG.plan(acquisition.planned_submodule_ids)
+        if actual != acquisition.planned_submodule_ids or actual != expected:
+            raise ValueError("acquisition must preserve its versioned plan order")
         for evidence in acquisition.evidence:
             if evidence.subject_id != acquisition.subject.subject_id:
                 raise ValueError("acquisition contains Evidence for another subject")

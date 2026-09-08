@@ -1,3 +1,4 @@
+# ruff: noqa: RUF001 -- official company name uses fullwidth parentheses
 from __future__ import annotations
 
 import asyncio
@@ -186,7 +187,7 @@ class GatedTeamRuntime(FakeTeamRuntime):
 
 @pytest.mark.asyncio
 async def test_agentteams_run_is_a_required_gate_before_specialist_execution() -> None:
-    run_context = context("normal-enterprise", "金调绿洲科技有限公司")
+    run_context = context("normal-enterprise", "乐视网信息技术（北京）股份有限公司")
     runtime = GatedTeamRuntime()
     toolset = ParallelProbeToolset(ScenarioToolset(clock=lambda: NOW))
     execution = asyncio.create_task(
@@ -217,7 +218,7 @@ async def test_agentteams_run_is_a_required_gate_before_specialist_execution() -
     assert runtime_inputs["skill_versions"] == dict(run_context.skill_versions)
     query = runtime_inputs["query"]
     assert isinstance(query, str)
-    assert "金调绿洲科技有限公司" in query
+    assert "乐视网信息技术（北京）股份有限公司" in query
     assert "build_team" in query
     assert "lifecycle controller" in query
     assert "Do not call send_message" in query
@@ -249,7 +250,7 @@ class NonTerminatingTeamRuntime(FakeTeamRuntime):
 
 @pytest.mark.asyncio
 async def test_multi_strategy_bounds_and_cancels_non_terminating_agentteams_runtime() -> None:
-    run_context = context("normal-enterprise", "金调绿洲科技有限公司")
+    run_context = context("normal-enterprise", "乐视网信息技术（北京）股份有限公司")
     runtime = NonTerminatingTeamRuntime()
     strategy = MultiAgentStrategy(
         toolset=ParallelProbeToolset(ScenarioToolset(clock=lambda: NOW)),
@@ -276,7 +277,7 @@ async def test_multi_strategy_bounds_and_cancels_non_terminating_agentteams_runt
 
 @pytest.mark.asyncio
 async def test_multi_strategy_uses_runtime_capabilities_before_planning() -> None:
-    run_context = context("normal-enterprise", "金调绿洲科技有限公司")
+    run_context = context("normal-enterprise", "乐视网信息技术（北京）股份有限公司")
     runtime = FakeTeamRuntime()
     toolset = CapabilityAwareProbeToolset(ScenarioToolset(clock=lambda: NOW))
 
@@ -322,7 +323,7 @@ class OneMissingCapabilityToolset(ParallelProbeToolset):
 
 @pytest.mark.asyncio
 async def test_capability_absence_is_executed_by_deepsearch_agent() -> None:
-    run_context = context("normal-enterprise", "金调绿洲科技有限公司")
+    run_context = context("normal-enterprise", "乐视网信息技术（北京）股份有限公司")
     toolset = OneMissingCapabilityToolset(ScenarioToolset(clock=lambda: NOW))
 
     outcome = await MultiAgentStrategy(
@@ -445,7 +446,7 @@ class UnbackedToolset(ParallelProbeToolset):
 
 @pytest.mark.asyncio
 async def test_multi_reviewer_rejects_unbacked_risk_before_rule_engine() -> None:
-    run_context = context("normal-enterprise", "金调绿洲科技有限公司")
+    run_context = context("normal-enterprise", "乐视网信息技术（北京）股份有限公司")
     outcome = await MultiAgentStrategy(
         toolset=UnbackedToolset(ScenarioToolset(clock=lambda: NOW)),
         team_spec=build_due_diligence_team_spec(
@@ -470,11 +471,11 @@ async def test_multi_reviewer_rejects_unbacked_risk_before_rule_engine() -> None
 
 
 def test_result_assembler_refuses_to_run_before_final_review() -> None:
-    run_context = context("normal-enterprise", "金调绿洲科技有限公司")
+    run_context = context("normal-enterprise", "乐视网信息技术（北京）股份有限公司")
     unresolved = OrchestrationOutcome(
         subject=ResolvedSubject(
             subject_id="mock:normal-enterprise",
-            company_name="金调绿洲科技有限公司",
+            company_name="乐视网信息技术（北京）股份有限公司",
             source=SubjectSource.MOCK,
             resolved_at=NOW,
         ),

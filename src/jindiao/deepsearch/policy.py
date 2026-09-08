@@ -6,6 +6,7 @@ import hashlib
 from collections.abc import Mapping
 from datetime import date
 
+from jindiao.acquisition.catalog import ACQUISITION_CATALOG
 from jindiao.contracts.acquisition import (
     SubmoduleAvailability,
     SubmoduleContext,
@@ -14,16 +15,6 @@ from jindiao.contracts.acquisition import (
 )
 from jindiao.contracts.entities import ResolvedSubject
 from jindiao.contracts.evidence import SourceStatus, SourceType
-from jindiao.reporting.catalog import REPORT_CATALOG
-
-_MODULE_DOMAINS = {
-    "company-profile": "governance",
-    "judicial-risk": "judicial",
-    "operational-risk": "operations",
-    "operations-analysis": "operations",
-    "related-parties": "governance",
-    "peer-analysis": "peers",
-}
 
 
 class SupplementPolicy:
@@ -38,8 +29,8 @@ class SupplementPolicy:
     ) -> None:
         if max_gap_tasks < 0:
             raise ValueError("max_gap_tasks cannot be negative")
-        allowed = allowed_gap_submodules or frozenset(REPORT_CATALOG.submodule_ids)
-        unknown = allowed - set(REPORT_CATALOG.submodule_ids)
+        allowed = allowed_gap_submodules or frozenset(ACQUISITION_CATALOG.default_plan_ids)
+        unknown = allowed - set(ACQUISITION_CATALOG.acquisition_ids)
         if unknown:
             raise ValueError(f"supplement policy contains unknown submodules: {sorted(unknown)}")
         self.annual_report_social_security_enabled = annual_report_social_security_enabled
@@ -58,7 +49,7 @@ class SupplementPolicy:
         by_id = {item.submodule_id: item for item in submodules}
         if len(by_id) != len(submodules):
             raise ValueError("supplement policy submodule ids must be unique")
-        unknown = set(by_id) - set(REPORT_CATALOG.submodule_ids)
+        unknown = set(by_id) - set(ACQUISITION_CATALOG.acquisition_ids)
         if unknown:
             raise ValueError(f"supplement policy received unknown submodules: {sorted(unknown)}")
 
@@ -86,7 +77,7 @@ class SupplementPolicy:
 
         conflicts = conflict_evidence_ids_by_submodule or {}
         required = required_fact_gaps or {}
-        for submodule_id in REPORT_CATALOG.submodule_ids:
+        for submodule_id in ACQUISITION_CATALOG.default_plan_ids:
             if len(tasks) - baseline_count >= self.max_gap_tasks:
                 break
             context = by_id.get(submodule_id)
@@ -139,8 +130,7 @@ class SupplementPolicy:
 
     @staticmethod
     def _domain(submodule_id: str) -> str:
-        module_id = REPORT_CATALOG.module_for_submodule(submodule_id).module_id
-        return _MODULE_DOMAINS[module_id]
+        return ACQUISITION_CATALOG.get(submodule_id).domain
 
     @staticmethod
     def _task_id(subject_id: str, submodule_id: str, reason: str) -> str:

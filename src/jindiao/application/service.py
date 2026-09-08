@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 import uuid
 from collections.abc import AsyncIterator, Callable
 from contextlib import suppress
@@ -11,9 +12,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
-from pydantic import JsonValue
+from pydantic import JsonValue, ValidationError
 
-from jindiao.acquisition import ContextFreezer
+from jindiao.acquisition.catalog import ACQUISITION_CATALOG
+from jindiao.acquisition.context_freezer import ContextFreezer
 from jindiao.agents import (
     AgentTeamsInvestigatorTeam,
     DeepSearchAgent,
@@ -22,14 +24,12 @@ from jindiao.agents import (
     SingleInvestigatorAgent,
 )
 from jindiao.contracts.events import EventSequencer, EventType, RunEvent
+from jindiao.contracts.execution import ExecutionCost
+from jindiao.contracts.product import ProductResult, ProductSubject
 from jindiao.contracts.report_policy import ReportingPolicyBinding
-from jindiao.contracts.reporting import ReportViewModel
 from jindiao.contracts.results import (
     DueDiligenceRequest,
-    DueDiligenceResult,
     OrchestrationMode,
-    SkillEvolutionStatus,
-    SkillEvolutionSummary,
 )
 from jindiao.deepsearch import SupplementPolicy, TianyanchaAnnualReportProvider
 from jindiao.observability import JsonlRunTrace, RunArtifactStore, RunMetricsCollector
@@ -57,8 +57,12 @@ from jindiao.orchestration.team_runtime import (
 from jindiao.orchestration.team_spec import build_due_diligence_team_spec
 from jindiao.orchestration.tianyancha_toolset import TianyanchaHybridToolset
 from jindiao.prompts import load_prompt_bundle
-from jindiao.reporting.catalog import REPORT_CATALOG
 from jindiao.reporting.demo_store import ReportingDemoStore, bootstrap
+from jindiao.reporting.product_assembler import ProductReportAssembler
+from jindiao.reporting.product_fact_projector import ProductFactProjector
+from jindiao.reporting.product_generator import ReportContentGenerator
+from jindiao.reporting.product_model import OpenJiuwenReportModel
+from jindiao.reporting.product_risks import project_risks
 from jindiao.reporting.replay import ReplaySnapshot
 from jindiao.risk import RiskRuleEngine, RiskRuleSet
 from jindiao.scenarios import ScenarioRepository
@@ -82,7 +86,7 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, slots=True)
 class DetailedRun:
-    result: DueDiligenceResult
+    result: ProductResult
     outcome: OrchestrationOutcome
 
 
@@ -120,6 +124,8 @@ class DueDiligenceService:
         self._result_assembler = ResultAssembler(
             rule_engine=RiskRuleEngine(RiskRuleSet.from_file(risk_rules_path))
         )
+        self._product_facts = ProductFactProjector()
+        self._product_reports = ProductReportAssembler()
         self._coordinator: RunCoordinator | None = None
 
     def attach_coordinator(self, coordinator: RunCoordinator) -> None:
@@ -159,9 +165,9 @@ class DueDiligenceService:
         run_id: str | None = None,
         event_sink: RuntimeEventSink | None = None,
         cancellation_token: CancellationToken | None = None,
-    ) -> DueDiligenceResult:
+    ) -> ProductResult:
         if self._coordinator is not None:
-            return await self._coordinator.execute_compat(
+            result = await self._coordinator.execute_compat(
                 request,
                 mode=mode,
                 request_id=request_id,
@@ -169,6 +175,9 @@ class DueDiligenceService:
                 event_sink=event_sink,
                 cancellation_token=cancellation_token,
             )
+            if not isinstance(result, ProductResult):
+                raise RuntimeError("A new run returned a legacy result")
+            return result
         return await self._run_impl(
             request,
             mode=mode,
@@ -188,7 +197,7 @@ class DueDiligenceService:
         event_sink: RuntimeEventSink | None = None,
         cancellation_token: CancellationToken | None = None,
         reporting_policy: ReportingPolicyBinding | None = None,
-    ) -> DueDiligenceResult:
+    ) -> ProductResult:
         if cancellation_token is not None and getattr(cancellation_token, "cancelled", False):
             raise asyncio.CancelledError()
         detailed = await self._execute(
@@ -297,15 +306,19 @@ class DueDiligenceService:
         reporting_policy: ReportingPolicyBinding | None = None,
     ) -> DetailedRun:
         reporting_policy = reporting_policy or self.freeze_reporting_policy()
-        started_at = self._clock()
+        run_started_monotonic = time.monotonic()
         metrics = RunMetricsCollector()
         trace = self._artifact_store.begin(request_id=request_id, run_id=run_id)
         trace.emit("run.started", attributes={"status": "running"})
         runtime_event_sequencer = EventSequencer(request_id=request_id, run_id=run_id)
+        formal_run: FormalPipelineRun | None = None
+        report_model: OpenJiuwenReportModel | None = None
 
         async def observe_runtime_event(event: TeamRuntimeEvent) -> None:
             from jindiao.api.event_mapper import EventMapper
 
+            if event.event_type == "model.request.completed":
+                metrics.observe_model_completion(event.payload)
             public_event = EventMapper().map(event, runtime_event_sequencer)
             if public_event is not None:
                 trace.emit_run_event(public_event)
@@ -344,12 +357,12 @@ class DueDiligenceService:
                 settings=effective_settings,
                 skill_versions=skill_versions,
                 requested_enterprise=request.enterprise,
+                business_context=request.business_context,
                 report_as_of=request.report_as_of,
                 reporting_policy=reporting_policy,
             )
             metrics.finish_phase("context")
             metrics.start_phase("orchestration")
-            formal_run: FormalPipelineRun | None = None
             if self._settings.formal_agent_run:
                 pipeline = (
                     self._formal_pipeline_factory(context)
@@ -412,7 +425,17 @@ class DueDiligenceService:
             metrics.finish_phase("orchestration")
             if outcome.evidence:
                 metrics.mark_first_valid_evidence()
-            token_count = self._token_count(outcome)
+            prior_cost = (
+                ExecutionCost.combine(
+                    formal_run.snapshot.shared_acquisition_cost,
+                    formal_run.investigation_cost,
+                )
+                if formal_run is not None
+                else ExecutionCost.zero()
+            )
+            token_count = (
+                prior_cost.total_tokens if formal_run is not None else self._token_count(outcome)
+            )
             metrics.record_resources(
                 tool_calls=outcome.tool_calls,
                 token_count=token_count,
@@ -420,50 +443,101 @@ class DueDiligenceService:
                 repairs=outcome.collaboration.repairs_requested,
                 repairs_completed=outcome.collaboration.repairs_completed,
             )
+            if formal_run is not None:
+                metrics.record_execution_cost(
+                    prior_cost,
+                    provider_usage_complete=(
+                        prior_cost.provider_usage_requests == prior_cost.llm_requests
+                    ),
+                )
             self._trace_outcome(trace, outcome)
             metrics.start_phase("reporting")
-            completed_at = self._clock()
-            skill_evolution = None
-            if request.skill_feedback is not None:
-                skill_evolution = SkillEvolutionSummary(
-                    status=SkillEvolutionStatus.REJECTED,
-                    active_version=reporting_policy.version,
-                    reason_codes=("use_feedback_api",),
-                    change_summary="Legacy feedback is deprecated; use the v2 feedback endpoint.",
-                )
-            report_views: list[ReportViewModel] = []
-            result = self._result_assembler.assemble(
+            from jindiao.orchestration.base import emit_runtime_event
+
+            await emit_runtime_event(event_sink, "review.started", payload={})
+            reviewed = self._result_assembler.prepare(
                 context=context,
                 outcome=outcome,
-                mode=mode,
-                started_at=started_at,
-                completed_at=completed_at,
-                skill_evolution=skill_evolution,
-                view_sink=report_views.append,
                 snapshot=formal_run.snapshot if formal_run is not None else None,
                 agent_results=(formal_run.agent_results if formal_run is not None else ()),
-                investigation_cost=(
-                    formal_run.investigation_cost if formal_run is not None else None
+            )
+            await emit_runtime_event(event_sink, "report.started", payload={})
+            projected = self._product_facts.project(
+                subject=outcome.subject,
+                evidence=reviewed.evidence,
+                findings=reviewed.findings,
+                coverage=reviewed.coverage,
+                section_data=outcome.section_data,
+                snapshot=formal_run.snapshot if formal_run is not None else None,
+            )
+            prepared = self._product_reports.prepare(
+                projected,
+                context=context,
+                subject_id=outcome.subject.subject_id,
+                queried_at=self._clock(),
+            )
+            risks = project_risks(reviewed.findings, reviewed.evidence, reviewed.checks)
+            report_model = (
+                OpenJiuwenReportModel(
+                    settings=self._settings,
+                    budget=RunBudget.from_policy(context.policy),
+                    prior_cost=prior_cost,
+                    elapsed_seconds=time.monotonic() - run_started_monotonic,
+                )
+                if formal_run is not None
+                else None
+            )
+            generated = await ReportContentGenerator(report_model).generate(
+                report=prepared.report,
+                risks=risks,
+                evidence=prepared.evidence,
+                decision=reviewed.decision,
+                cancellation_token=cancellation_token,
+            )
+            prepared = prepared.model_copy(update={"report": generated.report})
+            completed_at = self._clock()
+            result, report_view = self._product_reports.finish(
+                facts=prepared,
+                risks=generated.risks,
+                reviewed=reviewed,
+                context=context,
+                subject=ProductSubject(
+                    subject_id=outcome.subject.subject_id,
+                    company_name=outcome.subject.company_name,
+                    unified_social_credit_code=outcome.subject.unified_social_credit_code,
                 ),
-                comparison_metadata=(
-                    formal_run.comparison_metadata if formal_run is not None else None
-                ),
+                mode=mode,
+                generated_at=completed_at,
             )
             if event_sink is not None:
-                from jindiao.orchestration.base import emit_runtime_event
-
-                for section in result.sections:
+                for section_id in type(result.report).model_fields:
+                    section = getattr(result.report, section_id)
                     await emit_runtime_event(
                         event_sink,
                         "section.completed",
-                        payload={"section": section.model_dump(mode="json")},
+                        payload={
+                            "section_id": section_id,
+                            "section": section.model_dump(mode="json"),
+                        },
                     )
-                if skill_evolution is not None:
-                    await emit_runtime_event(
-                        event_sink,
-                        "skill_evolution.proposed",
-                        payload={"candidate": skill_evolution.model_dump(mode="json")},
-                    )
+            report_cost = report_model.cost if report_model is not None else ExecutionCost.zero()
+            token_count += report_cost.total_tokens
+            metrics.record_resources(
+                tool_calls=outcome.tool_calls,
+                token_count=token_count,
+                conflicts=outcome.collaboration.conflicts_detected,
+                repairs=outcome.collaboration.repairs_requested + report_cost.schema_retries,
+                repairs_completed=outcome.collaboration.repairs_completed,
+            )
+            if formal_run is not None:
+                total_cost = ExecutionCost.combine(prior_cost, report_cost)
+                metrics.record_execution_cost(
+                    total_cost,
+                    provider_usage_complete=(
+                        total_cost.provider_usage_requests == total_cost.llm_requests
+                        and getattr(report_model, "provider_usage_complete", True) is True
+                    ),
+                )
             metrics.finish_phase("reporting")
             metric_snapshot = metrics.finish()
             trace.emit(
@@ -475,15 +549,66 @@ class DueDiligenceService:
                     "token_count": token_count,
                 },
             )
-            result = self._artifact_store.complete(
+            stored_result = self._artifact_store.complete(
                 result,
                 metrics=metric_snapshot,
-                replay_view=report_views[0],
+                replay_view=report_view,
                 binding=reporting_policy,
+                internal_artifacts={
+                    "reviewed": reviewed.model_dump(mode="json"),
+                    "agent_results": [
+                        item.model_dump(mode="json")
+                        for item in (formal_run.agent_results if formal_run is not None else ())
+                    ],
+                    "execution_cost": {
+                        "shared_acquisition": (
+                            formal_run.snapshot.shared_acquisition_cost.model_dump(mode="json")
+                            if formal_run is not None
+                            else ExecutionCost.zero().model_dump(mode="json")
+                        ),
+                        "investigation": (
+                            formal_run.investigation_cost.model_dump(mode="json")
+                            if formal_run is not None
+                            else ExecutionCost.zero().model_dump(mode="json")
+                        ),
+                        "reporting": report_cost.model_dump(mode="json"),
+                    },
+                },
             )
-            return DetailedRun(result=result, outcome=outcome)
+            if not isinstance(stored_result, ProductResult):
+                raise TypeError("new runs must persist prototype-v1 results")
+            return DetailedRun(result=stored_result, outcome=outcome)
         except Exception as error:
             record = error_to_record(error)
+            if formal_run is not None:
+                # Reporting failures happen after the pipeline returned: its costs
+                # are disjoint from the reporting ledger, not from runtime events.
+                failed_cost = ExecutionCost.combine(
+                    formal_run.snapshot.shared_acquisition_cost,
+                    formal_run.investigation_cost,
+                    report_model.cost if report_model is not None else ExecutionCost.zero(),
+                )
+                metrics.record_execution_cost(
+                    failed_cost,
+                    provider_usage_complete=(
+                        failed_cost.provider_usage_requests == failed_cost.llm_requests
+                        and record.details.get("provider_usage_complete") is not False
+                        and getattr(report_model, "provider_usage_complete", True) is True
+                    ),
+                )
+            elif record.details.get("execution_cost") is not None:
+                # Malformed diagnostic metadata must not mask the original error.
+                try:
+                    failed_cost = ExecutionCost.model_validate(record.details["execution_cost"])
+                except ValidationError:
+                    pass
+                else:
+                    metrics.record_execution_cost(
+                        failed_cost,
+                        provider_usage_complete=(
+                            record.details.get("provider_usage_complete") is True
+                        ),
+                    )
             metric_snapshot = metrics.finish()
             trace.emit(
                 "run.failed",
@@ -584,7 +709,7 @@ class DueDiligenceService:
             context_agent=EnterpriseContextAgent(
                 gateway=gateway,
                 prompt_bundle=prompts,
-                report_catalog=REPORT_CATALOG,
+                acquisition_catalog=ACQUISITION_CATALOG,
             ),
             supplement_policy=SupplementPolicy(
                 annual_report_social_security_enabled=(

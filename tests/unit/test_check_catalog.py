@@ -22,7 +22,7 @@ def test_check_catalog_covers_fixed_due_diligence_decisions() -> None:
     catalog = module.load_check_catalog(CHECK_CATALOG_PATH)
 
     assert catalog.catalog_version == "due-diligence-check-catalog-v1"
-    assert catalog.report_catalog_version == "report-catalog-v1"
+    assert catalog.acquisition_catalog_version == "acquisition-catalog-v1"
     assert set(catalog.check_ids) >= {
         "registration-status-normal",
         "registration-change-anomaly",
@@ -37,8 +37,12 @@ def test_check_catalog_covers_fixed_due_diligence_decisions() -> None:
         "cash-flow-pressure",
         "revenue-anomaly",
         "related-party-control-risk",
-        "peer-performance-deviation",
         "employment-scale-consistency",
+        "supply-chain-concentration",
+        "receivables-cashflow-divergence",
+        "related-transaction-guarantee",
+        "tax-public-opinion-risk",
+        "bank-credit-summary-risk",
     }
     assert all(check.missing_data_policy.value == "inconclusive" for check in catalog.checks)
 
@@ -56,7 +60,7 @@ def test_check_catalog_uses_annual_report_social_security_only_where_relevant() 
     assert employment.owner_role == "financial-operations"
 
 
-def test_check_catalog_rejects_unknown_report_submodule(
+def test_check_catalog_rejects_unknown_acquisition_item(
     tmp_path: Path,
 ) -> None:
     module = _catalog_module()
@@ -65,7 +69,7 @@ def test_check_catalog_rejects_unknown_report_submodule(
     invalid_path = tmp_path / "invalid-check-catalog.json"
     invalid_path.write_text(json.dumps(payload), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="unknown report submodules"):
+    with pytest.raises(ValueError, match="unknown acquisition items"):
         module.load_check_catalog(invalid_path)
 
 

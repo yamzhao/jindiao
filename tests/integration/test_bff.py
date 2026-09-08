@@ -1,3 +1,4 @@
+# ruff: noqa: RUF001 -- official company name uses fullwidth parentheses
 from __future__ import annotations
 
 import asyncio
@@ -20,7 +21,10 @@ ORIGIN = "https://workbench.example"
 KEY = "test-only-cloud-api-key-0123456789"
 PASSWORD = "local-test-password-123"
 RUNS = "/api/v2/due-diligence/runs"
-BODY = {"enterprise": {"company_name": "金调绿洲科技有限公司"}, "scenario_id": "normal-enterprise"}
+BODY = {
+    "customerName": "乐视网信息技术（北京）股份有限公司",
+    "scenario_id": "normal-enterprise",
+}
 
 
 @pytest.fixture(scope="module")
@@ -139,6 +143,33 @@ def test_bff_missing_explicit_ca_file_refuses_startup(
 
 def create(client: TestClient, csrf: str, **kwargs: Any) -> httpx.Response:
     return client.post(RUNS, json=BODY | kwargs, headers={"Origin": ORIGIN, "X-CSRF-Token": csrf})
+
+
+@pytest.mark.parametrize("numeric_text", [False, True])
+def test_bff_forwards_flat_form_without_converting_amount(
+    client: TestClient,
+    calls: list[httpx.Request],
+    numeric_text: bool,
+) -> None:
+    csrf = login(client)
+    response = create(
+        client,
+        csrf,
+        amount="1.0001" if numeric_text else 1.0001,
+        term="12" if numeric_text else 12,
+        product="流动资金贷款",
+        manager="王某某",
+        branch="城东支行",
+    )
+    assert response.status_code == 202
+    forwarded = json.loads(calls[-1].content)
+    assert forwarded["amount"] == 1.0001 and forwarded["term"] == 12
+    assert forwarded["customerName"] == BODY["customerName"]
+    assert forwarded["product"] == "流动资金贷款" and forwarded["manager"] == "王某某"
+    assert forwarded["branch"] == "城东支行"
+    assert "enterprise" not in forwarded and "business_context" not in forwarded
+    assert create(client, csrf, region="北京").status_code == 422
+    assert create(client, csrf, business_context={}).status_code == 422
 
 
 def test_anonymous_cannot_use_proxy(client: TestClient, calls: list[httpx.Request]) -> None:
@@ -494,6 +525,51 @@ def test_large_report_sse_respects_explicit_bounded_limit(
         # A transport error must not hide an independently available report.
         result = client.get(f"{RUNS}/run-123/result")
         assert result.status_code == 200 and result.json() == report
+
+
+@pytest.mark.parametrize("limit,accepted", [(262144, True), (1024, False)])
+def test_execution_sse_passes_through_with_replay_cursor_and_existing_frame_limits(
+    settings: BffSettings,
+    limit: int,
+    accepted: bool,
+) -> None:
+    from jindiao.application.execution_steps import ExecutionStepProjector
+    from jindiao.contracts.events import EventSequencer
+    from jindiao.contracts.product import ProductResult
+    from jindiao.contracts.results import OrchestrationMode
+
+    projector = ExecutionStepProjector(mode=OrchestrationMode.MULTI)
+    projector.start()
+    product = ProductResult.model_validate_json(
+        Path("docs/api/samples/product-result-full-input.json").read_text()
+    )
+    sequencer = EventSequencer(request_id="req", run_id="run-123")
+    sequencer.restore(12)
+    frames = b""
+    for projected in projector.complete(product):
+        event = sequencer.next(projected.event_type, projected.payload)
+        frames += (
+            f"id: {event.sequence}\nevent: {event.event_type.value}\n"
+            f"data: {event.model_dump_json()}\n\n"
+        ).encode()
+    frames += b"id: 20\nevent: run.partial\ndata: {}\n\n"
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/events"):
+            assert request.headers["last-event-id"] == "12"
+            return httpx.Response(
+                200, content=frames, headers={"Content-Type": "text/event-stream"}
+            )
+        return httpx.Response(202, json={"run_id": "run-123"})
+
+    configured = settings.model_copy(update={"max_event_bytes": limit})
+    with TestClient(factory(configured, httpx.MockTransport(respond)), base_url=ORIGIN) as client:
+        assert create(client, login(client)).status_code == 202
+        response = client.get(f"{RUNS}/run-123/events", headers={"Last-Event-ID": "12"})
+        if accepted:
+            assert response.content == frames
+        else:
+            assert "proxy.error" in response.text and "run.partial" not in response.text
 
 
 def test_wrong_host_and_chunked_oversize_rejected(client: TestClient) -> None:

@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "cases_sha256": "sha256:c5e2a0344e4586e63ba1529164756bdad035e10c79e5b2e4283a46dc0f78527f",
+  "cases_sha256": "sha256:7dee82e452e936755fb7720708abb7308009f74d466bf23e9cdfaf013e641c85",
   "cases": [
     {
       "case_id": "normal",
       "view": {
         "subject": {
           "subject_id": "mock:normal-enterprise",
-          "company_name": "金调绿洲科技有限公司",
+          "company_name": "乐视网信息技术（北京）股份有限公司",
           "unified_social_credit_code": "91110108MA01JD001A",
           "region": "某市",
           "registration_status": "存续",
@@ -133,7 +133,7 @@
       "view": {
         "subject": {
           "subject_id": "mock:normal-enterprise",
-          "company_name": "金调绿洲科技有限公司",
+          "company_name": "乐视网信息技术（北京）股份有限公司",
           "unified_social_credit_code": "91110108MA01JD001A",
           "region": "某市",
           "registration_status": "存续",
@@ -276,7 +276,7 @@
       "view": {
         "subject": {
           "subject_id": "mock:normal-enterprise",
-          "company_name": "金调绿洲科技有限公司",
+          "company_name": "乐视网信息技术（北京）股份有限公司",
           "unified_social_credit_code": "91110108MA01JD001A",
           "region": "某市",
           "registration_status": "存续",
@@ -434,7 +434,7 @@
       "view": {
         "subject": {
           "subject_id": "mock:normal-enterprise",
-          "company_name": "金调绿洲科技有限公司",
+          "company_name": "乐视网信息技术（北京）股份有限公司",
           "unified_social_credit_code": "91110108MA01JD001A",
           "region": "某市",
           "registration_status": "存续",
@@ -577,7 +577,7 @@
       "view": {
         "subject": {
           "subject_id": "mock:normal-enterprise",
-          "company_name": "金调绿洲科技有限公司",
+          "company_name": "乐视网信息技术（北京）股份有限公司",
           "unified_social_credit_code": "91110108MA01JD001A",
           "region": "某市",
           "registration_status": "存续",
@@ -714,7 +714,7 @@
       "view": {
         "subject": {
           "subject_id": "mock:normal-enterprise",
-          "company_name": "金调绿洲科技有限公司",
+          "company_name": "乐视网信息技术（北京）股份有限公司",
           "unified_social_credit_code": "91110108MA01JD001A",
           "region": "某市",
           "registration_status": "存续",
@@ -989,7 +989,7 @@
       "view": {
         "subject": {
           "subject_id": "mock:normal-enterprise",
-          "company_name": "金调绿洲科技有限公司",
+          "company_name": "乐视网信息技术（北京）股份有限公司",
           "unified_social_credit_code": "91110108MA01JD001A",
           "region": "某市",
           "registration_status": "存续",
@@ -1380,7 +1380,7 @@
       "view": {
         "subject": {
           "subject_id": "mock:normal-enterprise",
-          "company_name": "金调绿洲科技有限公司",
+          "company_name": "乐视网信息技术（北京）股份有限公司",
           "unified_social_credit_code": "91110108MA01JD001A",
           "region": "某市",
           "registration_status": "存续",

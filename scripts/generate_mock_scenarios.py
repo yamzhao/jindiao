@@ -13,7 +13,7 @@ AS_OF_DATE = "2026-08-31"
 SCENARIOS: tuple[dict[str, Any], ...] = (
     {
         "id": "normal-enterprise",
-        "name": "金调绿洲科技有限公司",
+        "name": "乐视网信息技术（北京）股份有限公司",
         "alias": "金调绿洲科技",
         "credit_code": "91110108MA01JD001A",
         "legal_representative": "林海",

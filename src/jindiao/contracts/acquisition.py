@@ -10,6 +10,7 @@ from typing import Literal
 from pydantic import AwareDatetime, Field, JsonValue, model_validator
 
 from .base import ContractModel
+from .business import BusinessContext
 from .entities import ResolvedSubject
 from .evidence import CoverageCompleteness, Evidence, SourceStatus, SourceType
 from .execution import ExecutionCost
@@ -106,7 +107,8 @@ class EnterpriseContextSnapshot(ContractModel):
     subject: ResolvedSubject
     report_as_of: date
     created_at: AwareDatetime
-    report_catalog_version: str = Field(min_length=1)
+    acquisition_catalog_version: str = Field(min_length=1)
+    planned_submodule_ids: tuple[str, ...] = Field(min_length=1)
     source_manifest_version: str = Field(min_length=1)
     submodules: tuple[SubmoduleContext, ...]
     evidence: tuple[Evidence, ...]
@@ -115,6 +117,7 @@ class EnterpriseContextSnapshot(ContractModel):
     unresolved_conflicts: tuple[str, ...]
     acquisition_agent_results: tuple[AgentInvestigationResult, ...] = ()
     shared_acquisition_cost: ExecutionCost = Field(default_factory=ExecutionCost.zero)
+    business_context: BusinessContext = Field(default_factory=BusinessContext)
 
     @property
     def canonical_json(self) -> str:
@@ -134,10 +137,12 @@ class EnterpriseContextSnapshot(ContractModel):
     @model_validator(mode="after")
     def validate_snapshot_references(self) -> EnterpriseContextSnapshot:
         submodule_ids = tuple(item.submodule_id for item in self.submodules)
-        if len(submodule_ids) != 48:
-            raise ValueError("enterprise context snapshot requires exactly 48 submodules")
         if len(submodule_ids) != len(set(submodule_ids)):
             raise ValueError("enterprise context snapshot submodule ids must be unique")
+        if submodule_ids != self.planned_submodule_ids:
+            raise ValueError("snapshot submodules must preserve the frozen acquisition plan")
+        if len(self.planned_submodule_ids) != len(set(self.planned_submodule_ids)):
+            raise ValueError("snapshot acquisition plan ids must be unique")
 
         evidence_ids = tuple(item.evidence_id for item in self.evidence)
         if len(evidence_ids) != len(set(evidence_ids)):

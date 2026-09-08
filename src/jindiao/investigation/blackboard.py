@@ -12,7 +12,7 @@ from typing import Any, Protocol
 from openjiuwen.core.foundation.tool import ToolCard, tool
 from pydantic import AwareDatetime, Field, ValidationError, model_validator
 
-from jindiao.contracts.acquisition import EnterpriseContextSnapshot
+from jindiao.contracts.acquisition import EnterpriseContextSnapshot, SubmoduleAvailability
 from jindiao.contracts.base import ContractModel
 from jindiao.contracts.investigation import (
     CheckResult,
@@ -133,6 +133,10 @@ class SubmitBoundCheckResultInput(ContractModel):
     result: BoundCheckResultDraft
 
 
+class SubmitBoundCheckResultsInput(ContractModel):
+    results: tuple[BoundCheckResultDraft, ...] = Field(min_length=1, max_length=100)
+
+
 class BoundReviewDraft(ContractModel):
     """Review content without immutable Run identity or sequence fields."""
 
@@ -176,8 +180,8 @@ class SubmissionBlackboard:
     ) -> None:
         if not run_id.strip():
             raise ValueError("submission blackboard requires a run id")
-        if check_catalog.report_catalog_version != snapshot.report_catalog_version:
-            raise ValueError("check catalog does not match snapshot ReportCatalog")
+        if check_catalog.acquisition_catalog_version != snapshot.acquisition_catalog_version:
+            raise ValueError("check catalog does not match snapshot AcquisitionCatalog")
         grant_keys = tuple((item.agent_id, item.task_id) for item in grants)
         if len(grant_keys) != len(set(grant_keys)):
             raise ValueError("submission grants must have unique agent/task keys")
@@ -459,6 +463,258 @@ class SubmissionBlackboard:
 
         return submit_review
 
+    def build_submit_bound_check_results_tool(
+        self,
+        *,
+        agent_id: str,
+        prompt_version: str,
+        on_complete: Callable[[], None] | None = None,
+        evidence_aliases: dict[str, str] | None = None,
+    ) -> Any:
+        """Commit a complete owned batch, including its completeness check, atomically."""
+
+        expected = {key for key, owner in self._grant_by_check.items() if owner[0] == agent_id}
+        if not expected or not prompt_version.strip():
+            raise ValueError("batch submission requires owned checks and a prompt version")
+        aliases = dict(evidence_aliases or {})
+        identities = {alias: identity for identity, alias in aliases.items()}
+        if len(identities) != len(aliases) or not set(aliases) <= {
+            item.evidence_id for item in self.snapshot.evidence
+        }:
+            raise ValueError("citation aliases must uniquely identify snapshot Evidence")
+        schema = self._bound_batch_submission_schema(expected=expected, aliases=aliases)
+
+        @tool(  # type: ignore[untyped-decorator]
+            card=ToolCard(
+                id=f"jindiao.{self.run_id}.{agent_id}.submit-investigation-results",
+                name="submit_investigation_results",
+                description=(
+                    "Submit ALL assigned check decisions in one results array. Every check_id "
+                    "must appear exactly once. Identity is Run-bound. The entire batch is "
+                    "validated atomically, including evidence and completeness self-check; "
+                    "accepted=true finishes the investigation without another model call."
+                ),
+                input_params=schema,
+                stateless=False,
+                idempotent=True,
+                parallel_safe=False,
+            )
+        )
+        async def submit_investigation_results(
+            results: list[dict[str, object]],
+        ) -> dict[str, object]:
+            if self._budget_ledger is not None:
+                await self._budget_ledger.claim_tool_call("submit_investigation_results")
+            try:
+                drafts = SubmitBoundCheckResultsInput.model_validate({"results": results}).results
+                drafts = tuple(
+                    draft.model_copy(
+                        update={
+                            "fact_evidence_refs": tuple(
+                                ref.model_copy(
+                                    update={
+                                        "evidence_id": identities.get(
+                                            ref.evidence_id, ref.evidence_id
+                                        )
+                                    }
+                                )
+                                for ref in draft.fact_evidence_refs
+                            ),
+                            "risk_items": tuple(
+                                risk.model_copy(
+                                    update={
+                                        "evidence_ids": tuple(
+                                            identities.get(ref, ref) for ref in risk.evidence_ids
+                                        )
+                                    }
+                                )
+                                for risk in draft.risk_items
+                            ),
+                            "conflicts": tuple(identities.get(ref, ref) for ref in draft.conflicts),
+                        }
+                    )
+                    for draft in drafts
+                )
+                check_ids = [item.check_id for item in drafts]
+                if len(check_ids) != len(set(check_ids)) or set(check_ids) != expected:
+                    raise ValueError("batch must contain every owned check exactly once")
+                async with self._lock:
+                    parsed: list[CheckResult] = []
+                    failures: list[str] = []
+                    for draft in drafts:
+                        try:
+                            result = self._bind_check_result(
+                                agent_id=agent_id, prompt_version=prompt_version, draft=draft
+                            )
+                            self._validate_result_scope(agent_id=agent_id, result=result)
+                            self._validate_evidence_gate(result)
+                            parsed.append(result)
+                        except ValueError as error:
+                            definition = self.check_catalog.get(draft.check_id)
+                            allowed = sorted(
+                                {
+                                    aliases.get(identity, identity)
+                                    for module in (
+                                        *definition.required_submodule_ids,
+                                        *definition.optional_submodule_ids,
+                                    )
+                                    for identity in (
+                                        *self.snapshot.submodule(module).evidence_ids,
+                                        *self.snapshot.submodule(module).supplemental_evidence_ids,
+                                    )
+                                }
+                            )
+                            reason = (
+                                "; ".join(item["msg"] for item in error.errors()[:3])
+                                if isinstance(error, ValidationError)
+                                else str(error).split(":", 1)[0]
+                            )
+                            failures.append(
+                                f"check_id={draft.check_id}: {reason}; "
+                                f"allowed_evidence_ids={allowed}"
+                            )
+                    if failures:
+                        raise ValueError("; ".join(failures))
+                    pending: dict[tuple[str, str, str, int], CheckResult] = {}
+                    receipts = []
+                    for result in parsed:
+                        key = (agent_id, result.task_id, result.check_id, result.submission_version)
+                        existing = self._submissions.get(key)
+                        if existing is not None and existing != result:
+                            raise ValueError("submission version collision has different content")
+                        if existing is None:
+                            previous = self._latest_by_check.get(result.check_id)
+                            version = 1 if previous is None else previous.submission_version + 1
+                            if result.submission_version != version:
+                                raise ValueError("submission version must advance exactly once")
+                            pending[key] = result
+                        receipts.append(
+                            self._check_receipt(
+                                agent_id=agent_id,
+                                result=result,
+                                digest=_sha256(result),
+                                replay=existing is not None,
+                            )
+                        )
+                    # No mutation occurs until every decision and version has passed.
+                    self._submissions.update(pending)
+                    self._latest_by_check.update({item.check_id: item for item in parsed})
+            except ValueError:
+                if self._budget_ledger is not None:
+                    await self._budget_ledger.claim_schema_retry("submit_investigation_results")
+                raise
+            if on_complete is not None:
+                on_complete()
+            return {
+                "accepted": True,
+                "check_count": len(receipts),
+                "receipts": [item.model_dump(mode="json") for item in receipts],
+            }
+
+        return submit_investigation_results
+
+    def _bound_batch_submission_schema(
+        self,
+        *,
+        expected: set[str],
+        aliases: dict[str, str],
+    ) -> dict[str, Any]:
+        """Expose scoped citations and the runtime gap rule without cloning models."""
+
+        schema = SubmitBoundCheckResultsInput.model_json_schema()
+        schema["properties"]["results"].update(minItems=len(expected), maxItems=len(expected))
+        definitions = schema["$defs"]
+        draft = definitions["BoundCheckResultDraft"]
+        draft["properties"]["check_id"]["enum"] = sorted(expected)
+        draft["properties"]["missing_evidence"]["description"] = (
+            "Concrete evidence gaps. For inconclusive, provide a nonblank gap or an authorized "
+            "conflict unless unavailable required sources, snapshot conflicts, or fewer distinct "
+            "fact evidence IDs than the check's minimum already establish the gap."
+        )
+        conditions: list[dict[str, Any]] = []
+        draft["allOf"] = conditions
+        explicit_gap = {
+            "anyOf": [
+                {
+                    "required": ["missing_evidence"],
+                    "properties": {
+                        "missing_evidence": {"contains": {"type": "string", "pattern": r"\S"}}
+                    },
+                },
+                {"required": ["conflicts"], "properties": {"conflicts": {"minItems": 1}}},
+            ]
+        }
+        unavailable_states = {
+            SubmoduleAvailability.CAPABILITY_ABSENT,
+            SubmoduleAvailability.SOURCE_ERROR,
+            SubmoduleAvailability.NOT_REQUESTED,
+        }
+        scope_definitions: dict[tuple[str, ...], str] = {}
+        for check_id in sorted(expected):
+            check = self.check_catalog.get(check_id)
+            contexts = tuple(
+                self.snapshot.submodule(module)
+                for module in (*check.required_submodule_ids, *check.optional_submodule_ids)
+            )
+            allowed = tuple(
+                sorted(
+                    {
+                        aliases.get(identity, identity)
+                        for context in contexts
+                        for identity in (*context.evidence_ids, *context.supplemental_evidence_ids)
+                    }
+                )
+            )
+            scope_name = scope_definitions.setdefault(
+                allowed, f"CitationScope{len(scope_definitions)}"
+            )
+            # An empty enum is not a portable schema. False forbids any citation,
+            # while still permitting an omitted/empty array on evidence-free checks.
+            definitions[scope_name] = {"enum": list(allowed)} if allowed else False
+            citation = {"$ref": f"#/$defs/{scope_name}"}
+            properties = {
+                "fact_evidence_refs": {"items": {"properties": {"evidence_id": citation}}},
+                "risk_items": {"items": {"properties": {"evidence_ids": {"items": citation}}}},
+                "conflicts": {"items": citation},
+            }
+            constraint: dict[str, Any] = {"properties": properties}
+            conditions.append(
+                {
+                    "if": {
+                        "required": ["check_id"],
+                        "properties": {"check_id": {"const": check_id}},
+                    },
+                    "then": constraint,
+                }
+            )
+            minimum = check.evidence_requirements.minimum_evidence_count
+            deterministic_gap = (
+                len(allowed) < minimum
+                or any(
+                    self.snapshot.submodule(module).availability in unavailable_states
+                    for module in check.required_submodule_ids
+                )
+                or any(context.conflict_evidence_ids for context in contexts)
+            )
+            if deterministic_gap or minimum != 1:
+                # The runtime counts distinct evidence IDs after binding/deduplication.
+                # JSON Schema cannot project uniqueness without per-ID branches: keep
+                # larger minima runtime-gated, not an incompatible maxItems shortcut.
+                continue
+            definitions["ExplicitEvidenceGap"] = explicit_gap
+            constraint["allOf"] = [
+                {
+                    "if": {"properties": {"status": {"const": CheckStatus.INCONCLUSIVE.value}}},
+                    "then": {
+                        "anyOf": [
+                            {"$ref": "#/$defs/ExplicitEvidenceGap"},
+                            {"properties": {"fact_evidence_refs": {"maxItems": 0}}},
+                        ]
+                    },
+                }
+            ]
+        return schema
+
     def _bind_check_result(
         self,
         *,
@@ -666,5 +922,6 @@ __all__ = [
     "SubmissionBlackboard",
     "SubmissionGrant",
     "SubmitBoundCheckResultInput",
+    "SubmitBoundCheckResultsInput",
     "SubmitBoundReviewInput",
 ]

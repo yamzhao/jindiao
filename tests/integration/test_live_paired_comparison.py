@@ -13,6 +13,7 @@ from openjiuwen.agent_teams.paths import configure_openjiuwen_home, reset_openji
 from openjiuwen.core.runner import Runner
 from pydantic import ValidationError
 
+from jindiao.acquisition.catalog import ACQUISITION_CATALOG
 from jindiao.application import RunContext, Settings
 from jindiao.application.errors import AgentExecutionError
 from jindiao.application.service import DueDiligenceService
@@ -20,7 +21,6 @@ from jindiao.contracts.entities import EnterpriseInput
 from jindiao.evaluation import PairedComparisonRunner
 from jindiao.investigation import CHECK_CATALOG
 from jindiao.orchestration import RunBudget
-from jindiao.reporting.catalog import REPORT_CATALOG
 from jindiao.scenarios import ScenarioRepository
 
 if os.getenv("JINDIAO_RUN_LIVE_PAIRED") != "1":
@@ -120,7 +120,9 @@ async def test_live_pair_shares_snapshot_model_catalog_and_investigation_budget(
     assert paired.fingerprint.model_provider == SETTINGS.model_provider
     assert paired.fingerprint.model_name == SETTINGS.model_name
     assert paired.fingerprint.investigation_budget.max_llm_requests == budget.max_llm_requests
-    assert len(paired.snapshot.submodules) == REPORT_CATALOG.submodule_count == 48
+    assert tuple(item.submodule_id for item in paired.snapshot.submodules) == (
+        ACQUISITION_CATALOG.default_plan_ids
+    )
     assert (
         tuple(item.check_id for item in paired.single.agent_results[0].check_results)
         == CHECK_CATALOG.check_ids

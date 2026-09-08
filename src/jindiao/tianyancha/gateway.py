@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from pydantic import AwareDatetime, Field, JsonValue, model_validator
 
+from jindiao.acquisition.catalog import ACQUISITION_CATALOG
 from jindiao.application.errors import AgentExecutionError
 from jindiao.contracts.acquisition import (
     EvidenceProvenance,
@@ -25,7 +26,6 @@ from jindiao.contracts.evidence import (
     Evidence,
     SourceStatus,
 )
-from jindiao.reporting.catalog import REPORT_CATALOG
 
 from .capabilities import (
     CapabilityRoutingConfig,
@@ -212,8 +212,11 @@ class TianyanchaMcpGateway:
                 if route.submodule_id in route_index:
                     raise ValueError(f"duplicate routed submodule: {route.submodule_id}")
                 route_index[route.submodule_id] = (domain, route)
-        if set(route_index) != set(REPORT_CATALOG.submodule_ids):
-            raise ValueError("Tianyancha routing must cover the canonical 48 submodules")
+        missing_routes = set(ACQUISITION_CATALOG.default_plan_ids) - set(route_index)
+        if missing_routes:
+            raise ValueError(
+                f"Tianyancha routing misses acquisition items: {sorted(missing_routes)}"
+            )
 
         self._client = client
         self._routing = routing
@@ -369,7 +372,9 @@ class TianyanchaMcpGateway:
     ) -> GatewaySubmoduleObservation:
         evidence: list[Evidence] = []
         invocation_ids: list[str] = []
-        gap_reasons: tuple[CoverageGapReason, ...] = ()
+        gap_reason_set: set[CoverageGapReason] = set()
+        record_count = 0
+        source_metadata: dict[str, JsonValue] = {}
         page_numbers = (
             (None,) if capability in _NO_PAGINATION else tuple(range(1, self.budget.max_pages + 1))
         )
@@ -402,16 +407,36 @@ class TianyanchaMcpGateway:
                     source_parameters_hash=invocation.arguments_sha256,
                 )
                 known_ids = {item.evidence_id for item in evidence}
-                evidence.extend(
-                    item for item in batch.evidence if item.evidence_id not in known_ids
-                )
+                for item in batch.evidence:
+                    if item.evidence_id not in known_ids:
+                        evidence.append(item)
+                        known_ids.add(item.evidence_id)
+                record_count += batch.record_count
+                source_metadata = {
+                    "available_years": list(batch.available_years),
+                    "selected_years": list(batch.selected_years),
+                    "links": list(batch.links),
+                    "statement_scope": batch.statement_scope,
+                    "amount_multiplier": batch.amount_multiplier,
+                    "partial_reasons": list(batch.partial_reasons),
+                }
+                if batch.pagination is not None:
+                    source_metadata["total_count"] = batch.pagination.total_count
+                if "missing_period" in batch.partial_reasons:
+                    gap_reason_set.add(CoverageGapReason.MISSING_PERIOD)
+                if set(batch.partial_reasons) & {"year_directory_only", "link_only", "count_only"}:
+                    gap_reason_set.add(CoverageGapReason.MISSING_FIELDS)
+                if "count_only" in batch.partial_reasons:
+                    # Another page cannot repair a response with no detail rows.
+                    # Keep the explicit gap instead of spending on blind retries.
+                    break
                 if page is None or batch.pagination is None:
                     break
                 more = batch.pagination.is_truncated(returned_count=len(evidence))
                 if not more:
                     break
                 if page == self.budget.max_pages:
-                    gap_reasons = (CoverageGapReason.PAGINATION_TRUNCATED,)
+                    gap_reason_set.add(CoverageGapReason.PAGINATION_TRUNCATED)
         except TianyanchaMcpError as error:
             return GatewaySubmoduleObservation(
                 submodule_id=route.submodule_id,
@@ -421,13 +446,26 @@ class TianyanchaMcpGateway:
                 availability=SubmoduleAvailability.SOURCE_ERROR,
                 completeness=CoverageCompleteness.UNKNOWN,
                 gap_reasons=(CoverageGapReason.SOURCE_UNAVAILABLE,),
-                facts={"records": [_json_value(item.value) for item in evidence]},
+                facts={
+                    "record_count": record_count,
+                    "records": [_json_value(item.value) for item in evidence],
+                    "source_metadata": source_metadata,
+                },
                 evidence=tuple(evidence),
                 invocation_ids=tuple(invocation_ids),
                 error=str(redact_sensitive(error.message)),
             )
 
-        status = SourceStatus.VERIFIED_RECORDS if evidence else SourceStatus.VERIFIED_EMPTY
+        gap_reasons = tuple(sorted(gap_reason_set, key=str))
+        status = (
+            SourceStatus.VERIFIED_RECORDS
+            if record_count or gap_reasons
+            else SourceStatus.VERIFIED_EMPTY
+        )
+        if status is SourceStatus.VERIFIED_EMPTY:
+            # An explicit zero count remains in source_metadata, not in the
+            # observation's business Evidence (the empty contract forbids it).
+            evidence = []
         return GatewaySubmoduleObservation(
             submodule_id=route.submodule_id,
             module_id=route.section_id,
@@ -435,7 +473,7 @@ class TianyanchaMcpGateway:
             source_status=status,
             availability=(
                 SubmoduleAvailability.AVAILABLE
-                if evidence
+                if status is SourceStatus.VERIFIED_RECORDS
                 else SubmoduleAvailability.VERIFIED_EMPTY
             ),
             completeness=(
@@ -445,7 +483,9 @@ class TianyanchaMcpGateway:
             facts={
                 "source_status": status.value,
                 "source_tool": capability,
+                "record_count": record_count,
                 "records": [_json_value(item.value) for item in evidence],
+                "source_metadata": source_metadata,
             },
             evidence=tuple(evidence),
             invocation_ids=tuple(invocation_ids),

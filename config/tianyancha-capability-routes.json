@@ -39,6 +39,13 @@
           "mock_keys": ["executives"]
         },
         {
+          "submodule_id": "key_personnel",
+          "title": "主要人员",
+          "section_id": "ownership",
+          "preferred_tool_names": ["get_key_personnel", "get_company_staff", "get_main_personnel"],
+          "mock_keys": ["executives"]
+        },
+        {
           "submodule_id": "external_investments",
           "title": "对外投资",
           "section_id": "company-profile",
@@ -86,6 +93,34 @@
           "section_id": "related-parties",
           "preferred_tool_names": ["get_legal_representative_roles", "get_relation_graph"],
           "mock_keys": []
+        },
+        {
+          "submodule_id": "personnel_related_companies",
+          "title": "人员关联企业",
+          "section_id": "ownership",
+          "preferred_tool_names": ["get_personnel_related_companies", "get_personnel_legal_rep_roles", "get_relation_graph"],
+          "mock_keys": ["outbound_investments"]
+        },
+        {
+          "submodule_id": "personnel_roles",
+          "title": "人员对外任职",
+          "section_id": "ownership",
+          "preferred_tool_names": ["get_personnel_positions", "get_personnel_legal_rep_roles", "get_relation_graph"],
+          "mock_keys": []
+        },
+        {
+          "submodule_id": "guarantees",
+          "title": "对外担保",
+          "section_id": "ownership",
+          "preferred_tool_names": ["get_guarantee_info"],
+          "mock_keys": ["guarantees"]
+        },
+        {
+          "submodule_id": "disclosed_transactions",
+          "title": "披露关联交易",
+          "section_id": "ownership",
+          "preferred_tool_names": ["get_suppliers_and_customers", "get_announcement_info"],
+          "mock_keys": ["related_transactions"]
         }
       ],
       "keywords": [
@@ -122,21 +157,21 @@
           "submodule_id": "consumption_restrictions",
           "title": "限制高消费",
           "section_id": "judicial-risk",
-          "preferred_tool_names": ["get_risk_overview", "get_risk_detail"],
+          "preferred_tool_names": ["get_high_consumption_restriction"],
           "mock_keys": ["restrictions_on_high_consumption"]
         },
         {
           "submodule_id": "dishonest_enforcement",
           "title": "失信被执行",
           "section_id": "judicial-risk",
-          "preferred_tool_names": ["get_risk_overview", "get_risk_detail", "get_default_event_info"],
+          "preferred_tool_names": ["get_dishonest_info"],
           "mock_keys": ["dishonest_records"]
         },
         {
           "submodule_id": "executions",
           "title": "企业被执行",
           "section_id": "judicial-risk",
-          "preferred_tool_names": ["get_risk_overview", "get_risk_detail", "get_terminated_cases"],
+          "preferred_tool_names": ["get_judgment_debtor_info", "get_terminated_cases"],
           "mock_keys": ["executions"]
         },
         {
@@ -220,6 +255,20 @@
       ],
       "submodules": [
         {
+          "submodule_id": "products",
+          "title": "产品信息",
+          "section_id": "business_analysis",
+          "preferred_tool_names": ["get_products_info"],
+          "mock_keys": ["products"]
+        },
+        {
+          "submodule_id": "suppliers_customers",
+          "title": "上下游信息",
+          "section_id": "business_analysis",
+          "preferred_tool_names": ["get_suppliers_and_customers"],
+          "mock_keys": ["customers", "suppliers"]
+        },
+        {
           "submodule_id": "liquidation",
           "title": "清算信息",
           "section_id": "operational-risk",
@@ -230,21 +279,21 @@
           "submodule_id": "simple_deregistration",
           "title": "简易注销",
           "section_id": "operational-risk",
-          "preferred_tool_names": ["get_simple_deregistration"],
+          "preferred_tool_names": ["get_simple_cancellation_info", "get_simple_deregistration"],
           "mock_keys": ["simple_deregistrations"]
         },
         {
           "submodule_id": "serious_violations",
           "title": "严重违法",
           "section_id": "operational-risk",
-          "preferred_tool_names": ["get_serious_illegal_info", "get_risk_detail"],
+          "preferred_tool_names": ["get_serious_violation", "get_serious_illegal_info"],
           "mock_keys": ["serious_violations"]
         },
         {
           "submodule_id": "operation_abnormalities",
           "title": "经营异常",
           "section_id": "operational-risk",
-          "preferred_tool_names": ["get_business_abnormal_info", "get_risk_detail"],
+          "preferred_tool_names": ["get_business_exception", "get_business_abnormal_info"],
           "mock_keys": ["abnormal_operations"]
         },
         {
@@ -252,6 +301,20 @@
           "title": "税务负面",
           "section_id": "operational-risk",
           "preferred_tool_names": ["get_taxpayer_info", "get_risk_detail"],
+          "mock_keys": ["tax_negative_records"]
+        },
+        {
+          "submodule_id": "tax_arrears",
+          "title": "欠税公告",
+          "section_id": "external_verification",
+          "preferred_tool_names": ["get_tax_arrears_notice"],
+          "mock_keys": ["tax_negative_records"]
+        },
+        {
+          "submodule_id": "tax_violations",
+          "title": "税收违法",
+          "section_id": "external_verification",
+          "preferred_tool_names": ["get_tax_violation"],
           "mock_keys": ["tax_negative_records"]
         },
         {
@@ -286,21 +349,21 @@
           "submodule_id": "chattel_mortgages",
           "title": "动产抵押",
           "section_id": "operational-risk",
-          "preferred_tool_names": ["get_chattel_mortgage", "get_risk_detail"],
+          "preferred_tool_names": ["get_chattel_mortgage_info", "get_chattel_mortgage"],
           "mock_keys": ["chattel_mortgages"]
         },
         {
           "submodule_id": "equity_pledges",
           "title": "股权出质",
           "section_id": "operational-risk",
-          "preferred_tool_names": ["get_equity_pledge", "get_risk_detail"],
+          "preferred_tool_names": ["get_equity_pledge_info", "get_equity_pledge"],
           "mock_keys": ["equity_pledges"]
         },
         {
           "submodule_id": "intellectual_property_pledges",
           "title": "知识产权出质",
           "section_id": "operational-risk",
-          "preferred_tool_names": ["get_intellectual_property_pledge", "get_risk_detail"],
+          "preferred_tool_names": ["get_ipr_pledge", "get_intellectual_property_pledge"],
           "mock_keys": ["intellectual_property_pledges"]
         },
         {
@@ -321,7 +384,7 @@
           "submodule_id": "tax_credit",
           "title": "税务评级",
           "section_id": "operations-analysis",
-          "preferred_tool_names": ["get_taxpayer_info"],
+          "preferred_tool_names": ["get_credit_evaluation"],
           "mock_keys": ["tax_credit_grade"]
         },
         {
@@ -349,7 +412,7 @@
           "submodule_id": "public_opinion",
           "title": "新闻舆情",
           "section_id": "operations-analysis",
-          "preferred_tool_names": ["get_news_info", "get_risk_detail"],
+          "preferred_tool_names": ["get_news_sentiment"],
           "mock_keys": ["news"]
         },
         {

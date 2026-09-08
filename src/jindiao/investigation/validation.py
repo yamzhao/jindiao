@@ -248,8 +248,8 @@ def validate_accepted_investigation_results(
 ) -> tuple[CheckResult, ...]:
     """Return catalog-ordered checks only after the final common hard gate."""
 
-    if check_catalog.report_catalog_version != snapshot.report_catalog_version:
-        raise ValueError("check catalog does not match snapshot ReportCatalog")
+    if check_catalog.acquisition_catalog_version != snapshot.acquisition_catalog_version:
+        raise ValueError("check catalog does not match snapshot AcquisitionCatalog")
 
     by_check: dict[str, CheckResult] = {}
     risk_owners: dict[str, tuple[str, str]] = {}

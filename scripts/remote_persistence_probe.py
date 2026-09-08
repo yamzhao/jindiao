@@ -5,6 +5,7 @@ capture and verify actions on either side of a container restart. Only Mock
 Run identifiers and response hashes are stored; this script never restarts it.
 """
 
+# ruff: noqa: RUF001 -- official company name uses fullwidth parentheses
 from __future__ import annotations
 
 import argparse
@@ -57,14 +58,14 @@ def main() -> int:
             if args.action == "verify":
                 _, mode, scenario = check["name"].split(".", 2)
                 company = {
-                    "normal-enterprise": "金调绿洲科技有限公司",
+                    "normal-enterprise": "乐视网信息技术（北京）股份有限公司",
                     "evidence-conflict": "金调双源制造有限公司",
                 }[scenario]
                 repeated = client.post(
                     "/api/v2/due-diligence/runs",
                     headers={"Idempotency-Key": f"{report['probe_id']}-{mode}-{scenario}"},
                     json={
-                        "enterprise": {"company_name": company},
+                        "customerName": company,
                         "scenario_id": scenario,
                         "mode": mode,
                     },

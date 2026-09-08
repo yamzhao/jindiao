@@ -1,15 +1,15 @@
 # Jindiao（尽调）
 
-基于 openJiuwen agent-Core AgentTeams 与 DeepSearch 的单机高代码企业信用与风控尽调应用。系统先共享采集并冻结企业事实，再让一个真实调查 Agent 或一个真实调查团队在同一证据快照上完成固定核查，最后由确定性规则生成完整 Result 与 Markdown 报告。
+基于 openJiuwen agent-Core AgentTeams 与 DeepSearch 的单机高代码企业信用与风控尽调应用。系统先按产品依赖共享采集并冻结企业事实，再让一个真实调查 Agent 或一个真实调查团队在同一证据快照上完成固定核查，最后生成与产品原型一致的申报方案、§1–§7、风险卡片和 Markdown 报告。
 
 > 这是竞赛与工程演示项目，不是生产征信服务，输出不能替代人工授信、审计或法律意见。仓库内企业均为虚构 Mock 数据。
 
 ## 核心能力
 
 - 正式流程分为共享 `acquisition`、只读快照上的 `investigation`、统一 `adjudication` 三层；`ContextFreezer` 是采集和调查之间的不可变边界。
-- `EnterpriseContextAgent` 是天眼查 MCP 的唯一业务调用者，负责主体锚定、能力发现、48 个标准子模块的来源状态与 Evidence 归一化，不作风险判断。
+- `EnterpriseContextAgent` 是天眼查 MCP 的唯一业务调用者，负责主体锚定、能力发现、36 个产品采集项的来源状态与 Evidence 归一化，不作风险判断。
 - `deepsearch-agent` 只执行显式 `baseline_enrichment` / `evidence_gap` 补充任务；年报 Skill/Tool 只授予该 Agent，且社保披露仅归入 `operations-analysis/annual_reports/social_security` 的局部事实，不产生第 49 个子模块。
-- single 是 1 个真实 `ReActAgent`，负责全部 15 项固定核查和自检；multi 是 Leader、4 个专业调查 Agent、Reviewer 组成的真实 AgentTeams，负责分配、并行核查、复核与有界返工。
+- single 是 1 个真实 `ReActAgent`，负责全部 19 项固定核查和自检；multi 是 Leader、4 个专业调查 Agent、Reviewer 组成的真实 AgentTeams，负责分配、并行核查、复核与有界返工。
 - 调查 Agent 只能按权限读取冻结快照并提交 `risk | no_risk | inconclusive`；必需 Evidence 缺失、来源失败或冲突未解时只能提交 `inconclusive`。
 - 确定性规则负责风险分和 `[0,20)` / `[20,80)` / `[80,+∞)` 分档；模型不能自由改分。
 - v2 Run 资源接口用于前端创建、查询、SSE 重连、结果读取和取消；v1 `result` 兼容接口继续通过 `mode=single|multi` 返回完整结果。两套入口共享同一个 `RunCoordinator`，不复制编排逻辑。
@@ -60,7 +60,7 @@ make mock-demo
 
 `.env.example` 显式选择 deterministic harness。正式 Agent 运行必须同时设置 `JINDIAO_AGENT_RUNTIME_MODE=formal`、非 fake `MODEL_PROVIDER` 及完整 `MODEL_NAME` / `MODEL_BASE_URL` / `MODEL_API_KEY`；缺少任一配置都会在业务调查前明确失败，不会静默回退。
 
-数据来源由请求与运行时配置明确决定：默认 `JINDIAO_DATA_SOURCE_MODE=mock`；改为 `tianyancha`、配置授权且省略 `scenario_id` 时，由 Context Agent 通过受控 Gateway 查询真实主体和 capability manifest，规划并采集 48 个标准子模块。策略启用时，DeepSearch Agent 在冻结前从白名单年报 Provider 做一次基础补充，并可处理获准的缺口/冲突补证。每个子模块都保留 `available`、`verified_empty`、`capability_absent`、`source_error` 或 `not_requested` 状态。指定 `scenario_id` 时固定走 deterministic Mock 演示，不成为 formal Agent 评测。
+数据来源由请求与运行时配置明确决定：默认 `JINDIAO_DATA_SOURCE_MODE=mock`；改为 `tianyancha`、配置授权且省略 `scenario_id` 时，由 Context Agent 通过受控 Gateway 查询真实主体和 capability manifest，按固定报告与核查依赖规划 36 个产品采集项。策略启用时，DeepSearch Agent 在冻结前从白名单年报 Provider 做一次基础补充，并可处理获准的缺口/冲突补证。每个采集项都保留 `available`、`verified_empty`、`capability_absent`、`source_error` 或 `not_requested` 状态。指定 `scenario_id` 时固定走 deterministic Mock 演示，不成为 formal Agent 评测。
 
 启动 API：
 
@@ -74,6 +74,37 @@ make dev
 docker compose up --build
 ```
 
+## 部署入口
+
+本地启停使用 shell（Bash、Docker Engine、Compose；宿主机不需要 Python 来启动服务）：
+
+```bash
+./bin/start.sh
+./bin/restart.sh
+./bin/stop.sh
+./bin/local status
+./bin/local logs
+```
+
+本地启动默认读取项目 `.env`，固定为 `formal + tianyancha + attached + local`，禁止 Mock 降级。保留已有模型路由、密钥和预算，缺少必要凭据直接失败；不创建/覆盖 `.env` 或 `.env.local`。只有显式 `./bin/start.sh --mock` 才使用无凭据 Mock。服务仍只监听 `127.0.0.1:8080`，沿用原 named volume。`restart` 不构建镜像或应用配置修改，`stop` 不删除容器/数据；切换配置或更新代码用 `start.sh`。旧 `bin/local` 保留为 shell 兼容入口。
+
+ECS 拆为本地打包和服务器部署，不再从本机通过 SSH 一键发布：
+
+```bash
+./bin/ecs-package --dry-run
+./bin/ecs-package
+```
+
+打包输出为 `artifacts/ecs-packages/<发布号>.tar.gz` 和 `.sha256`，不包含凭据，不连接服务器，也不要求本地 Docker。手动上传、校验和解压后，在 ECS 的包目录执行 `./deploy.sh --config config.json --dry-run`；实际发布需显式 `--apply --maintenance-confirmed`。包内还提供 `start.sh`、`restart.sh`、`stop.sh`，只操作现有服务；重启/停止需要 `--maintenance-confirmed`。宿主机 Python 3.6 用于 JSON 配置读取和发布迁移，启停由 shell 调用 Docker，应用镜像仍使用 Python 3.11。
+
+AgentArts 镜像交付仍默认预览，执行需 `--apply`：
+
+```bash
+./bin/agentarts --image swr.cn-southwest-2.myhuaweicloud.com/tongdun/jindiao:release-unique-arm64 --dry-run
+```
+
+ECS 部署保留旧容器/原卷及失败恢复；AgentArts 入口只交付镜像，不创建运行时或切换云版本。完整步骤见 [部署总览](docs/deployment/README.md)、[ECS 打包与服务器部署](docs/deployment/ecs.md)、[AgentArts 交付与后续部署](docs/deployment/agentarts.md)。`make local/ecs-package/agentarts ARGS='...'` 为相应入口的快捷方式；原 `bin/ecs` 已移除。
+
 ## Run API（前端观测）
 
 ```http
@@ -85,6 +116,23 @@ POST /api/v2/due-diligence/runs/{run_id}/cancel
 ```
 
 创建 Run 返回 `202` 和 `RunResource`。事件接口支持 `Last-Event-ID`/`after` 历史重放及 SSE 断线续订；结果接口在运行中返回 `202`，完成或可恢复部分结果时返回安全 JSON。AgentArts PREFIX_MATCH 可将这些 GET/POST/SSE 路径与 `/invocations` 映射到同一个运行时，详见 [API 文档](docs/api/README.md)。
+
+v2 与 `/invocations` 使用一级表单字段，创建请求示例：
+
+```json
+{
+  "customerName": "示例企业有限公司",
+  "uscc": null,
+  "product": "流动资金贷款",
+  "amount": 5000,
+  "term": 12,
+  "manager": "王某某",
+  "branch": "城东支行",
+  "mode": "multi"
+}
+```
+
+`amount` 为万元，后端统一换算，报告金额仍为元。客户名称或信用代码至少提供一个；不再接受 `enterprise`、`business_context`、`region` 等旧入参。必要控制参数仍在一级，完整列表见 API 文档第 2.1 节。下方 v1 示例保留原嵌套契约。
 
 ## v1 兼容业务 API
 
@@ -194,6 +242,9 @@ make verify-install
 
 ```text
 src/jindiao/        应用、契约、Agent、适配器、规则、报告、评测与观测
+bin/                本地启动、ECS 本地打包、AgentArts 镜像交付入口
+deploy/             非敏感部署模板与平台交付资源
+scripts/            开发/验收脚本与部署实现
 skills/             四个独立可复用技能包
 mock_data/          版本化场景、语料和 evaluator-only expected
 benchmarks/         冻结清单与基准输出

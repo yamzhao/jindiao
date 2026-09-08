@@ -173,7 +173,7 @@ class DueDiligenceCheckDefinition(ContractModel):
 class DueDiligenceCheckCatalog(ContractModel):
     schema_version: Literal[1]
     catalog_version: str = Field(min_length=1)
-    report_catalog_version: str = Field(min_length=1)
+    acquisition_catalog_version: str = Field(min_length=1)
     checks: tuple[DueDiligenceCheckDefinition, ...] = Field(min_length=1)
 
     @property

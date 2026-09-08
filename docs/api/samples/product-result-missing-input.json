@@ -1,0 +1,1091 @@
+{
+  "schema_version": "prototype-v1",
+  "meta": {
+    "request_id": "sample-partial-request",
+    "run_id": "sample-partial-run",
+    "status": "partial",
+    "mode": "multi",
+    "generated_at": "2026-09-07T00:00:00Z",
+    "report_as_of": "2026-08-31",
+    "report_version": "v1",
+    "is_mock": true
+  },
+  "subject": {
+    "subject_id": "mock:normal-enterprise",
+    "company_name": "乐视网信息技术（北京）股份有限公司",
+    "unified_social_credit_code": "91110108MA01JD001A"
+  },
+  "summary": {
+    "risk_count": 0,
+    "ai_suggestion": "manual_review",
+    "ai_suggestion_reason": "存在需人工复核的风险或证据缺口"
+  },
+  "report": {
+    "business_plan": {
+      "status": "unavailable",
+      "analysis": "申报信息由调用方提供; 未提供授信定价政策的建议金额、利率和期限留空",
+      "evidence_ids": [],
+      "missing_fields": [
+        {
+          "field": "reporting_org",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "reporting_date",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "business_product",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "customer_manager",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "application_type",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "application_amount",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "application_term_months",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "fund_use",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "suggested_amount",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "suggested_interest_rate",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "suggested_credit_term_months",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "suggested_loan_term_months",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "fund_use_detail",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "guarantee_methods",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "repayment_methods",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "repayment_source",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "unified_credit",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "investigation_location",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        }
+      ],
+      "reporting_org": null,
+      "reporting_date": null,
+      "business_product": null,
+      "customer_manager": null,
+      "application_type": null,
+      "application_amount": null,
+      "application_term_months": null,
+      "fund_use": null,
+      "suggested_amount": null,
+      "suggested_interest_rate": null,
+      "suggested_credit_term_months": null,
+      "suggested_loan_term_months": null,
+      "fund_use_detail": null,
+      "guarantee_methods": [],
+      "repayment_methods": [],
+      "repayment_source": null,
+      "unified_credit": null,
+      "investigation_location": null,
+      "company_name": "乐视网信息技术（北京）股份有限公司",
+      "unified_social_credit_code": "91110108MA01JD001A",
+      "industry": "软件和信息技术服务业",
+      "generated_fields": []
+    },
+    "company_profile": {
+      "status": "partial",
+      "analysis": "",
+      "evidence_ids": [
+        "ev-company-registration",
+        "ev-governance-profile",
+        "ev-operations-employees",
+        "derived-ccdb268b5ee4064b37d72d40"
+      ],
+      "missing_fields": [
+        {
+          "field": "insured_employee_count",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "financial_highlights.debt_to_asset_ratio",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        }
+      ],
+      "company_name": "乐视网信息技术（北京）股份有限公司",
+      "unified_social_credit_code": "91110108MA01JD001A",
+      "established_date": "2016-05-18",
+      "registration_status": "存续",
+      "registered_address": "中国某市高新区创新大道 88 号",
+      "registered_capital": 50000000.0,
+      "paid_in_capital": 32000000.0,
+      "capital_currency": "CNY",
+      "legal_representative": "林海",
+      "industry": "软件和信息技术服务业",
+      "main_business": "技术服务、项目管理、国内贸易及供应链服务",
+      "employee_count": 128,
+      "insured_employee_count": null,
+      "employee_period": "2026-08-31",
+      "shareholders": [
+        {
+          "name": "金调产业投资控股有限公司",
+          "type": "company",
+          "shareholding_ratio": 62.0,
+          "subscribed_capital": 31000000.0,
+          "paid_in_capital": null,
+          "capital_currency": "CNY",
+          "evidence_ids": [
+            "ev-company-registration",
+            "ev-governance-profile"
+          ]
+        },
+        {
+          "name": "林海",
+          "type": "person",
+          "shareholding_ratio": 38.0,
+          "subscribed_capital": 19000000.0,
+          "paid_in_capital": null,
+          "capital_currency": "CNY",
+          "evidence_ids": [
+            "ev-company-registration",
+            "ev-governance-profile"
+          ]
+        }
+      ],
+      "financial_highlights": {
+        "period": "2025",
+        "revenue": 126000000.0,
+        "revenue_yoy": 24.752475247524753,
+        "net_profit": 12600000.0,
+        "net_profit_yoy": 28.57142857142857,
+        "debt_to_asset_ratio": null
+      }
+    },
+    "ownership": {
+      "status": "partial",
+      "analysis": "",
+      "evidence_ids": [
+        "ev-company-registration",
+        "ev-governance-profile"
+      ],
+      "missing_fields": [
+        {
+          "field": "control_depth",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "ownership_features.foreign_involvement",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "ownership_features.state_owned_involvement",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "ownership_features.vie_structure",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "ownership_features.nominee_shareholding",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "related_transactions",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "guarantees",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        }
+      ],
+      "shareholders": [
+        {
+          "name": "金调产业投资控股有限公司",
+          "type": "company",
+          "shareholding_ratio": 62.0,
+          "subscribed_capital": 31000000.0,
+          "paid_in_capital": null,
+          "capital_currency": "CNY",
+          "evidence_ids": [
+            "ev-company-registration",
+            "ev-governance-profile"
+          ]
+        },
+        {
+          "name": "林海",
+          "type": "person",
+          "shareholding_ratio": 38.0,
+          "subscribed_capital": 19000000.0,
+          "paid_in_capital": null,
+          "capital_currency": "CNY",
+          "evidence_ids": [
+            "ev-company-registration",
+            "ev-governance-profile"
+          ]
+        }
+      ],
+      "actual_controllers": [
+        {
+          "name": "林海",
+          "type": "other",
+          "shareholding_ratio": null,
+          "identification_basis": "来源披露的控制人字段",
+          "is_suspected": true,
+          "evidence_ids": [
+            "ev-company-registration",
+            "ev-governance-profile"
+          ]
+        }
+      ],
+      "beneficial_owners": [
+        {
+          "name": "林海",
+          "type": "other",
+          "shareholding_ratio": null,
+          "identification_basis": "来源披露的控制人字段",
+          "is_suspected": true,
+          "evidence_ids": [
+            "ev-company-registration",
+            "ev-governance-profile"
+          ]
+        }
+      ],
+      "control_depth": null,
+      "ownership_features": {
+        "foreign_involvement": null,
+        "state_owned_involvement": null,
+        "vie_structure": null,
+        "nominee_shareholding": null
+      },
+      "related_companies": [
+        {
+          "company_id": null,
+          "name": "金调绿洲科技供应链有限公司",
+          "relation": "对外投资",
+          "shareholding_ratio": 51.0,
+          "evidence_ids": [
+            "ev-company-registration",
+            "ev-governance-profile"
+          ]
+        }
+      ],
+      "related_transactions": [],
+      "guarantees": [],
+      "equity_graph": {
+        "nodes": [
+          {
+            "id": "entity-09c8a26814c0",
+            "name": "乐视网信息技术（北京）股份有限公司",
+            "type": "company"
+          },
+          {
+            "id": "entity-f324dae8dd10",
+            "name": "金调产业投资控股有限公司",
+            "type": "company"
+          },
+          {
+            "id": "entity-04df0d1af4cd",
+            "name": "林海",
+            "type": "person"
+          },
+          {
+            "id": "entity-22ec5dbfe94d",
+            "name": "金调绿洲科技供应链有限公司",
+            "type": "company"
+          }
+        ],
+        "edges": [
+          {
+            "source": "entity-f324dae8dd10",
+            "target": "entity-09c8a26814c0",
+            "relation": "股东",
+            "shareholding_ratio": 62.0,
+            "amount": null,
+            "evidence_ids": [
+              "ev-company-registration",
+              "ev-governance-profile"
+            ]
+          },
+          {
+            "source": "entity-04df0d1af4cd",
+            "target": "entity-09c8a26814c0",
+            "relation": "股东",
+            "shareholding_ratio": 38.0,
+            "amount": null,
+            "evidence_ids": [
+              "ev-company-registration",
+              "ev-governance-profile"
+            ]
+          },
+          {
+            "source": "entity-04df0d1af4cd",
+            "target": "entity-09c8a26814c0",
+            "relation": "实际控制",
+            "shareholding_ratio": null,
+            "amount": null,
+            "evidence_ids": [
+              "ev-company-registration",
+              "ev-governance-profile"
+            ]
+          },
+          {
+            "source": "entity-09c8a26814c0",
+            "target": "entity-22ec5dbfe94d",
+            "relation": "对外投资",
+            "shareholding_ratio": 51.0,
+            "amount": null,
+            "evidence_ids": [
+              "ev-company-registration",
+              "ev-governance-profile"
+            ]
+          }
+        ]
+      }
+    },
+    "business_analysis": {
+      "status": "partial",
+      "analysis": "",
+      "evidence_ids": [
+        "ev-operations-employees",
+        "ev-peers-5a84dd73"
+      ],
+      "missing_fields": [
+        {
+          "field": "products",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "industry_trend.period",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "industry_trend.growth_rate",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "industry_trend.previous_growth_rate",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "industry_trend.outlook",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "customers",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "suppliers",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "customer_top1_ratio",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "customer_top5_ratio",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "supplier_top5_ratio",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "raw_material_cost_change.period",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "raw_material_cost_change.change_ratio",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "raw_material_cost_change.description",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "equipment",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "capacity_utilization.period",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "capacity_utilization.ratio",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        }
+      ],
+      "main_business": "技术服务、项目管理、国内贸易及供应链服务",
+      "products": [],
+      "industry_trend": {
+        "period": null,
+        "growth_rate": null,
+        "previous_growth_rate": null,
+        "outlook": null,
+        "evidence_ids": [
+          "ev-peers-5a84dd73"
+        ]
+      },
+      "customers": [],
+      "suppliers": [],
+      "customer_top1_ratio": null,
+      "customer_top5_ratio": null,
+      "supplier_top5_ratio": null,
+      "raw_material_cost_change": {
+        "period": null,
+        "change_ratio": null,
+        "description": null,
+        "evidence_ids": [
+          "ev-operations-employees"
+        ]
+      },
+      "equipment": [],
+      "capacity_utilization": {
+        "period": null,
+        "ratio": null,
+        "evidence_ids": [
+          "ev-operations-employees"
+        ]
+      }
+    },
+    "financial_analysis": {
+      "status": "complete",
+      "analysis": "",
+      "evidence_ids": [
+        "ev-operations-employees",
+        "derived-ccdb268b5ee4064b37d72d40"
+      ],
+      "missing_fields": [],
+      "periods": [
+        {
+          "period": "2023",
+          "period_type": "annual",
+          "entity_scope": "企业披露口径",
+          "evidence_ids": [
+            "ev-operations-employees"
+          ],
+          "balance_sheet": {
+            "total_assets": null,
+            "total_liabilities": null,
+            "total_equity": null,
+            "current_assets": null,
+            "current_liabilities": null,
+            "accounts_receivable": null,
+            "cash_balance": null
+          },
+          "income_statement": {
+            "revenue": 82000000.0,
+            "operating_cost": null,
+            "net_profit": 7600000.0,
+            "ebit": null,
+            "interest_expense": null
+          },
+          "cash_flow_statement": {
+            "operating_cash_flow": null,
+            "investing_cash_flow": null,
+            "financing_cash_flow": null
+          },
+          "ratios": {
+            "revenue_yoy": null,
+            "net_profit_yoy": null,
+            "total_assets_yoy": null,
+            "accounts_receivable_yoy": null,
+            "gross_margin": null,
+            "debt_to_asset_ratio": null,
+            "current_ratio": null,
+            "receivable_turnover_days": null,
+            "interest_coverage_ratio": null
+          }
+        },
+        {
+          "period": "2024",
+          "period_type": "annual",
+          "entity_scope": "企业披露口径",
+          "evidence_ids": [
+            "ev-operations-employees"
+          ],
+          "balance_sheet": {
+            "total_assets": null,
+            "total_liabilities": null,
+            "total_equity": null,
+            "current_assets": null,
+            "current_liabilities": null,
+            "accounts_receivable": null,
+            "cash_balance": null
+          },
+          "income_statement": {
+            "revenue": 101000000.0,
+            "operating_cost": null,
+            "net_profit": 9800000.0,
+            "ebit": null,
+            "interest_expense": null
+          },
+          "cash_flow_statement": {
+            "operating_cash_flow": null,
+            "investing_cash_flow": null,
+            "financing_cash_flow": null
+          },
+          "ratios": {
+            "revenue_yoy": 23.170731707317074,
+            "net_profit_yoy": 28.947368421052634,
+            "total_assets_yoy": null,
+            "accounts_receivable_yoy": null,
+            "gross_margin": null,
+            "debt_to_asset_ratio": null,
+            "current_ratio": null,
+            "receivable_turnover_days": null,
+            "interest_coverage_ratio": null
+          }
+        },
+        {
+          "period": "2025",
+          "period_type": "annual",
+          "entity_scope": "企业披露口径",
+          "evidence_ids": [
+            "ev-operations-employees"
+          ],
+          "balance_sheet": {
+            "total_assets": null,
+            "total_liabilities": null,
+            "total_equity": null,
+            "current_assets": null,
+            "current_liabilities": null,
+            "accounts_receivable": null,
+            "cash_balance": null
+          },
+          "income_statement": {
+            "revenue": 126000000.0,
+            "operating_cost": null,
+            "net_profit": 12600000.0,
+            "ebit": null,
+            "interest_expense": null
+          },
+          "cash_flow_statement": {
+            "operating_cash_flow": null,
+            "investing_cash_flow": null,
+            "financing_cash_flow": null
+          },
+          "ratios": {
+            "revenue_yoy": 24.752475247524753,
+            "net_profit_yoy": 28.57142857142857,
+            "total_assets_yoy": null,
+            "accounts_receivable_yoy": null,
+            "gross_margin": null,
+            "debt_to_asset_ratio": null,
+            "current_ratio": null,
+            "receivable_turnover_days": null,
+            "interest_coverage_ratio": null
+          }
+        }
+      ],
+      "reconciliation": {
+        "status": "inconclusive",
+        "explanation": "资产负债表恒等式字段不完整",
+        "evidence_ids": []
+      },
+      "indicator_comparisons": [
+        {
+          "metric": "revenue_yoy",
+          "period": "2024",
+          "value": 23.170731707317074,
+          "unit": "%",
+          "industry_value": null,
+          "warning_value": null,
+          "warning_operator": null,
+          "evidence_ids": [
+            "ev-operations-employees"
+          ]
+        },
+        {
+          "metric": "net_profit_yoy",
+          "period": "2024",
+          "value": 28.947368421052634,
+          "unit": "%",
+          "industry_value": null,
+          "warning_value": null,
+          "warning_operator": null,
+          "evidence_ids": [
+            "ev-operations-employees"
+          ]
+        },
+        {
+          "metric": "revenue_yoy",
+          "period": "2025",
+          "value": 24.752475247524753,
+          "unit": "%",
+          "industry_value": null,
+          "warning_value": null,
+          "warning_operator": null,
+          "evidence_ids": [
+            "ev-operations-employees"
+          ]
+        },
+        {
+          "metric": "net_profit_yoy",
+          "period": "2025",
+          "value": 28.57142857142857,
+          "unit": "%",
+          "industry_value": null,
+          "warning_value": null,
+          "warning_operator": null,
+          "evidence_ids": [
+            "ev-operations-employees"
+          ]
+        }
+      ]
+    },
+    "bank_flow_analysis": {
+      "status": "partial",
+      "analysis": "",
+      "evidence_ids": [
+        "ev-company-registration",
+        "ev-governance-profile",
+        "derived-1447beb1e75e732f7603d50e"
+      ],
+      "missing_fields": [
+        {
+          "field": "period_start",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "period_end",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "account_count",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "transaction_count",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "total_inflow",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "total_outflow",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "revenue_match_difference_ratio",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "operating_receipts_ratio",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "recent_three_month_change_ratio",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "monthly_totals",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "abnormal_transactions",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "repayment_gap.period",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "repayment_gap.operating_cash_flow",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "repayment_gap.available_cash",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "repayment_gap.unused_credit",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "repayment_gap.short_term_debt",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "repayment_gap.guarantee_exposure",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "repayment_gap.assumptions",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        },
+        {
+          "field": "repayment_gap.net_balance",
+          "reason": "not_provided",
+          "message": "未提供调用方资料"
+        }
+      ],
+      "period_start": null,
+      "period_end": null,
+      "account_count": null,
+      "transaction_count": null,
+      "total_inflow": null,
+      "total_outflow": null,
+      "revenue_match_difference_ratio": null,
+      "operating_receipts_ratio": null,
+      "recent_three_month_change_ratio": null,
+      "monthly_totals": [],
+      "abnormal_transactions": [],
+      "repayment_gap": {
+        "period": null,
+        "operating_cash_flow": null,
+        "available_cash": null,
+        "unused_credit": null,
+        "short_term_debt": null,
+        "guarantee_exposure": null,
+        "assumptions": null,
+        "net_balance": null,
+        "evidence_ids": []
+      },
+      "relationship_graph": {
+        "nodes": [
+          {
+            "id": "entity-09c8a26814c0",
+            "name": "乐视网信息技术（北京）股份有限公司",
+            "type": "company"
+          },
+          {
+            "id": "entity-f324dae8dd10",
+            "name": "金调产业投资控股有限公司",
+            "type": "company"
+          },
+          {
+            "id": "entity-04df0d1af4cd",
+            "name": "林海",
+            "type": "person"
+          },
+          {
+            "id": "entity-22ec5dbfe94d",
+            "name": "金调绿洲科技供应链有限公司",
+            "type": "company"
+          }
+        ],
+        "edges": [
+          {
+            "source": "entity-f324dae8dd10",
+            "target": "entity-09c8a26814c0",
+            "relation": "股东",
+            "shareholding_ratio": 62.0,
+            "amount": null,
+            "evidence_ids": [
+              "ev-company-registration",
+              "ev-governance-profile"
+            ]
+          },
+          {
+            "source": "entity-04df0d1af4cd",
+            "target": "entity-09c8a26814c0",
+            "relation": "股东",
+            "shareholding_ratio": 38.0,
+            "amount": null,
+            "evidence_ids": [
+              "ev-company-registration",
+              "ev-governance-profile"
+            ]
+          },
+          {
+            "source": "entity-04df0d1af4cd",
+            "target": "entity-09c8a26814c0",
+            "relation": "实际控制",
+            "shareholding_ratio": null,
+            "amount": null,
+            "evidence_ids": [
+              "ev-company-registration",
+              "ev-governance-profile"
+            ]
+          },
+          {
+            "source": "entity-09c8a26814c0",
+            "target": "entity-22ec5dbfe94d",
+            "relation": "对外投资",
+            "shareholding_ratio": 51.0,
+            "amount": null,
+            "evidence_ids": [
+              "ev-company-registration",
+              "ev-governance-profile"
+            ]
+          }
+        ]
+      }
+    },
+    "external_verification": {
+      "status": "unavailable",
+      "analysis": "",
+      "evidence_ids": [],
+      "missing_fields": [
+        {
+          "field": "registration.facts",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "judicial.facts",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "credit.facts",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "tax.facts",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "public_opinion.facts",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        },
+        {
+          "field": "internal_record.facts",
+          "reason": "not_disclosed",
+          "message": "本次来源未披露该字段"
+        }
+      ],
+      "registration": {
+        "status": "inconclusive",
+        "conclusion": "缺少可核验资料",
+        "facts": [],
+        "evidence_ids": []
+      },
+      "judicial": {
+        "status": "inconclusive",
+        "conclusion": "缺少可核验资料",
+        "facts": [],
+        "evidence_ids": []
+      },
+      "credit": {
+        "status": "inconclusive",
+        "conclusion": "缺少可核验资料",
+        "facts": [],
+        "evidence_ids": []
+      },
+      "tax": {
+        "status": "inconclusive",
+        "conclusion": "缺少可核验资料",
+        "facts": [],
+        "evidence_ids": []
+      },
+      "public_opinion": {
+        "status": "inconclusive",
+        "conclusion": "缺少可核验资料",
+        "facts": [],
+        "evidence_ids": []
+      },
+      "internal_record": {
+        "status": "inconclusive",
+        "conclusion": "缺少可核验资料",
+        "facts": [],
+        "evidence_ids": []
+      }
+    },
+    "risk_points": {
+      "finding_ids": []
+    }
+  },
+  "risk_findings": [],
+  "evidence": [
+    {
+      "id": "ev-company-registration",
+      "source_type": "mock",
+      "source_label": "Mock 测试数据·企业登记状态",
+      "source_tool": "scenario_repository",
+      "summary": "企业登记状态",
+      "source_ref": "mock://normal-enterprise/v1.0.0/company.json#registration_status",
+      "data_as_of": "2026-08-31",
+      "queried_at": "2026-09-07T00:00:00Z",
+      "supports_fields": [
+        "report.company_profile",
+        "report.ownership",
+        "report.external_verification.registration"
+      ],
+      "derived_from": [],
+      "is_mock": true
+    },
+    {
+      "id": "ev-governance-profile",
+      "source_type": "mock",
+      "source_label": "Mock 测试数据·股东、高管与对外投资信息",
+      "source_tool": "scenario_repository",
+      "summary": "股东、高管与对外投资信息",
+      "source_ref": "mock://normal-enterprise/v1.0.0/governance.json#profile",
+      "data_as_of": "2026-08-31",
+      "queried_at": "2026-09-07T00:00:00Z",
+      "supports_fields": [
+        "report.company_profile",
+        "report.ownership",
+        "report.external_verification.registration"
+      ],
+      "derived_from": [],
+      "is_mock": true
+    },
+    {
+      "id": "ev-operations-employees",
+      "source_type": "mock",
+      "source_label": "Mock 测试数据·年报员工人数",
+      "source_tool": "scenario_repository",
+      "summary": "年报员工人数",
+      "source_ref": "mock://normal-enterprise/v1.0.0/operations.json#employee_count",
+      "data_as_of": "2026-08-31",
+      "queried_at": "2026-09-07T00:00:00Z",
+      "supports_fields": [
+        "report.company_profile.employee_count",
+        "report.business_analysis",
+        "report.financial_analysis.periods",
+        "report.external_verification.tax"
+      ],
+      "derived_from": [],
+      "is_mock": true
+    },
+    {
+      "id": "ev-peers-5a84dd73",
+      "source_type": "mock",
+      "source_label": "Mock 测试数据·同类企业与行业参考指标",
+      "source_tool": "scenario_repository",
+      "summary": "同类企业与行业参考指标",
+      "source_ref": "mock://normal-enterprise/v1.0.0/peers.json#metrics",
+      "data_as_of": "2026-08-31",
+      "queried_at": "2026-09-07T00:00:00Z",
+      "supports_fields": [
+        "report.business_analysis.industry_trend"
+      ],
+      "derived_from": [],
+      "is_mock": true
+    },
+    {
+      "id": "derived-ccdb268b5ee4064b37d72d40",
+      "source_type": "derived",
+      "source_label": "确定性指标计算",
+      "source_tool": null,
+      "summary": "指标由所引来源按固定公式计算; 缺分母或不可比期间保持为空",
+      "source_ref": "derived://prototype-v1/financial_analysis",
+      "data_as_of": null,
+      "queried_at": "2026-09-07T00:00:00Z",
+      "supports_fields": [
+        "report.financial_analysis",
+        "report.company_profile.financial_highlights"
+      ],
+      "derived_from": [
+        "ev-operations-employees"
+      ],
+      "is_mock": true
+    },
+    {
+      "id": "derived-1447beb1e75e732f7603d50e",
+      "source_type": "derived",
+      "source_label": "确定性指标计算",
+      "source_tool": null,
+      "summary": "指标由所引来源按固定公式计算; 缺分母或不可比期间保持为空",
+      "source_ref": "derived://prototype-v1/bank_flow_analysis",
+      "data_as_of": null,
+      "queried_at": "2026-09-07T00:00:00Z",
+      "supports_fields": [
+        "report.bank_flow_analysis"
+      ],
+      "derived_from": [
+        "ev-company-registration",
+        "ev-governance-profile"
+      ],
+      "is_mock": true
+    }
+  ],
+  "report_markdown": "# 乐视网信息技术（北京）股份有限公司 尽调报告\n\n风险点：0 个；AI 建议：建议补充尽调\n存在需人工复核的风险或证据缺口\n\n金额单位为人民币元（资本以披露币种为准），比例为百分数，期限为月。空值表示未获得，不等于零。\n\n> Mock 数据提示：本报告含模拟事实，仅用于测试。\n\n## 业务申报方案\n\n申报信息由调用方提供; 未提供授信定价政策的建议金额、利率和期限留空\n\n| 项目 | 内容 |\n| --- | --- |\n| 上报机构 | 未获得 |\n| 上报时间 | 未获得 |\n| 业务品种 | 未获得 |\n| 主办客户经理 | 未获得 |\n| 发生类型 | 未获得 |\n| 申请金额 | 未获得 |\n| 申请期限（月） | 未获得 |\n| 资金用途 | 未获得 |\n| 建议额度 | 未获得 |\n| 建议利率 | 未获得 |\n| 建议授信期限（月） | 未获得 |\n| 建议贷款期限（月） | 未获得 |\n| 资金用途详细说明 | 未获得 |\n| 还款来源 | 未获得 |\n| 统一授信情况 | 未获得 |\n| 调查地点 | 未获得 |\n| 申请企业名称 | 乐视网信息技术（北京）股份有限公司 |\n| 统一社会信用代码 | 91110108MA01JD001A |\n| 所属行业 | 软件和信息技术服务业 |\n\n### 建议保证方式\n\n未获得记录或已核验无记录，具体范围见数据缺口及证据。\n\n### 建议还款方式\n\n未获得记录或已核验无记录，具体范围见数据缺口及证据。\n\n## §1 公司基本情况\n\n| 项目 | 内容 |\n| --- | --- |\n| 申请企业名称 | 乐视网信息技术（北京）股份有限公司 |\n| 统一社会信用代码 | 91110108MA01JD001A |\n| 成立日期 | 2016-05-18 |\n| 登记状态 | 存续 |\n| 注册地址 | 中国某市高新区创新大道 88 号 |\n| 注册资本 | 50,000,000 |\n| 实缴资本 | 32,000,000 |\n| 资本币种 | CNY |\n| 法定代表人 | 林海 |\n| 所属行业 | 软件和信息技术服务业 |\n| 主营业务 | 技术服务、项目管理、国内贸易及供应链服务 |\n| 员工总数 | 128 |\n| 参保人数 | 未获得 |\n| 人员统计期间 | 2026-08-31 |\n\n### 股东\n\n**1**\n\n| 项目 | 内容 |\n| --- | --- |\n| 名称 | 金调产业投资控股有限公司 |\n| 类型 | 企业 |\n| 持股比例（%） | 62 |\n| 认缴资本 | 31,000,000 |\n| 实缴资本 | 未获得 |\n| 资本币种 | CNY |\n\n**2**\n\n| 项目 | 内容 |\n| --- | --- |\n| 名称 | 林海 |\n| 类型 | 自然人 |\n| 持股比例（%） | 38 |\n| 认缴资本 | 19,000,000 |\n| 实缴资本 | 未获得 |\n| 资本币种 | CNY |\n\n\n### 财务摘要\n\n| 项目 | 内容 |\n| --- | --- |\n| 期间 | 2025 |\n| 营业收入 | 126,000,000 |\n| 营收同比（%） | 24.7525 |\n| 净利润 | 12,600,000 |\n| 净利润同比（%） | 28.5714 |\n| 资产负债率（%） | 未获得 |\n\n证据：[ev-company-registration]、[ev-governance-profile]、[ev-operations-employees]、[derived-ccdb268b5ee4064b37d72d40]\n\n## §2 股权结构与实际控制人\n\n| 项目 | 内容 |\n| --- | --- |\n| 查得穿透层数 | 未获得 |\n\n### 股东\n\n**1**\n\n| 项目 | 内容 |\n| --- | --- |\n| 名称 | 金调产业投资控股有限公司 |\n| 类型 | 企业 |\n| 持股比例（%） | 62 |\n| 认缴资本 | 31,000,000 |\n| 实缴资本 | 未获得 |\n| 资本币种 | CNY |\n\n**2**\n\n| 项目 | 内容 |\n| --- | --- |\n| 名称 | 林海 |\n| 类型 | 自然人 |\n| 持股比例（%） | 38 |\n| 认缴资本 | 19,000,000 |\n| 实缴资本 | 未获得 |\n| 资本币种 | CNY |\n\n\n### 实际控制人\n\n**1**\n\n| 项目 | 内容 |\n| --- | --- |\n| 名称 | 林海 |\n| 类型 | 其他 |\n| 持股比例（%） | 未获得 |\n| 识别依据 | 来源披露的控制人字段 |\n| 是否为疑似识别 | 是 |\n\n\n### 受益所有人\n\n**1**\n\n| 项目 | 内容 |\n| --- | --- |\n| 名称 | 林海 |\n| 类型 | 其他 |\n| 持股比例（%） | 未获得 |\n| 识别依据 | 来源披露的控制人字段 |\n| 是否为疑似识别 | 是 |\n\n\n### 股权特征\n\n| 项目 | 内容 |\n| --- | --- |\n| 涉外资本 | 未获得 |\n| 国有资本 | 未获得 |\n| VIE结构 | 未获得 |\n| 代持情况 | 未获得 |\n\n### 关联企业\n\n**1**\n\n| 项目 | 内容 |\n| --- | --- |\n| 企业标识 | 未获得 |\n| 名称 | 金调绿洲科技供应链有限公司 |\n| 关系 | 对外投资 |\n| 持股比例（%） | 51 |\n\n\n### 关联交易\n\n未获得记录或已核验无记录，具体范围见数据缺口及证据。\n\n### 担保\n\n未获得记录或已核验无记录，具体范围见数据缺口及证据。\n\n### 股权关系图\n\n| 关系起点 | 关系终点 | 关系 | 比例（%） | 金额 |\n| --- | --- | --- | --- | --- |\n| 金调产业投资控股有限公司 | 乐视网信息技术（北京）股份有限公司 | 股东 | 62 | 未获得 |\n| 林海 | 乐视网信息技术（北京）股份有限公司 | 股东 | 38 | 未获得 |\n| 林海 | 乐视网信息技术（北京）股份有限公司 | 实际控制 | 未获得 | 未获得 |\n| 乐视网信息技术（北京）股份有限公司 | 金调绿洲科技供应链有限公司 | 对外投资 | 51 | 未获得 |\n\n证据：[ev-company-registration]、[ev-governance-profile]\n\n## §3 经营情况·行业上下游\n\n| 项目 | 内容 |\n| --- | --- |\n| 主营业务 | 技术服务、项目管理、国内贸易及供应链服务 |\n| 第一大客户占比（%） | 未获得 |\n| 前五大客户占比（%） | 未获得 |\n| 前五大供应商占比（%） | 未获得 |\n\n### 产品\n\n未获得记录或已核验无记录，具体范围见数据缺口及证据。\n\n### 行业趋势\n\n| 项目 | 内容 |\n| --- | --- |\n| 期间 | 未获得 |\n| 增速（%） | 未获得 |\n| 前期增速（%） | 未获得 |\n| 展望 | 未获得 |\n\n### 客户\n\n未获得记录或已核验无记录，具体范围见数据缺口及证据。\n\n### 供应商\n\n未获得记录或已核验无记录，具体范围见数据缺口及证据。\n\n### 原材料成本变化\n\n| 项目 | 内容 |\n| --- | --- |\n| 期间 | 未获得 |\n| 变化比例（%） | 未获得 |\n| 说明 | 未获得 |\n\n### 设备\n\n未获得记录或已核验无记录，具体范围见数据缺口及证据。\n\n### 产能利用率\n\n| 项目 | 内容 |\n| --- | --- |\n| 期间 | 未获得 |\n| 比例（%） | 未获得 |\n\n证据：[ev-operations-employees]、[ev-peers-5a84dd73]\n\n## §4 财务分析·三表与比率\n\n\n### 财务期间\n\n**1**\n\n| 项目 | 内容 |\n| --- | --- |\n| 期间 | 2023 |\n| 期间类型 | 年度 |\n| 报表口径 | 企业披露口径 |\n\n#### 资产负债表\n\n| 项目 | 内容 |\n| --- | --- |\n| 总资产 | 未获得 |\n| 总负债 | 未获得 |\n| 所有者权益 | 未获得 |\n| 流动资产 | 未获得 |\n| 流动负债 | 未获得 |\n| 应收账款 | 未获得 |\n| 货币资金 | 未获得 |\n\n#### 利润表\n\n| 项目 | 内容 |\n| --- | --- |\n| 营业收入 | 82,000,000 |\n| 营业成本 | 未获得 |\n| 净利润 | 7,600,000 |\n| 息税前利润 | 未获得 |\n| 利息费用 | 未获得 |\n\n#### 现金流量表\n\n| 项目 | 内容 |\n| --- | --- |\n| 经营现金净流量 | 未获得 |\n| 投资现金净流量 | 未获得 |\n| 筹资现金净流量 | 未获得 |\n\n#### 财务比率\n\n| 项目 | 内容 |\n| --- | --- |\n| 营收同比（%） | 未获得 |\n| 净利润同比（%） | 未获得 |\n| 总资产同比（%） | 未获得 |\n| 应收账款同比（%） | 未获得 |\n| 毛利率（%） | 未获得 |\n| 资产负债率（%） | 未获得 |\n| 流动比率 | 未获得 |\n| 应收周转天数 | 未获得 |\n| 利息保障倍数 | 未获得 |\n\n**2**\n\n| 项目 | 内容 |\n| --- | --- |\n| 期间 | 2024 |\n| 期间类型 | 年度 |\n| 报表口径 | 企业披露口径 |\n\n#### 资产负债表\n\n| 项目 | 内容 |\n| --- | --- |\n| 总资产 | 未获得 |\n| 总负债 | 未获得 |\n| 所有者权益 | 未获得 |\n| 流动资产 | 未获得 |\n| 流动负债 | 未获得 |\n| 应收账款 | 未获得 |\n| 货币资金 | 未获得 |\n\n#### 利润表\n\n| 项目 | 内容 |\n| --- | --- |\n| 营业收入 | 101,000,000 |\n| 营业成本 | 未获得 |\n| 净利润 | 9,800,000 |\n| 息税前利润 | 未获得 |\n| 利息费用 | 未获得 |\n\n#### 现金流量表\n\n| 项目 | 内容 |\n| --- | --- |\n| 经营现金净流量 | 未获得 |\n| 投资现金净流量 | 未获得 |\n| 筹资现金净流量 | 未获得 |\n\n#### 财务比率\n\n| 项目 | 内容 |\n| --- | --- |\n| 营收同比（%） | 23.1707 |\n| 净利润同比（%） | 28.9474 |\n| 总资产同比（%） | 未获得 |\n| 应收账款同比（%） | 未获得 |\n| 毛利率（%） | 未获得 |\n| 资产负债率（%） | 未获得 |\n| 流动比率 | 未获得 |\n| 应收周转天数 | 未获得 |\n| 利息保障倍数 | 未获得 |\n\n**3**\n\n| 项目 | 内容 |\n| --- | --- |\n| 期间 | 2025 |\n| 期间类型 | 年度 |\n| 报表口径 | 企业披露口径 |\n\n#### 资产负债表\n\n| 项目 | 内容 |\n| --- | --- |\n| 总资产 | 未获得 |\n| 总负债 | 未获得 |\n| 所有者权益 | 未获得 |\n| 流动资产 | 未获得 |\n| 流动负债 | 未获得 |\n| 应收账款 | 未获得 |\n| 货币资金 | 未获得 |\n\n#### 利润表\n\n| 项目 | 内容 |\n| --- | --- |\n| 营业收入 | 126,000,000 |\n| 营业成本 | 未获得 |\n| 净利润 | 12,600,000 |\n| 息税前利润 | 未获得 |\n| 利息费用 | 未获得 |\n\n#### 现金流量表\n\n| 项目 | 内容 |\n| --- | --- |\n| 经营现金净流量 | 未获得 |\n| 投资现金净流量 | 未获得 |\n| 筹资现金净流量 | 未获得 |\n\n#### 财务比率\n\n| 项目 | 内容 |\n| --- | --- |\n| 营收同比（%） | 24.7525 |\n| 净利润同比（%） | 28.5714 |\n| 总资产同比（%） | 未获得 |\n| 应收账款同比（%） | 未获得 |\n| 毛利率（%） | 未获得 |\n| 资产负债率（%） | 未获得 |\n| 流动比率 | 未获得 |\n| 应收周转天数 | 未获得 |\n| 利息保障倍数 | 未获得 |\n\n\n### 三表勾稽\n\n| 项目 | 内容 |\n| --- | --- |\n| 状态 | 证据不足 |\n| 说明 | 资产负债表恒等式字段不完整 |\n\n### 指标水位比较\n\n**1**\n\n| 项目 | 内容 |\n| --- | --- |\n| 指标 | revenue_yoy |\n| 期间 | 2024 |\n| 数值 | 23.1707 |\n| 单位 | % |\n| 行业值 | 未获得 |\n| 预警值 | 未获得 |\n| 预警条件 | 未获得 |\n\n**2**\n\n| 项目 | 内容 |\n| --- | --- |\n| 指标 | net_profit_yoy |\n| 期间 | 2024 |\n| 数值 | 28.9474 |\n| 单位 | % |\n| 行业值 | 未获得 |\n| 预警值 | 未获得 |\n| 预警条件 | 未获得 |\n\n**3**\n\n| 项目 | 内容 |\n| --- | --- |\n| 指标 | revenue_yoy |\n| 期间 | 2025 |\n| 数值 | 24.7525 |\n| 单位 | % |\n| 行业值 | 未获得 |\n| 预警值 | 未获得 |\n| 预警条件 | 未获得 |\n\n**4**\n\n| 项目 | 内容 |\n| --- | --- |\n| 指标 | net_profit_yoy |\n| 期间 | 2025 |\n| 数值 | 28.5714 |\n| 单位 | % |\n| 行业值 | 未获得 |\n| 预警值 | 未获得 |\n| 预警条件 | 未获得 |\n\n\n证据：[ev-operations-employees]、[derived-ccdb268b5ee4064b37d72d40]\n\n## §5 银行流水分析\n\n| 项目 | 内容 |\n| --- | --- |\n| 统计起始日期 | 未获得 |\n| 统计截止日期 | 未获得 |\n| 账户数 | 未获得 |\n| 交易笔数 | 未获得 |\n| 总流入 | 未获得 |\n| 总流出 | 未获得 |\n| 流入与可比营收差异（%） | 未获得 |\n| 主营回款占流入（%） | 未获得 |\n| 近三月流入变化（%） | 未获得 |\n\n### 月度统计\n\n未获得记录或已核验无记录，具体范围见数据缺口及证据。\n\n### 异常交易线索\n\n未获得记录或已核验无记录，具体范围见数据缺口及证据。\n\n### 静态偿付缺口测算\n\n| 项目 | 内容 |\n| --- | --- |\n| 期间 | 未获得 |\n| 经营现金净流量 | 未获得 |\n| 可用现金 | 未获得 |\n| 未用授信 | 未获得 |\n| 短期债务 | 未获得 |\n| 假设代偿敞口 | 未获得 |\n| 测算及代偿假设 | 未获得 |\n| 测算净余额 | 未获得 |\n\n### 交易及关联关系图\n\n| 关系起点 | 关系终点 | 关系 | 比例（%） | 金额 |\n| --- | --- | --- | --- | --- |\n| 金调产业投资控股有限公司 | 乐视网信息技术（北京）股份有限公司 | 股东 | 62 | 未获得 |\n| 林海 | 乐视网信息技术（北京）股份有限公司 | 股东 | 38 | 未获得 |\n| 林海 | 乐视网信息技术（北京）股份有限公司 | 实际控制 | 未获得 | 未获得 |\n| 乐视网信息技术（北京）股份有限公司 | 金调绿洲科技供应链有限公司 | 对外投资 | 51 | 未获得 |\n\n证据：[ev-company-registration]、[ev-governance-profile]、[derived-1447beb1e75e732f7603d50e]\n\n## §6 外部多源核验\n\n\n### 工商核验\n\n| 项目 | 内容 |\n| --- | --- |\n| 状态 | 证据不足 |\n| 结论 | 缺少可核验资料 |\n\n#### 已知事实\n\n未获得记录或已核验无记录，具体范围见数据缺口及证据。\n\n### 司法核验\n\n| 项目 | 内容 |\n| --- | --- |\n| 状态 | 证据不足 |\n| 结论 | 缺少可核验资料 |\n\n#### 已知事实\n\n未获得记录或已核验无记录，具体范围见数据缺口及证据。\n\n### 征信摘要\n\n| 项目 | 内容 |\n| --- | --- |\n| 状态 | 证据不足 |\n| 结论 | 缺少可核验资料 |\n\n#### 已知事实\n\n未获得记录或已核验无记录，具体范围见数据缺口及证据。\n\n### 税务核验\n\n| 项目 | 内容 |\n| --- | --- |\n| 状态 | 证据不足 |\n| 结论 | 缺少可核验资料 |\n\n#### 已知事实\n\n未获得记录或已核验无记录，具体范围见数据缺口及证据。\n\n### 舆情核验\n\n| 项目 | 内容 |\n| --- | --- |\n| 状态 | 证据不足 |\n| 结论 | 缺少可核验资料 |\n\n#### 已知事实\n\n未获得记录或已核验无记录，具体范围见数据缺口及证据。\n\n### 本行记录\n\n| 项目 | 内容 |\n| --- | --- |\n| 状态 | 证据不足 |\n| 结论 | 缺少可核验资料 |\n\n#### 已知事实\n\n未获得记录或已核验无记录，具体范围见数据缺口及证据。\n\n## §7 风险点提示\n\n本次已获得资料中无已审核风险发现；不代表未覆盖范围已核验无风险。\n\n## 数据缺口\n\n- 业务申报方案 / 上报机构: 未提供调用方资料\n- 业务申报方案 / 上报时间: 未提供调用方资料\n- 业务申报方案 / 业务品种: 未提供调用方资料\n- 业务申报方案 / 主办客户经理: 未提供调用方资料\n- 业务申报方案 / 发生类型: 未提供调用方资料\n- 业务申报方案 / 申请金额: 未提供调用方资料\n- 业务申报方案 / 申请期限（月）: 未提供调用方资料\n- 业务申报方案 / 资金用途: 未提供调用方资料\n- 业务申报方案 / 建议额度: 未提供调用方资料\n- 业务申报方案 / 建议利率: 未提供调用方资料\n- 业务申报方案 / 建议授信期限（月）: 未提供调用方资料\n- 业务申报方案 / 建议贷款期限（月）: 未提供调用方资料\n- 业务申报方案 / 资金用途详细说明: 未提供调用方资料\n- 业务申报方案 / 建议保证方式: 未提供调用方资料\n- 业务申报方案 / 建议还款方式: 未提供调用方资料\n- 业务申报方案 / 还款来源: 未提供调用方资料\n- 业务申报方案 / 统一授信情况: 未提供调用方资料\n- 业务申报方案 / 调查地点: 未提供调用方资料\n- §1 公司基本情况 / 参保人数: 本次来源未披露该字段\n- §1 公司基本情况 / financial_highlights.debt_to_asset_ratio: 本次来源未披露该字段\n- §2 股权结构与实际控制人 / 查得穿透层数: 本次来源未披露该字段\n- §2 股权结构与实际控制人 / ownership_features.foreign_involvement: 本次来源未披露该字段\n- §2 股权结构与实际控制人 / ownership_features.state_owned_involvement: 本次来源未披露该字段\n- §2 股权结构与实际控制人 / ownership_features.vie_structure: 本次来源未披露该字段\n- §2 股权结构与实际控制人 / ownership_features.nominee_shareholding: 本次来源未披露该字段\n- §2 股权结构与实际控制人 / 关联交易: 本次来源未披露该字段\n- §2 股权结构与实际控制人 / 担保: 本次来源未披露该字段\n- §3 经营情况·行业上下游 / 产品: 本次来源未披露该字段\n- §3 经营情况·行业上下游 / industry_trend.period: 本次来源未披露该字段\n- §3 经营情况·行业上下游 / industry_trend.growth_rate: 本次来源未披露该字段\n- §3 经营情况·行业上下游 / industry_trend.previous_growth_rate: 本次来源未披露该字段\n- §3 经营情况·行业上下游 / industry_trend.outlook: 本次来源未披露该字段\n- §3 经营情况·行业上下游 / 客户: 本次来源未披露该字段\n- §3 经营情况·行业上下游 / 供应商: 本次来源未披露该字段\n- §3 经营情况·行业上下游 / 第一大客户占比（%）: 本次来源未披露该字段\n- §3 经营情况·行业上下游 / 前五大客户占比（%）: 本次来源未披露该字段\n- §3 经营情况·行业上下游 / 前五大供应商占比（%）: 本次来源未披露该字段\n- §3 经营情况·行业上下游 / raw_material_cost_change.period: 本次来源未披露该字段\n- §3 经营情况·行业上下游 / raw_material_cost_change.change_ratio: 本次来源未披露该字段\n- §3 经营情况·行业上下游 / raw_material_cost_change.description: 本次来源未披露该字段\n- §3 经营情况·行业上下游 / 设备: 本次来源未披露该字段\n- §3 经营情况·行业上下游 / capacity_utilization.period: 本次来源未披露该字段\n- §3 经营情况·行业上下游 / capacity_utilization.ratio: 本次来源未披露该字段\n- §5 银行流水分析 / 统计起始日期: 未提供调用方资料\n- §5 银行流水分析 / 统计截止日期: 未提供调用方资料\n- §5 银行流水分析 / 账户数: 未提供调用方资料\n- §5 银行流水分析 / 交易笔数: 未提供调用方资料\n- §5 银行流水分析 / 总流入: 未提供调用方资料\n- §5 银行流水分析 / 总流出: 未提供调用方资料\n- §5 银行流水分析 / 流入与可比营收差异（%）: 未提供调用方资料\n- §5 银行流水分析 / 主营回款占流入（%）: 未提供调用方资料\n- §5 银行流水分析 / 近三月流入变化（%）: 未提供调用方资料\n- §5 银行流水分析 / 月度统计: 未提供调用方资料\n- §5 银行流水分析 / 异常交易线索: 未提供调用方资料\n- §5 银行流水分析 / repayment_gap.period: 未提供调用方资料\n- §5 银行流水分析 / repayment_gap.operating_cash_flow: 未提供调用方资料\n- §5 银行流水分析 / repayment_gap.available_cash: 未提供调用方资料\n- §5 银行流水分析 / repayment_gap.unused_credit: 未提供调用方资料\n- §5 银行流水分析 / repayment_gap.short_term_debt: 未提供调用方资料\n- §5 银行流水分析 / repayment_gap.guarantee_exposure: 未提供调用方资料\n- §5 银行流水分析 / repayment_gap.assumptions: 未提供调用方资料\n- §5 银行流水分析 / repayment_gap.net_balance: 未提供调用方资料\n- §6 外部多源核验 / registration.facts: 本次来源未披露该字段\n- §6 外部多源核验 / judicial.facts: 本次来源未披露该字段\n- §6 外部多源核验 / credit.facts: 本次来源未披露该字段\n- §6 外部多源核验 / tax.facts: 本次来源未披露该字段\n- §6 外部多源核验 / public_opinion.facts: 本次来源未披露该字段\n- §6 外部多源核验 / internal_record.facts: 本次来源未披露该字段\n\n## 证据来源\n\n- [ev-company-registration] Mock 测试数据·企业登记状态：企业登记状态；适用日期：2026-08-31；来源：mock://normal-enterprise/v1.0.0/company.json#registration_status\n- [ev-governance-profile] Mock 测试数据·股东、高管与对外投资信息：股东、高管与对外投资信息；适用日期：2026-08-31；来源：mock://normal-enterprise/v1.0.0/governance.json#profile\n- [ev-operations-employees] Mock 测试数据·年报员工人数：年报员工人数；适用日期：2026-08-31；来源：mock://normal-enterprise/v1.0.0/operations.json#employee_count\n- [ev-peers-5a84dd73] Mock 测试数据·同类企业与行业参考指标：同类企业与行业参考指标；适用日期：2026-08-31；来源：mock://normal-enterprise/v1.0.0/peers.json#metrics\n- [derived-ccdb268b5ee4064b37d72d40] 确定性指标计算：指标由所引来源按固定公式计算; 缺分母或不可比期间保持为空；适用日期：未披露；来源：derived://prototype-v1/financial_analysis\n- [derived-1447beb1e75e732f7603d50e] 确定性指标计算：指标由所引来源按固定公式计算; 缺分母或不可比期间保持为空；适用日期：未披露；来源：derived://prototype-v1/bank_flow_analysis\n\n内容由 AI 生成，仅供参考。\n"
+}

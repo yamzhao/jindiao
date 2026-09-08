@@ -10,7 +10,6 @@ from pydantic import SecretStr
 from jindiao.application import RunContext, Settings
 from jindiao.application.service import DueDiligenceService
 from jindiao.contracts.entities import EnterpriseInput, ResolvedSubject, SubjectSource
-from jindiao.contracts.evidence import SourceStatus, SourceType
 from jindiao.contracts.results import DueDiligenceRequest
 from jindiao.orchestration.base import DomainInvestigation
 from jindiao.orchestration.scenario_toolset import ScenarioToolset
@@ -133,8 +132,10 @@ async def test_service_uses_live_subject_with_explicit_frozen_supplement_templat
     assert toolset.context is not None
     assert toolset.context.scenario.manifest.scenario_id == "normal-enterprise"
     assert toolset.context.requested_enterprise == EnterpriseInput(company_name="公开样本有限公司")
-    assert result.subject.source is SubjectSource.TIANYANCHA
+    assert result.schema_version == "prototype-v1"
     assert result.subject.company_name == "公开样本有限公司"
+    assert result.subject.subject_id == "tyc:123"
+    assert result.summary.ai_suggestion == "manual_review"
     assert toolset.closed is True
 
 
@@ -174,25 +175,26 @@ async def test_explicit_degraded_mode_builds_complete_report_when_all_live_domai
 
     assert result.subject.company_name == "公开样本有限公司"
     assert result.subject.unified_social_credit_code == "91110000LIVE000001"
-    assert len(result.sections) == 8
-    assert all(section.status.value != "unavailable" for section in result.sections)
-    overview = result.sections[0].data["information_overview"]
-    assert isinstance(overview, dict)
-    assert overview["total_submodules"] == 48
-    assert "### 工商登记信息" in result.report_markdown
-    assert "### 裁判文书" in result.report_markdown
-    assert "### 财务主要指标" in result.report_markdown
-    assert "### 同类企业" in result.report_markdown
-    company_profile = next(
-        section for section in result.sections if section.section_id == "company-profile"
-    )
-    source_summary = company_profile.data["source_summary"]
-    assert isinstance(source_summary, dict)
-    assert source_summary["domain"] == "governance"
-    assert result.meta.degraded is True
+    assert set(type(result.report).model_fields) == {
+        "business_plan",
+        "company_profile",
+        "ownership",
+        "business_analysis",
+        "financial_analysis",
+        "bank_flow_analysis",
+        "external_verification",
+        "risk_points",
+    }
+    assert result.report.company_profile.status != "unavailable"
+    assert "## §1 公司基本情况" in result.report_markdown
+    assert "## §4 财务分析·三表与比率" in result.report_markdown
+    assert "## §6 外部多源核验" in result.report_markdown
+    assert "## §7 风险点提示" in result.report_markdown
+    assert result.meta.is_mock is True
     assert result.evidence
-    assert all(item.source_type is SourceType.MOCK for item in result.evidence)
-    assert all(item.source_status is SourceStatus.DEGRADED_MOCK for item in result.evidence)
+    assert {item.source_type for item in result.evidence} <= {"mock", "derived"}
+    assert any(item.source_type == "mock" for item in result.evidence)
+    assert all(item.is_mock for item in result.evidence)
     assert result.report_markdown.count("Mock 数据提示") == 1
     assert "- source_summary:" not in result.report_markdown
     assert client.closed is True

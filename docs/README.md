@@ -8,7 +8,7 @@
 | [`adr/`](adr/README.md) | 重要技术决策及其背景、取舍和后果 |
 | [`api/`](api/README.md) | 唯一 `result` 接口的请求、事件和响应契约 |
 | [`evaluation/`](evaluation/README.md) | 单智能体 vs 多智能体评测方案与结果 |
-| [`deployment/`](deployment/README.md) | 单机部署、容器与 AgentArts 适配说明 |
+| [`deployment/`](deployment/README.md) | 本地入口、ECS 本地打包/服务器部署、AgentArts 镜像交付与剩余云端流程 |
 | [`verification-report.md`](verification-report.md) | 质量门禁、授权联调、复现与环境限制记录 |
 | [`demo-checklist.md`](demo-checklist.md) | 参赛现场演示顺序和逐项确认清单 |
 

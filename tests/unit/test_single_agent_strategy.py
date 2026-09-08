@@ -1,3 +1,4 @@
+# ruff: noqa: RUF001 -- official company name uses fullwidth parentheses
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -20,7 +21,7 @@ SCENARIOS = Path("mock_data/scenarios")
 
 
 def context(*, allow_degraded_mock: bool = False) -> RunContext:
-    enterprise = EnterpriseInput(company_name="金调绿洲科技有限公司")
+    enterprise = EnterpriseInput(company_name="乐视网信息技术（北京）股份有限公司")
     snapshot = ScenarioRepository(SCENARIOS).resolve(enterprise)
     settings = Settings(
         model_name="deterministic-test-model",

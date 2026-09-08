@@ -12,7 +12,7 @@ from .base import ContractModel
 
 PolicyVersion = Annotated[StrictStr, Field(pattern=r"^1\.1\.(0|[1-9][0-9]*)$", max_length=64)]
 Sha256 = Annotated[StrictStr, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
-SectionId = Annotated[StrictStr, Field(min_length=1, max_length=128, pattern=r"^[a-z][a-z0-9-]*$")]
+SectionId = Annotated[StrictStr, Field(min_length=1, max_length=128, pattern=r"^[a-z][a-z0-9_-]*$")]
 EvidenceId = Annotated[StrictStr, Field(min_length=1, max_length=128)]
 
 

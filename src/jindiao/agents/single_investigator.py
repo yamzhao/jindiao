@@ -9,8 +9,8 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
-from openjiuwen.core.foundation.tool import ToolCard, tool
 from openjiuwen.core.single_agent import AgentCard, ReActAgent
+from openjiuwen.core.single_agent.rail import AgentCallbackContext, AgentRail
 
 from jindiao.application.errors import AgentExecutionError
 from jindiao.contracts.acquisition import EnterpriseContextSnapshot
@@ -53,6 +53,20 @@ class SubmitInvestigationSelfCheckInput(ContractModel):
 @dataclass(slots=True)
 class _SelfCheckState:
     completed: bool = False
+
+
+class _FinishAfterSubmissionRail(AgentRail):  # type: ignore[misc]  # Upstream has no typing marker.
+    def __init__(self, state: _SelfCheckState) -> None:
+        self._state = state
+
+    async def before_model_call(self, ctx: AgentCallbackContext) -> None:
+        if self._state.completed:
+            ctx.request_force_finish(
+                {
+                    "output": "All fixed checks submitted and completeness verified",
+                    "result_type": "answer",
+                }
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,6 +138,7 @@ class SingleInvestigatorAgent:
             model_timeout_seconds=timeout_seconds,
             max_iterations=max_iterations,
         )
+        await bindings.agent.register_rail(_FinishAfterSubmissionRail(bindings.self_check))
         task_ids = self._task_ids()
         request = AgentExecutionRequest(
             run_id=run_id,
@@ -151,7 +166,11 @@ class SingleInvestigatorAgent:
         if budget_usage.exhausted_reason is not None:
             raise AgentExecutionError(
                 budget_usage.exhausted_reason,
-                details={"run_id": run_id, "agent_id": self.agent_id},
+                details={
+                    "run_id": run_id,
+                    "agent_id": self.agent_id,
+                    **budget_ledger.error_details(),
+                },
             )
         results = bindings.blackboard.accepted_results
         submitted = {item.check_id for item in results}
@@ -161,10 +180,13 @@ class SingleInvestigatorAgent:
         if missing:
             raise AgentExecutionError(
                 "single investigator missing fixed checks",
-                details={"missing_check_ids": list(missing)},
+                details={"missing_check_ids": list(missing), **budget_ledger.error_details()},
             )
         if not bindings.self_check.completed:
-            raise AgentExecutionError("single investigator ended without completeness self-check")
+            raise AgentExecutionError(
+                "single investigator ended without completeness self-check",
+                details=budget_ledger.error_details(),
+            )
 
         risk_items = self._unique_risks(
             tuple(risk for result in results for risk in result.risk_items)
@@ -213,7 +235,7 @@ class SingleInvestigatorAgent:
         checks = tuple(item for item in self._check_catalog.checks if item.enabled)
         if not checks:
             raise AgentExecutionError("single investigator has no enabled fixed checks")
-        if self._check_catalog.report_catalog_version != snapshot.report_catalog_version:
+        if self._check_catalog.acquisition_catalog_version != snapshot.acquisition_catalog_version:
             raise AgentExecutionError("check catalog does not match frozen snapshot")
         if max_iterations < len(checks) * 2 + 2:
             raise ValueError("single investigator iteration budget cannot submit all checks")
@@ -261,22 +283,7 @@ class SingleInvestigatorAgent:
         )
         self_check = _SelfCheckState()
 
-        @tool(  # type: ignore[untyped-decorator]
-            card=ToolCard(
-                id=f"jindiao.{run_id}.{self.agent_id}.self-check",
-                name="submit_investigation_self_check",
-                description=(
-                    "Confirm that the single investigator submitted exactly every enabled "
-                    "fixed check."
-                ),
-                input_params=SubmitInvestigationSelfCheckInput.model_json_schema(),
-                stateless=False,
-                idempotent=True,
-                parallel_safe=False,
-            )
-        )
-        async def submit_investigation_self_check() -> dict[str, object]:
-            await budget_ledger.claim_tool_call("submit_investigation_self_check")
+        def complete_self_check() -> None:
             expected = self._enabled_check_ids()
             submitted = tuple(item.check_id for item in blackboard.accepted_results)
             if submitted != expected:
@@ -285,7 +292,6 @@ class SingleInvestigatorAgent:
                     details={"expected": list(expected), "submitted": list(submitted)},
                 )
             self_check.completed = True
-            return {"accepted": True, "check_count": len(expected)}
 
         react_agent = ReActAgent(
             AgentCard(id=self.agent_id, name="Single Due Diligence Investigator")
@@ -299,7 +305,7 @@ class SingleInvestigatorAgent:
                 model_timeout_seconds=model_timeout_seconds,
                 system_prompt=invocation.system_prompt,
                 max_iterations=max_iterations,
-                parallel_tool_calls=True,
+                parallel_tool_calls=False,
             )
         )
         if not isinstance(react_agent, ReActAgent):
@@ -308,14 +314,22 @@ class SingleInvestigatorAgent:
         if underlying_model is None:
             underlying_model = react_agent._get_llm()
         react_agent.set_llm(cast(Any, BudgetedModel(underlying_model, budget_ledger=budget_ledger)))
-        assigned_context_tool = reader.build_tools()[0]
+        evidence_ids = {item.evidence_id for item in snapshot.evidence}
+        prefix = "e"
+        while any(f"{prefix}{index}" in evidence_ids for index in range(len(evidence_ids))):
+            prefix = "_" + prefix
+        evidence_aliases = {
+            item.evidence_id: f"{prefix}{index}" for index, item in enumerate(snapshot.evidence)
+        }
+        assigned_context_tool = reader.build_tools(evidence_aliases=evidence_aliases)[0]
         abilities = (
             assigned_context_tool,
-            blackboard.build_submit_bound_check_result_tool(
+            blackboard.build_submit_bound_check_results_tool(
                 agent_id=self.agent_id,
                 prompt_version=invocation.prompt_version,
+                on_complete=complete_self_check,
+                evidence_aliases=evidence_aliases,
             ),
-            submit_investigation_self_check,
         )
         registrations = [
             react_agent.ability_manager.add_ability(item.card, item) for item in abilities

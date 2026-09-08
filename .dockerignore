@@ -12,3 +12,8 @@ artifacts
 benchmarks/results
 *.pyc
 *.log
+*.log.*
+logs
+.ecs.*.toml
+.ecs.*.json
+deploy/ecs/config.json

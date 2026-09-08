@@ -16,6 +16,7 @@ from pydantic import (
 from jindiao.security import redact_json
 
 from .base import ContractModel
+from .business import BusinessContext
 from .entities import EnterpriseInput, ResolvedSubject
 from .errors import ErrorRecord
 from .evidence import CoverageSummary, Evidence
@@ -133,6 +134,7 @@ class SkillEvolutionFeedback(ContractModel):
 
 class DueDiligenceRequest(ContractModel):
     enterprise: EnterpriseInput
+    business_context: BusinessContext = Field(default_factory=BusinessContext)
     report_as_of: date | None = None
     language: str = Field(default="zh-CN", min_length=2)
     scenario_id: str | None = None

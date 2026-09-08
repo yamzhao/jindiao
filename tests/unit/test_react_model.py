@@ -32,6 +32,7 @@ def test_openai_compatible_react_config_uses_registered_proxy_safe_client() -> N
     assert client_config is not None
     assert client_config.client_provider == JINDIAO_OPENAI_COMPATIBLE_PROVIDER
     assert client_config.upstream_provider == "OpenAI"
+    assert client_config.max_retries == 0  # Retries must not bypass one request reservation.
     client = create_model_client(client_config, config.model_config_obj)
     assert isinstance(client, JindiaoOpenAICompatibleModelClient)
 

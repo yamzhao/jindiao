@@ -116,11 +116,77 @@ class AgentTeamsInvestigatorTeam:
         )
         session_id = f"{run_id}:multi-agent-teams"
         events: list[TeamRuntimeEvent] = []
+        read_tasks: set[tuple[str, str]] = set()
+        submitted_versions: set[tuple[str, int]] = set()
+        review_versions: set[int] = set()
+        minimum_review_version = 1
+
+        async def publish_business_milestones() -> None:
+            # Native team chunks are provider-specific. Use committed business
+            # state for public milestones, never parse generated text or tool output.
+            milestones: list[TeamRuntimeEvent] = []
+            for agent_id, reader in state.snapshot_readers.items():
+                for record in reader.audit_records:
+                    key = (agent_id, record.task_id)
+                    if not record.allowed or key in read_tasks:
+                        continue
+                    read_tasks.add(key)
+                    milestones.append(
+                        TeamRuntimeEvent(
+                            event_type="check.started",
+                            member_name=agent_id,
+                            payload={
+                                "task_id": record.task_id,
+                                "check_id": record.task_id.removeprefix("check:"),
+                                "phase": "investigation",
+                            },
+                        )
+                    )
+            for check in state.submission_board.accepted_results:
+                version = (check.check_id, check.submission_version)
+                if version in submitted_versions:
+                    continue
+                submitted_versions.add(version)
+                role = CHECK_CATALOG.get(check.check_id).owner_role
+                milestones.append(
+                    TeamRuntimeEvent(
+                        event_type="submission.accepted",
+                        member_name=ROLE_AGENT_IDS[role],
+                        payload={
+                            "task_id": check.task_id,
+                            "check_id": check.check_id,
+                            "submission_version": check.submission_version,
+                            "phase": "investigation",
+                        },
+                    )
+                )
+            for review in state.submission_board.reviews:
+                if review.review_version in review_versions:
+                    continue
+                review_versions.add(review.review_version)
+                milestones.append(
+                    TeamRuntimeEvent(
+                        event_type="review.submitted",
+                        member_name=self.reviewer_agent_id,
+                        payload={
+                            "review": {
+                                "review_version": review.review_version,
+                                "issue_count": len(review.issues),
+                                "repair_count": len(review.repair_tasks),
+                            }
+                        },
+                    )
+                )
+            for milestone in milestones:
+                events.append(milestone)
+                if event_sink is not None:
+                    await event_sink(milestone)
+
         try:
             async with asyncio.timeout(timeout_seconds):
                 # Native task-board completion is not a committed business review.
-                # Recover only the review/repair tail, never re-acquire evidence or
-                # reset the shared ledger, deadline, assignments or submissions.
+                # Recover missing submissions and the review/repair tail without
+                # resetting evidence, ledger, deadline, assignments or submissions.
                 for attempt in range(3):
                     check_cancellation(cancellation_token)
                     self._check_budget(state)
@@ -140,11 +206,20 @@ class AgentTeamsInvestigatorTeam:
                         stream_kwargs["cancellation_token"] = cancellation_token
                     query = self._runtime_query(snapshot=snapshot, run_id=run_id)
                     if attempt:
+                        missing_checks = sorted(
+                            set(CHECK_CATALOG.check_ids)
+                            - {item.check_id for item in state.submission_board.accepted_results}
+                        )
                         query += (
-                            " 本次是同一业务 Run 的审核尾部故障恢复, 不是首轮调查。"
+                            " 本次是同一业务 Run 的未完成提交/审核尾部故障恢复。"
                             "先 build_team 建立本次预定义团队, 再 read_investigation_progress。"
-                            "15 项首轮结果已在权威黑板, 禁止重做首轮或清空历史结果。"
-                            "若无 latest_review, 创建独立 Reviewer scheduled 任务; "
+                            "已接受结果保留在权威黑板, 禁止重做已接受核查或清空历史结果。"
+                            f"尚未提交的 check_id: {missing_checks}。"
+                            "若有缺项, 仅为其原分配负责人建立定向补交 scheduled 任务, "
+                            "成功 submit_check_result 后才允许 member_complete_task。"
+                            "缺项补齐后必须创建独立 Reviewer scheduled 任务重新审核全部结果, "
+                            f"成功提交 review_version >= {minimum_review_version} 后才能结束。"
+                            "若无 latest_review, 同样创建独立 Reviewer scheduled 任务; "
                             "若有 RepairTask, 先为目标 Agent 创建定向返工任务, "
                             "确认新提交被接受后再创建独立复核任务。"
                             "Reviewer 必须 read_check_submissions 并成功 submit_review 后"
@@ -171,7 +246,8 @@ class AgentTeamsInvestigatorTeam:
                             events.append(event)
                             if event_sink is not None:
                                 await event_sink(event)
-                            if self._business_complete(state):
+                            await publish_business_milestones()
+                            if self._business_complete(state, minimum_review_version):
                                 completed_event = TeamRuntimeEvent(
                                     event_type="team.completed",
                                     member_name=self.leader_agent_id,
@@ -201,12 +277,17 @@ class AgentTeamsInvestigatorTeam:
                         if close is not None:
                             await close()
                     self._check_budget(state)
-                    if self._business_complete(state) or (
+                    if self._business_complete(state, minimum_review_version) or (
                         state.assignment_board.plan is None
-                        or {item.check_id for item in state.submission_board.accepted_results}
-                        != set(CHECK_CATALOG.check_ids)
                     ):
                         break
+                    if {item.check_id for item in state.submission_board.accepted_results} != set(
+                        CHECK_CATALOG.check_ids
+                    ):
+                        latest = state.submission_board.latest_review
+                        minimum_review_version = max(
+                            minimum_review_version, latest.review_version + 1 if latest else 1
+                        )
         except TimeoutError as error:
             accepted = state.submission_board.accepted_results
             raise AgentExecutionError(
@@ -224,7 +305,10 @@ class AgentTeamsInvestigatorTeam:
                 },
             ) from error
         finally:
-            unregister_investigation_team_state(runtime_key)
+            try:
+                await publish_business_milestones()
+            finally:
+                unregister_investigation_team_state(runtime_key)
 
         assignments = state.assignment_board.plan
         if assignments is None:
@@ -238,7 +322,7 @@ class AgentTeamsInvestigatorTeam:
                 details={"missing_check_ids": sorted(missing)},
             )
         reviews = state.submission_board.reviews
-        if not reviews:
+        if not reviews or reviews[-1].review_version < minimum_review_version:
             raise AgentExecutionError("AgentTeams Reviewer did not submit a review")
         if reviews[-1].repair_tasks:
             raise AgentExecutionError("AgentTeams review ended with unresolved repair tasks")
@@ -271,12 +355,13 @@ class AgentTeamsInvestigatorTeam:
             raise TimeoutError("investigation budget deadline exceeded")
 
     @staticmethod
-    def _business_complete(state: InvestigationTeamState) -> bool:
+    def _business_complete(state: InvestigationTeamState, minimum_review_version: int = 1) -> bool:
         submitted = {item.check_id for item in state.submission_board.accepted_results}
         latest_review = state.submission_board.latest_review
         return (
             submitted == set(CHECK_CATALOG.check_ids)
             and latest_review is not None
+            and latest_review.review_version >= minimum_review_version
             and not latest_review.repair_tasks
         )
 

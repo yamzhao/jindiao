@@ -10,9 +10,11 @@ from pathlib import Path, PurePosixPath
 
 from pydantic import JsonValue
 
+from jindiao.contracts.public_result import PublicResult, parse_public_result
 from jindiao.contracts.report_policy import ReportingPolicyBinding
 from jindiao.contracts.reporting import ReportViewModel
 from jindiao.contracts.results import DueDiligenceResult
+from jindiao.reporting.product_markdown import ProductReportView
 from jindiao.reporting.replay import MAX_SNAPSHOT_BYTES, ReplaySnapshot
 
 from .trace import JsonlRunTrace, redact_json, redact_text
@@ -48,12 +50,13 @@ class RunArtifactStore:
 
     def complete(
         self,
-        result: DueDiligenceResult,
+        result: PublicResult,
         *,
         metrics: Mapping[str, JsonValue],
-        replay_view: ReportViewModel | None = None,
+        replay_view: ReportViewModel | ProductReportView | None = None,
         binding: ReportingPolicyBinding | None = None,
-    ) -> DueDiligenceResult:
+        internal_artifacts: Mapping[str, JsonValue] | None = None,
+    ) -> PublicResult:
         run_root = self._run_root(result.meta.run_id)
         if replay_view is not None and binding is not None:
             try:
@@ -69,26 +72,33 @@ class RunArtifactStore:
                     raise ValueError("serialized snapshot too large")
                 if ReplaySnapshot.model_validate_json(snapshot_path.read_text()) != snapshot:
                     raise ValueError("serialized snapshot changed")
-                result = result.model_copy(
-                    update={
-                        "meta": result.meta.model_copy(
-                            update={"report_replay_available": True, "report_replay_reason": None}
-                        )
-                    }
-                )
+                if isinstance(result, DueDiligenceResult):
+                    result = result.model_copy(
+                        update={
+                            "meta": result.meta.model_copy(
+                                update={
+                                    "report_replay_available": True,
+                                    "report_replay_reason": None,
+                                }
+                            )
+                        }
+                    )
             except (ValueError, OSError):
-                result = result.model_copy(
-                    update={
-                        "meta": result.meta.model_copy(
-                            update={
-                                "report_replay_available": False,
-                                "report_replay_reason": "snapshot_unavailable",
-                            }
-                        )
-                    }
-                )
+                if isinstance(result, DueDiligenceResult):
+                    result = result.model_copy(
+                        update={
+                            "meta": result.meta.model_copy(
+                                update={
+                                    "report_replay_available": False,
+                                    "report_replay_reason": "snapshot_unavailable",
+                                }
+                            )
+                        }
+                    )
                 (run_root / "report-replay.json.tmp").unlink(missing_ok=True)
                 (run_root / "report-replay.json").unlink(missing_ok=True)
+        if internal_artifacts is not None:
+            self._write_json(run_root / "investigation.json", dict(internal_artifacts))
         self._write_json(run_root / "result.json", result.model_dump(mode="json"))
         self._write_json(run_root / "metrics.json", dict(metrics))
         self._write_text(run_root / "report.md", redact_text(result.report_markdown))
@@ -157,7 +167,7 @@ class RunArtifactStore:
         except (OSError, ValueError, TypeError, json.JSONDecodeError):
             return False
 
-    def load_result(self, run_id: str) -> DueDiligenceResult | None:
+    def load_result(self, run_id: str) -> PublicResult | None:
         """Read a result only after manifest/hash validation succeeds."""
 
         if not self.verify_manifest(run_id):
@@ -165,7 +175,7 @@ class RunArtifactStore:
         path = self.root / _safe_segment(run_id, "run_id") / "result.json"
         if not path.is_file():
             return None
-        return DueDiligenceResult.model_validate(json.loads(path.read_text(encoding="utf-8")))
+        return parse_public_result(json.loads(path.read_text(encoding="utf-8")))
 
     def _run_root(self, run_id: str) -> Path:
         run_root = self.root / _safe_segment(run_id, "run_id")

@@ -8,6 +8,7 @@ from datetime import date
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Literal
 
+from jindiao.contracts.business import BusinessContext
 from jindiao.contracts.report_policy import ReportingPolicyBinding, ReportPolicy
 
 from .settings import Settings
@@ -35,6 +36,7 @@ class RunPolicy:
     max_schema_retries: int
     max_snapshot_reads: int
     allow_degraded_mock: bool
+    enforce_token_budget: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,6 +52,7 @@ class RunContext:
     skill_versions: Mapping[str, str]
     policy: RunPolicy
     requested_enterprise: EnterpriseInput | None = None
+    business_context: BusinessContext = field(default_factory=BusinessContext)
     reporting_policy: ReportingPolicyBinding = field(
         default_factory=lambda: ReportingPolicyBinding.freeze(
             ReportPolicy(), version="1.1.0", revision=0
@@ -66,6 +69,7 @@ class RunContext:
         settings: Settings,
         skill_versions: Mapping[str, str],
         requested_enterprise: EnterpriseInput | None = None,
+        business_context: BusinessContext | None = None,
         report_as_of: date | None = None,
         reporting_policy: ReportingPolicyBinding | None = None,
     ) -> RunContext:
@@ -95,6 +99,7 @@ class RunContext:
                 max_repair_rounds=settings.max_repair_rounds,
                 max_llm_requests=settings.max_llm_requests,
                 max_input_tokens=settings.max_input_tokens,
+                enforce_token_budget=settings.enforce_token_budget,
                 max_output_tokens=settings.max_output_tokens,
                 max_total_tokens=settings.max_total_tokens,
                 max_schema_retries=settings.max_schema_retries,
@@ -102,6 +107,7 @@ class RunContext:
                 allow_degraded_mock=settings.allow_degraded_mock,
             ),
             requested_enterprise=requested_enterprise,
+            business_context=business_context or BusinessContext(),
         )
 
 

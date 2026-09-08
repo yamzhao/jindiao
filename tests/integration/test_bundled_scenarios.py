@@ -1,3 +1,4 @@
+# ruff: noqa: RUF001 -- official company name uses fullwidth parentheses
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -10,7 +11,7 @@ from jindiao.scenarios import ExpectedResultLoader, ScenarioRepository
 
 SCENARIOS_ROOT = Path("mock_data/scenarios")
 CASES = (
-    ("normal-enterprise", "金调绿洲科技有限公司", "pass"),
+    ("normal-enterprise", "乐视网信息技术（北京）股份有限公司", "pass"),
     ("judicial-high-risk", "金调震岳工程有限公司", "reject"),
     ("operational-abnormal", "金调星火商贸有限公司", "manual_review"),
     ("evidence-conflict", "金调双源制造有限公司", "manual_review"),

@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator, Mapping
+from contextlib import suppress
 from typing import Protocol, cast
 
 from openjiuwen.core.runner import Runner
 from pydantic import JsonValue
 
 from .base import CancellationToken, TeamRuntimeEvent, check_cancellation
+
+_QUIESCENCE_CHECK_SECONDS = 15.0
 
 _PRIVATE_KEYS = {
     "chain_of_thought",
@@ -65,6 +69,27 @@ class TeamRuntimeDriver(Protocol):
 
 class OpenJiuwenTeamRuntime:
     """Run a TeamAgentSpec through the official Runner streaming facade."""
+
+    @staticmethod
+    async def _is_quiescent(*, team_name: str, session_id: str) -> bool:
+        monitor = await Runner.get_agent_team_monitor(team_name=team_name, session_id=session_id)
+        if monitor is None:
+            return False
+        await monitor.start()
+        try:
+            tasks = await monitor.get_tasks()
+            members = await monitor.get_members()
+            return (
+                bool(tasks and members)
+                and all(task.status in {"completed", "cancelled"} for task in tasks)
+                and all(
+                    member.status in {"ready", "stopped", "shutdown"}
+                    and member.execution_status in {"idle", "completed", "cancelled", "failed"}
+                    for member in members
+                )
+            )
+        finally:
+            await monitor.stop()
 
     async def wait_for_tasks_terminal(
         self,
@@ -133,8 +158,52 @@ class OpenJiuwenTeamRuntime:
         )
         team_name = getattr(spec, "team_name", None)
         team_created = False
+        # The native generator binds contextvars across yields. Keep every
+        # iteration and its cleanup in one task instead of spawning per chunk.
+        chunks: asyncio.Queue[tuple[bool, object]] = asyncio.Queue(maxsize=1)
+
+        async def produce() -> None:
+            try:
+                async for chunk in source:
+                    await chunks.put((True, chunk))
+            except Exception as error:
+                await chunks.put((False, error))
+            else:
+                await chunks.put((False, None))
+            finally:
+                close_source = getattr(source, "aclose", None)
+                if close_source is not None:
+                    await close_source()
+
+        producer = asyncio.create_task(produce())
+        pending: asyncio.Task[tuple[bool, object]] | None = None
+        quiescent_observations = 0
         try:
-            async for chunk in source:
+            while True:
+                if pending is None:
+                    pending = asyncio.create_task(chunks.get())
+                done, _ = await asyncio.wait({pending}, timeout=_QUIESCENCE_CHECK_SECONDS)
+                if not done:
+                    check_cancellation(cancellation_token)
+                    if (
+                        team_created
+                        and isinstance(team_name, str)
+                        and await self._is_quiescent(team_name=team_name, session_id=session_id)
+                    ):
+                        quiescent_observations += 1
+                    else:
+                        quiescent_observations = 0
+                    if quiescent_observations >= 2:
+                        yield TeamRuntimeEvent(event_type="team.runtime.quiescent")
+                        break
+                    continue
+                has_chunk, chunk = pending.result()
+                pending = None
+                if not has_chunk:
+                    if isinstance(chunk, Exception):
+                        raise chunk
+                    break
+                quiescent_observations = 0
                 check_cancellation(cancellation_token)
                 raw_payload = getattr(chunk, "payload", chunk)
                 established = _coordination_established(chunk, raw_payload)
@@ -167,14 +236,19 @@ class OpenJiuwenTeamRuntime:
                     payload=cast(dict[str, JsonValue], payload),
                 )
         finally:
+            if pending is not None:
+                pending.cancel()
+                with suppress(asyncio.CancelledError):
+                    await pending
+            if not producer.done():
+                producer.cancel()
+            with suppress(asyncio.CancelledError):
+                await producer
             if team_created and isinstance(team_name, str) and team_name:
                 await Runner.stop_agent_team(
                     team_name=team_name,
                     session_id=session_id,
                 )
-            close = getattr(source, "aclose", None)
-            if close is not None:
-                await close()
             if team_created and isinstance(team_name, str) and team_name:
                 deleted = await Runner.delete_agent_team(
                     team_name=team_name,

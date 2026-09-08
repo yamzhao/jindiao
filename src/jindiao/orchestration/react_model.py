@@ -108,6 +108,7 @@ def build_react_agent_config(
             timeout=model_timeout_seconds,
             stream_first_chunk_timeout=model_timeout_seconds,
             stream_idle_timeout=model_timeout_seconds,
+            max_retries=0,
             upstream_provider=model_provider,
         )
         model_config_obj = ModelRequestConfig(

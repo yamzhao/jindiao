@@ -1,3 +1,4 @@
+# ruff: noqa: RUF001 -- official company name uses fullwidth parentheses
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
@@ -33,7 +34,7 @@ AS_OF = date(2026, 8, 31)
 def make_subject() -> ResolvedSubject:
     return ResolvedSubject(
         subject_id="mock:normal-enterprise",
-        company_name="金调绿洲科技有限公司",
+        company_name="乐视网信息技术（北京）股份有限公司",
         unified_social_credit_code="91110108MA01JD001A",
         region="某市",
         registration_status="存续",
@@ -256,6 +257,7 @@ def test_markdown_renders_every_supported_evidence_source(source_type: SourceTyp
         SourceType.TIANYANCHA: "天眼查 MCP",
         SourceType.PUBLIC_WEB: "公开网页",
         SourceType.DERIVED: "派生",
+        SourceType.USER_INPUT: "业务输入",
     }
     raw_ref = (
         original.raw_ref

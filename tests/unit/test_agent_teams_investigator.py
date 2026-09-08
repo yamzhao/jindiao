@@ -680,10 +680,73 @@ async def test_premature_team_exit_recovers_real_review_with_same_business_state
     assert runtime.ledgers[0] is runtime.ledgers[1]
     assert runtime.calls[0][:2] != runtime.calls[1][:2]
     assert "恢复" in runtime.calls[1][2]
-    assert len(result.check_results) == 15
+    assert len(result.check_results) == len(CHECK_CATALOG.check_ids)
     assert all(check.submission_version == 1 for check in result.check_results)
     assert result.reviews[-1].repair_tasks == ()
     assert sum(e.event_type == "team.completed" for e in result.events) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("recover", (True, False))
+async def test_premature_team_recovers_missing_check_and_requires_fresh_review(
+    recover: bool,
+) -> None:
+    class MissingCheckRuntime(PrematureReviewExitRuntime):
+        async def stream(
+            self, spec: Any, inputs: dict[str, object], *, session_id: str
+        ) -> AsyncIterator[TeamRuntimeEvent]:
+            key = str(spec.model_pool[0].metadata["client"]["runtime_key"])
+            state = get_investigation_team_state(key)
+            self.calls.append((spec.team_name, session_id, str(inputs["query"])))
+            self.ledgers.append(state.budget_ledger)
+            if len(self.calls) == 1:
+                await state.assignment_board.submit(plan=plan(), leader_agent_id="leader")
+                for definition in CHECK_CATALOG.checks:
+                    if definition.check_id != "equity-encumbrance":
+                        await state.submission_board.submit_check_result(
+                            agent_id=ROLE_AGENTS[definition.owner_role],
+                            result=check_result(definition.check_id),
+                        )
+            else:
+                assert "equity-encumbrance" in str(inputs["query"])
+                assert len(state.submission_board.accepted_results) == len(CHECK_CATALOG.checks) - 1
+                if recover:
+                    definition = CHECK_CATALOG.get("equity-encumbrance")
+                    await state.submission_board.submit_check_result(
+                        agent_id=ROLE_AGENTS[definition.owner_role],
+                        result=check_result(definition.check_id),
+                    )
+                    yield TeamRuntimeEvent(event_type="submission.accepted")
+            if len(self.calls) == 1 or recover:
+                target = state.snapshot
+                await state.submission_board.submit_review(
+                    reviewer_agent_id="reviewer-agent",
+                    review=ReviewSubmission(
+                        snapshot_id=target.snapshot_id,
+                        snapshot_sha256=target.snapshot_sha256,
+                        subject_id=target.subject.subject_id,
+                        check_catalog_version=CHECK_CATALOG.catalog_version,
+                        prompt_version="investigation-core-v1+reviewer-v1",
+                        review_version=len(self.calls),
+                    ),
+                )
+            yield TeamRuntimeEvent(event_type="team.completed", member_name="leader")
+
+    runtime = MissingCheckRuntime()
+    if recover:
+        result = await _run_premature_runtime(runtime)
+        assert len(runtime.calls) == 2
+        assert len(result.check_results) == len(CHECK_CATALOG.checks)
+        assert all(check.submission_version == 1 for check in result.check_results)
+        assert result.reviews[-1].review_version == 2
+        assert [e.event_type for e in result.events].index("team.completed") > max(
+            i for i, e in enumerate(result.events) if e.event_type == "review.submitted"
+        )
+    else:
+        with pytest.raises(AgentExecutionError, match="did not finish every fixed check"):
+            await _run_premature_runtime(runtime)
+        assert len(runtime.calls) == 3
+    assert all(ledger is runtime.ledgers[0] for ledger in runtime.ledgers)
 
 
 @pytest.mark.asyncio
@@ -798,7 +861,31 @@ async def test_real_agent_teams_executes_assignment_review_and_bounded_repair(
 ) -> None:
     ScriptedAgentTeamsModelClient.seen_tools_by_member.clear()
     configure_openjiuwen_home(tmp_path / "openjiuwen")
-    budget = _ledger()
+    # Preflight reserves actual serialized prompts, not tiny scripted usage.
+    # Keep the shared low-budget fixture for the explicit exhaustion tests.
+    budget = BudgetLedger(
+        _ledger().budget.model_copy(
+            update={
+                "max_input_tokens": 300_000,
+                "max_output_tokens": 100_000,
+                "max_total_tokens": 400_000,
+            }
+        )
+    )
+    from jindiao.application.execution_steps import ExecutionStepProjector
+    from jindiao.contracts.execution_steps import ExecutionStepSnapshot
+    from jindiao.contracts.results import OrchestrationMode
+
+    projector = ExecutionStepProjector(mode=OrchestrationMode.MULTI)
+    projector.start()
+    snapshots: list[ExecutionStepSnapshot] = []
+
+    async def observe(event: TeamRuntimeEvent) -> None:
+        snapshots.extend(
+            ExecutionStepSnapshot.model_validate(e.payload["step"])
+            for e in projector.observe(event)
+        )
+
     await Runner.start()
     try:
         completed = await AgentTeamsInvestigatorTeam(prompt_bundle=load_prompt_bundle()).run(
@@ -810,6 +897,7 @@ async def test_real_agent_teams_executes_assignment_review_and_bounded_repair(
             model_api_key="test-key",
             model_base_url="https://model.invalid/v1",
             timeout_seconds=30,
+            event_sink=observe,
         )
         assert _pending_scheduler_tasks("run-multi-formal:multi-agent-teams") == []
     finally:
@@ -828,6 +916,16 @@ async def test_real_agent_teams_executes_assignment_review_and_bounded_repair(
     assert budget.snapshot().provider_usage_requests > 0
     assert len({item.agent_id for item in completed.agent_results}) == 6
     assert any(item.event_type == "team.completed" for item in completed.events)
+    accepted = [e for e in completed.events if e.event_type == "submission.accepted"]
+    assert {e.payload["check_id"] for e in accepted} == set(CHECK_CATALOG.check_ids)
+    assert len(accepted) == len(CHECK_CATALOG.check_ids) + 1  # One validated repair.
+    assert {e.member_name for e in accepted} == set(ROLE_AGENTS.values())
+    assert sum(e.event_type == "review.submitted" for e in completed.events) == 2
+    assert any(
+        s.step_id == "cross-risk-review" and "reviewer-agent" in s.executor_ids for s in snapshots
+    )
+    assert any("corporate-agent" in s.executor_ids for s in snapshots)
+    assert all(s.state == "running" for s in snapshots)  # Final report remains authoritative.
 
     expected_business_tools = {
         "leader": {"submit_check_assignments", "read_investigation_progress"},

@@ -6,12 +6,18 @@ browser and never contain prompts, raw provider responses, or arbitrary paths.
 
 from __future__ import annotations
 
+import math
+import re
+from datetime import date
+from decimal import Decimal
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import AwareDatetime, Field, JsonValue, model_validator
+from pydantic import AwareDatetime, Field, JsonValue, field_validator, model_validator
 
 from .base import ContractModel
+from .business import BusinessContext
+from .entities import EnterpriseInput
 from .errors import ErrorRecord
 from .execution import RunTermination
 from .report_policy import ReportingPolicyBinding
@@ -119,12 +125,100 @@ class BudgetView(ContractModel):
     peak_concurrency: int = Field(default=0, ge=0)
 
 
-class RunCreateRequest(DueDiligenceRequest):
-    """Request body for the versioned Run API."""
+class RunExecutionRequest(DueDiligenceRequest):
+    """Internal execution input, also preserving all historical v1 fields."""
 
     mode: OrchestrationMode = OrchestrationMode.MULTI
     execution_profile: ExecutionProfile = ExecutionProfile.ATTACHED
     session_id: str | None = Field(default=None, min_length=1, max_length=200)
+
+
+class RunCreateRequest(ContractModel):
+    """Flat prototype form for v2 and AgentArts; amount is in CNY ten-thousands."""
+
+    customerName: str | None = Field(default=None, description="客户名称")
+    uscc: str | None = Field(default=None, description="统一社会信用代码")
+    product: str | None = Field(default=None, description="业务品种")
+    amount: float | None = Field(
+        default=None,
+        gt=0,
+        strict=True,
+        allow_inf_nan=False,
+        description="拟申请金额 (万元), 有限正数; 兼容十进制数字字符串",
+    )
+    term: int | None = Field(
+        default=None, gt=0, strict=True, description="期限 (月), 正整数; 兼容整数字符串"
+    )
+    manager: str | None = Field(default=None, description="主办客户经理")
+    branch: str | None = Field(default=None, description="所属支行")
+    mode: OrchestrationMode = OrchestrationMode.MULTI
+    report_as_of: date | None = None
+    execution_profile: ExecutionProfile = ExecutionProfile.ATTACHED
+    session_id: str | None = Field(default=None, min_length=1, max_length=200)
+    scenario_id: str | None = None
+
+    @field_validator("customerName", "uscc", "product", "manager", "branch", mode="before")
+    @classmethod
+    def normalize_text(cls, value: object) -> object:
+        return (value.strip() or None) if isinstance(value, str) else value
+
+    @field_validator("uscc")
+    @classmethod
+    def normalize_uscc(cls, value: str | None) -> str | None:
+        return value.upper() if value else None
+
+    @field_validator("amount", mode="before", json_schema_input_type=float | str | None)
+    @classmethod
+    def normalize_amount_text(cls, value: object) -> object:
+        if isinstance(value, str):
+            text = value.strip()
+            if re.fullmatch(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?", text):
+                parsed = float(text)
+                # Keep overflow text intact so HTTP validation errors remain JSON-safe.
+                if math.isfinite(parsed):
+                    return parsed
+        return value
+
+    @field_validator("term", mode="before", json_schema_input_type=int | str | None)
+    @classmethod
+    def normalize_term_text(cls, value: object) -> object:
+        if isinstance(value, str) and re.fullmatch(r"[+-]?[0-9]+", value.strip()):
+            return int(value.strip())
+        return value
+
+    @field_validator("amount")
+    @classmethod
+    def require_convertible_amount(cls, value: float | None) -> float | None:
+        if value is not None and not math.isfinite(value * 10000):
+            raise ValueError("amount exceeds the supported CNY range")
+        return value
+
+    @model_validator(mode="after")
+    def require_identifier(self) -> RunCreateRequest:
+        if self.customerName is None and self.uscc is None:
+            raise ValueError("customerName or uscc is required")
+        return self
+
+    def to_execution_request(self) -> RunExecutionRequest:
+        """Translate once at the boundary; existing report amounts remain CNY yuan."""
+        amount_yuan = float(Decimal(str(self.amount)) * 10000) if self.amount is not None else None
+        return RunExecutionRequest(
+            enterprise=EnterpriseInput(
+                company_name=self.customerName, unified_social_credit_code=self.uscc
+            ),
+            business_context=BusinessContext(
+                business_product=self.product,
+                application_amount=amount_yuan,
+                application_term_months=self.term,
+                customer_manager=self.manager,
+                reporting_org=self.branch,
+            ),
+            mode=self.mode,
+            report_as_of=self.report_as_of,
+            execution_profile=self.execution_profile,
+            session_id=self.session_id,
+            scenario_id=self.scenario_id,
+        )
 
 
 class RunResource(ContractModel):

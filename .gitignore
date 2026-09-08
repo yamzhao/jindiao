@@ -14,6 +14,9 @@ htmlcov/
 .env
 .env.*
 !.env.example
+.ecs.*.toml
+.ecs.*.json
+deploy/ecs/config.json
 
 # Build
 build/
@@ -34,3 +37,6 @@ benchmarks/results/*
 
 # Generated reports
 reports/
+
+openspec/
+docs/superpowers/

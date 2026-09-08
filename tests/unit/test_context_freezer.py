@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from jindiao.acquisition import ContextFreezer
+from jindiao.acquisition.catalog import ACQUISITION_CATALOG
 from jindiao.agents import (
     DeepSearchSupplementOutcome,
     EnterpriseContextAcquisitionResult,
@@ -25,7 +26,6 @@ from jindiao.contracts.results import (
     AgentResultPhase,
     AgentStatus,
 )
-from jindiao.reporting.catalog import REPORT_CATALOG
 
 NOW = datetime(2026, 9, 5, 14, 0, tzinfo=UTC)
 REPORT_AS_OF = date(2026, 8, 31)
@@ -88,7 +88,7 @@ def web_evidence(*, evidence_id: str = "ev-web-annual") -> Evidence:
 def acquisition() -> EnterpriseContextAcquisitionResult:
     evidence = tyc_evidence()
     submodules = []
-    for submodule_id in REPORT_CATALOG.submodule_ids:
+    for submodule_id in ACQUISITION_CATALOG.default_plan_ids:
         if submodule_id == "registration":
             submodules.append(
                 SubmoduleContext(
@@ -122,7 +122,7 @@ def acquisition() -> EnterpriseContextAcquisitionResult:
         role="enterprise-context",
         phase=AgentResultPhase.ACQUISITION,
         status=AgentStatus.COMPLETED,
-        task_ids=tuple(f"acquire:{item}" for item in REPORT_CATALOG.submodule_ids),
+        task_ids=tuple(f"acquire:{item}" for item in ACQUISITION_CATALOG.default_plan_ids),
         fact_evidence_refs=(
             FactEvidenceRef(
                 evidence_id=evidence.evidence_id,
@@ -135,7 +135,8 @@ def acquisition() -> EnterpriseContextAcquisitionResult:
     return EnterpriseContextAcquisitionResult(
         subject=subject(),
         report_as_of=REPORT_AS_OF,
-        report_catalog_version=REPORT_CATALOG.catalog_version,
+        acquisition_catalog_version=ACQUISITION_CATALOG.catalog_version,
+        planned_submodule_ids=ACQUISITION_CATALOG.default_plan_ids,
         source_manifest_version="d" * 64,
         capability_names=("get_company_registration_info",),
         submodules=tuple(submodules),
@@ -216,7 +217,7 @@ def test_freezer_preserves_primary_empty_and_nests_annual_supplement_as_partial(
         "coverage_completeness": "complete",
         "submodule_coverage": "partial",
     }
-    assert len(snapshot.submodules) == 48
+    assert len(snapshot.submodules) == len(ACQUISITION_CATALOG.default_plan_ids)
     assert "annual_report_social_security" not in {
         item.submodule_id for item in snapshot.submodules
     }
