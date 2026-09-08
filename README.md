@@ -40,8 +40,7 @@ flowchart LR
     S --> G["Evidence 门禁与确定性裁决"]
     M --> G
 
-    G --> R["固定报告生成与校验"]
-    R --> OUT["申报方案 + §1–§7 + 风险卡片 + Markdown"]
+    G --> OUT["agent_results + 8/48 Result + Markdown"]
 ```
 
 所有组件运行在一个 Python 进程和一台机器上；不需要数据库、Redis、消息队列或独立向量服务。详细设计见 [产品设计](docs/product-design.md) 和 [技术栈](docs/technical-stack.md)。
