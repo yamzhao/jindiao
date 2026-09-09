@@ -1,4 +1,5 @@
 """Combine normalized source facts, caller input and deterministic metrics."""
+# ruff: noqa: RUF001 -- user-facing Chinese demo disclosure
 
 from __future__ import annotations
 
@@ -392,7 +393,16 @@ class ProductReportAssembler:
             "stop": "已审核风险达到暂不推进条件",
         }[suggestion]
         summary = ProductSummary.model_validate(
-            {"risk_count": len(risks), "ai_suggestion": suggestion, "ai_suggestion_reason": reason}
+            {
+                "risk_count": len(risks),
+                "ai_suggestion": suggestion,
+                "ai_suggestion_reason": reason
+                + (
+                    "；" + reviewed.demo_partial_disclosure
+                    if reviewed.demo_partial_disclosure
+                    else ""
+                ),
+            }
         )
         by_id = {item.id: item for item in facts.evidence}
         refs = _referenced(report.model_dump(mode="json")) | _referenced(

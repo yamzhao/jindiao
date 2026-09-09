@@ -37,7 +37,7 @@ ecs-20260908-manual-01/
 └── package.json           发布号、包内文件 SHA-256
 ```
 
-源码包含当前工作区未提交/未跟踪的业务修改，按运行时白名单排除 dotenv、日志、历史 artifacts、私钥等。打包不构建镜像、不发起网络请求、不使用账号或密码；打包后继续修改源码，需要另生成新包。它是**源码部署包，不是预构建镜像**，ECS 构建时仍需要网络和足够磁盘。
+源码包含当前工作区未提交/未跟踪的业务修改，按运行时白名单排除 dotenv、日志、历史 artifacts、私钥等。打包不构建镜像、不发起网络请求、不使用账号或密码；打包后继续修改源码，需要另生成新包。它是源码部署包；ECS 构建应用层时复用预先加载的 `jindiao:deps-amd64`，不再下载 Python 依赖。
 
 ## 2. 手动上传和校验
 
@@ -49,6 +49,15 @@ ssh root@1.95.121.114
 ```
 
 使用正常 SSH/SCP 的密码提示或已有密钥。密码只在提示处输入，**不要作为命令参数追加，不写进部署脚本、配置或仓库**。保留主机指纹验证，首次连接先核对指纹。
+
+首次部署或依赖镜像尚未存在时，另行上传并加载 `jindiao-deps-amd64.tar`：
+
+```bash
+sha256sum -c jindiao-deps-amd64.tar.sha256
+/opt/jindiao/tools/docker/docker --host unix:///run/jindiao-docker.sock load -i jindiao-deps-amd64.tar
+```
+
+加载后保留镜像 `jindiao:deps-amd64`；后续发布只需上传源码包。
 
 登录 ECS 后：
 
@@ -75,7 +84,15 @@ cp -n config.example.json config.json
 | `runtime_env` | 服务器现有业务配置文件路径，**不是密码内容** |
 | `port` / `preflight_port` | 正式/隔离预检端口，必须不同，均仅绑定回环 |
 
-样例 `runtime_env` 指向晚间部署记录中的 `/opt/jindiao/runtime/ecs-20260907-230420.env`，执行前确认仍为目标配置，尤其不要把预算退回早期联调值。服务器脚本使用 JSON 配置，无 TOML 解析依赖，也不包含 SSH host、password 或远程 Python 字段。
+样例 `runtime_env` 固定指向 `/opt/jindiao/runtime/ecs.env`。后续发布必须沿用此配置源，不得改回旧发布目录的 `runtime.env` 或早期联调配置。该文件仅保存在 ECS，权限为 0600；保留现有其他配置，并必须包含：
+
+```dotenv
+MODEL_NAME=deepseek-v4-flash-0731
+JINDIAO_REPORTING_PUBLIC_ENABLED=true
+JINDIAO_REPORTING_PUBLIC_ORIGIN=http://1.95.121.114
+```
+
+发布控制器在准备源码、构建和停服前检查以上三个值；缺失、重复或不符会拒绝发布，避免再次关闭公网反馈或回退模型。修改 env 后必须重建容器，仅 restart 不会更新容器环境。验收需同时检查容器生效配置和同源公网报告接口，不能仅检查 `/ping`。服务器脚本使用 JSON 配置，无 TOML 解析依赖，也不包含 SSH host、password 或远程 Python 字段。
 
 服务器前提：
 
@@ -83,7 +100,7 @@ cp -n config.example.json config.json
 - 包目录必须是 `<remote_root>/releases/<发布号>`；已有部署目录、healthy 主容器和原数据卷。此脚本不新建 ECS、不安装 Docker、不修改防火墙、不配置公网入口。
 - 当前只支持 host network、单 worker、`attached + local`，`/app/artifacts` 为一个可写 named volume。候选须为 AMD64、非 root，UID/GID 与旧容器一致。不兼容的挂载/执行模式需人工迁移。
 - `runtime_env` 是部署账户所有的普通文件，非符号链接，权限 0600；密钥仅在服务器发布目录内形成另一份 0600 配置快照，不进入下载包或回执。
-- Docker 能拉取基础镜像并访问 GitCode/Python 依赖源；磁盘要容纳新镜像、新完整数据卷及保留的旧版本。
+- Docker 中必须预先加载 `jindiao:deps-amd64`（架构为 `linux/amd64`）；磁盘要容纳新镜像、新完整数据卷及保留的旧版本。
 - **在整个发布窗口停止客户端新请求，并等待已有 Run 结束。** 应用没有原子化停止受理/排空接口，空闲检查不能替代流量隔离；`--maintenance-confirmed` 是操作者对这一前提的确认。
 
 已只读确认现有服务器密码登录可用、Docker 24.0.9/x86_64、宿主机 Python 3.6.8、容器内 Python 3.11.16，原服务健康。控制器还在真实 Python 3.6.8 中以内存方式通过导入、CLI 帮助与只读 Docker 查询；这不代表新包的构建/迁移/切换已验收。

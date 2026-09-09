@@ -59,7 +59,7 @@ class OpenJiuwenReportModel:
         )
 
     async def generate(self, *, prompt: str, schema: dict[str, object]) -> str:
-        if not self._prior_usage_complete:
+        if not self._prior_usage_complete and self._budget.enforce_token_budget:
             raise AgentExecutionError("prior provider usage is incomplete; refusing report request")
         if self._ledger is None:
             raise AgentExecutionError("reporting Run budget exhausted")

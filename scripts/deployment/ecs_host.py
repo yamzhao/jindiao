@@ -469,6 +469,29 @@ def publish(config: Dict[str, Any], directory: Path, engine: Engine) -> Dict[str
         raise
 
 
+def validate_public_reporting_env(path: Path) -> None:
+    """Protect this ECS ingress contract from stale release env snapshots."""
+    required = {
+        "MODEL_NAME": "deepseek-v4-flash-0731",
+        "JINDIAO_REPORTING_PUBLIC_ENABLED": "true",
+        "JINDIAO_REPORTING_PUBLIC_ORIGIN": "http://1.95.121.114",
+    }
+    found = {}  # type: Dict[str, str]
+    for line in path.read_text().splitlines():
+        key, separator, value = line.partition("=")
+        key = key.strip()
+        if separator and key in required:
+            if key in found:
+                raise ValueError("ECS public reporting config contains duplicate " + key)
+            found[key] = value
+    if found != required:
+        raise ValueError(
+            "ECS public reporting requires JINDIAO_REPORTING_PUBLIC_ENABLED=true and "
+            "JINDIAO_REPORTING_PUBLIC_ORIGIN=http://1.95.121.114 and "
+            "MODEL_NAME=deepseek-v4-flash-0731 in runtime_env"
+        )
+
+
 def deploy(config: Dict[str, Any], directory: Path) -> Dict[str, Any]:
     root = Path(config["remote_root"])
     if directory != root / "releases" / config["release"]:
@@ -483,6 +506,7 @@ def deploy(config: Dict[str, Any], directory: Path) -> Dict[str, Any]:
             raise ValueError("Server runtime env must be a regular, non-symlink 0600 file")
         if metadata.st_uid != os.geteuid():
             raise ValueError("Server runtime env must be owned by the deploying user")
+        validate_public_reporting_env(runtime)
         unpack(directory / "source.tar.gz", directory / "source", config["archive_sha256"])
         # Snapshot credentials ONLY on the server; never included in source or returned receipt.
         descriptor = os.open(directory / "runtime.env", os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)

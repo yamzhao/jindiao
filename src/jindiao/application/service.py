@@ -454,7 +454,13 @@ class DueDiligenceService:
             metrics.start_phase("reporting")
             from jindiao.orchestration.base import emit_runtime_event
 
-            await emit_runtime_event(event_sink, "review.started", payload={})
+            await emit_runtime_event(
+                event_sink,
+                "review.skipped" if outcome.demo_partial_disclosure else "review.started",
+                payload={"reason": outcome.demo_partial_disclosure}
+                if outcome.demo_partial_disclosure
+                else {},
+            )
             reviewed = self._result_assembler.prepare(
                 context=context,
                 outcome=outcome,
@@ -725,6 +731,7 @@ class DueDiligenceService:
             multi_investigator=AgentTeamsInvestigatorTeam(
                 prompt_bundle=prompts,
                 runtime=cast(OpenJiuwenTeamRuntime, self._team_runtime),
+                demo_partial_enabled=self._settings.multi_demo_partial_enabled,
             ),
             agent_runtime=OpenJiuwenAgentExecutionRuntime(clock=self._clock),
             gateway=gateway,

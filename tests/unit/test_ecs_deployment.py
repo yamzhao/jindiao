@@ -21,6 +21,51 @@ def host_module() -> ModuleType:
     return importlib.import_module("deployment.ecs_host")
 
 
+@pytest.mark.parametrize("content", [
+    "",
+    "JINDIAO_REPORTING_PUBLIC_ENABLED=false\nJINDIAO_REPORTING_PUBLIC_ORIGIN=http://1.95.121.114\n",
+    "JINDIAO_REPORTING_PUBLIC_ENABLED=true\nJINDIAO_REPORTING_PUBLIC_ORIGIN=http://localhost\n",
+    "JINDIAO_REPORTING_PUBLIC_ENABLED=true\nJINDIAO_REPORTING_PUBLIC_ORIGIN=http://1.95.121.114\nJINDIAO_REPORTING_PUBLIC_ENABLED=false\n",
+])
+def test_ecs_rejects_regressed_public_reporting_config(tmp_path: Path, content: str) -> None:
+    env = tmp_path / "runtime.env"
+    env.write_text(content)
+    with pytest.raises(ValueError, match="ECS public reporting"):
+        host_module().validate_public_reporting_env(env)
+
+
+def test_ecs_accepts_preserved_public_reporting_config(tmp_path: Path) -> None:
+    env = tmp_path / "runtime.env"
+    env.write_text("SECRET=not-printed\nMODEL_NAME=deepseek-v4-flash-0731\nJINDIAO_REPORTING_PUBLIC_ENABLED=true\n"
+                   "JINDIAO_REPORTING_PUBLIC_ORIGIN=http://1.95.121.114\n")
+    host_module().validate_public_reporting_env(env)
+
+
+def test_ecs_rejects_model_regression(tmp_path: Path) -> None:
+    env = tmp_path / "runtime.env"
+    env.write_text("MODEL_NAME=qwen-plus\nJINDIAO_REPORTING_PUBLIC_ENABLED=true\n"
+                   "JINDIAO_REPORTING_PUBLIC_ORIGIN=http://1.95.121.114\n")
+    with pytest.raises(ValueError, match="MODEL_NAME"):
+        host_module().validate_public_reporting_env(env)
+
+
+def test_ecs_example_uses_stable_runtime_config() -> None:
+    config = json.loads((ROOT / "deploy/ecs/config.example.json").read_text())
+    assert config["runtime_env"] == "/opt/jindiao/runtime/ecs.env"
+
+
+def test_ecs_bad_public_config_blocks_before_release_preparation(tmp_path: Path) -> None:
+    directory = tmp_path / "releases" / "ecs-test"
+    directory.mkdir(parents=True)
+    env = tmp_path / "runtime.env"
+    env.write_text("JINDIAO_REPORTING_PUBLIC_ENABLED=false\n")
+    env.chmod(0o600)
+    with pytest.raises(ValueError, match="ECS public reporting"):
+        host_module().deploy({"remote_root": str(tmp_path), "release": "ecs-test",
+                              "runtime_env": str(env)}, directory)
+    assert list(directory.iterdir()) == []
+
+
 def run_tree(root: Path, status: str = "completed") -> None:
     run = root / "run-state/runs/run-001"
     run.mkdir(parents=True)

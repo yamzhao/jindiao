@@ -342,11 +342,14 @@ class SubmissionBlackboard:
         *,
         agent_id: str,
         prompt_version: str,
+        evidence_aliases: dict[str, str] | None = None,
     ) -> Any:
         """Build a decision-only tool with immutable identity injected server-side."""
 
         if not prompt_version.strip():
             raise ValueError("bound check submission tool requires a prompt version")
+        aliases = dict(evidence_aliases or {})
+        identities = {alias: identity for identity, alias in aliases.items()}
 
         @tool(  # type: ignore[untyped-decorator]
             card=ToolCard(
@@ -368,6 +371,32 @@ class SubmissionBlackboard:
                 await self._budget_ledger.claim_tool_call("submit_check_result")
             try:
                 draft = BoundCheckResultDraft.model_validate(result)
+                if identities:
+                    draft = draft.model_copy(
+                        update={
+                            "fact_evidence_refs": tuple(
+                                ref.model_copy(
+                                    update={
+                                        "evidence_id": identities.get(
+                                            ref.evidence_id, ref.evidence_id
+                                        )
+                                    }
+                                )
+                                for ref in draft.fact_evidence_refs
+                            ),
+                            "risk_items": tuple(
+                                risk.model_copy(
+                                    update={
+                                        "evidence_ids": tuple(
+                                            identities.get(ref, ref) for ref in risk.evidence_ids
+                                        )
+                                    }
+                                )
+                                for risk in draft.risk_items
+                            ),
+                            "conflicts": tuple(identities.get(ref, ref) for ref in draft.conflicts),
+                        }
+                    )
                 parsed = self._bind_check_result(
                     agent_id=agent_id,
                     prompt_version=prompt_version,

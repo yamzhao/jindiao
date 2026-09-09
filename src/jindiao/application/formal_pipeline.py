@@ -427,7 +427,10 @@ class FormalDueDiligencePipeline:
         async def invoke_accounted(method: Any, **kwargs: Any) -> Any:
             try:
                 reply = await method(**kwargs)
-                if not ledger.error_details()["provider_usage_complete"]:
+                if (
+                    not ledger.error_details()["provider_usage_complete"]
+                    and ledger.budget.enforce_token_budget
+                ):
                     raise AgentExecutionError(
                         "Investigation usage is incomplete; refusing another budget allocation"
                     )
@@ -456,6 +459,7 @@ class FormalDueDiligencePipeline:
         review_issues: tuple[ReviewIssue, ...]
         repairs_requested: int
         repairs_completed: int
+        demo_partial_disclosure = None
         if mode is OrchestrationMode.SINGLE:
             single_kwargs = self._optional_event_sink(self._single.run, publish_context_event)
             single_kwargs.update(
@@ -499,12 +503,15 @@ class FormalDueDiligencePipeline:
                 **multi_kwargs,
             )
             investigation_agent_results = multi_run.agent_results
+            if multi_run.termination.reason.value == "partial":
+                demo_partial_disclosure = multi_run.termination.detail
             investigation_cost = multi_run.investigation_cost
             review_issues = tuple(issue for review in multi_run.reviews for issue in review.issues)
             repairs_requested = sum([len(review.repair_tasks) for review in multi_run.reviews])
             repairs_completed = max(
                 0,
-                repairs_requested - len(multi_run.reviews[-1].repair_tasks),
+                repairs_requested
+                - (len(multi_run.reviews[-1].repair_tasks) if multi_run.reviews else 0),
             )
         # Agent runtimes stream directly into ``publish``.  The tuple remains in
         # the return value for deterministic replay/benchmark compatibility.
@@ -515,7 +522,8 @@ class FormalDueDiligencePipeline:
             evidence=snapshot.evidence,
             coverage=self._coverage(snapshot),
             review_issues=review_issues,
-            review_completed=True,
+            review_completed=demo_partial_disclosure is None,
+            demo_partial_disclosure=demo_partial_disclosure,
             section_data={},
             agent_trace=self._agent_traces(investigation_agent_results),
             collaboration=CollaborationSummary(

@@ -560,6 +560,7 @@ class OrchestrationOutcome(ContractModel):
     coverage: CoverageSummary
     review_issues: tuple[ReviewIssue, ...]
     review_completed: bool
+    demo_partial_disclosure: str | None = None
     section_data: dict[str, dict[str, JsonValue]]
     agent_trace: tuple[AgentTrace, ...]
     collaboration: CollaborationSummary

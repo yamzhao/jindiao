@@ -1,4 +1,5 @@
 """Formal multi-investigator execution through openJiuwen AgentTeams."""
+# ruff: noqa: RUF001 -- user-facing Chinese demo disclosure
 
 from __future__ import annotations
 
@@ -60,9 +61,13 @@ class AgentTeamsInvestigatorTeam:
         *,
         prompt_bundle: PromptBundle,
         runtime: OpenJiuwenTeamRuntime | None = None,
+        demo_partial_enabled: bool = False,
+        demo_investigation_seconds: float = 180,
     ) -> None:
         self._prompt_bundle = prompt_bundle
         self._runtime = runtime or OpenJiuwenTeamRuntime()
+        self._demo_partial_enabled = demo_partial_enabled
+        self._demo_investigation_seconds = demo_investigation_seconds
 
     async def run(
         self,
@@ -120,6 +125,11 @@ class AgentTeamsInvestigatorTeam:
         submitted_versions: set[tuple[str, int]] = set()
         review_versions: set[int] = set()
         minimum_review_version = 1
+        investigation_timeout = (
+            min(self._demo_investigation_seconds, timeout_seconds / 2)
+            if self._demo_partial_enabled
+            else timeout_seconds
+        )
 
         async def publish_business_milestones() -> None:
             # Native team chunks are provider-specific. Use committed business
@@ -183,7 +193,7 @@ class AgentTeamsInvestigatorTeam:
                     await event_sink(milestone)
 
         try:
-            async with asyncio.timeout(timeout_seconds):
+            async with asyncio.timeout(investigation_timeout):
                 # Native task-board completion is not a committed business review.
                 # Recover missing submissions and the review/repair tail without
                 # resetting evidence, ledger, deadline, assignments or submissions.
@@ -247,6 +257,21 @@ class AgentTeamsInvestigatorTeam:
                             if event_sink is not None:
                                 await event_sink(event)
                             await publish_business_milestones()
+                            enabled_check_ids = {
+                                item.check_id for item in CHECK_CATALOG.checks if item.enabled
+                            }
+                            if (
+                                self._demo_partial_enabled
+                                and state.assignment_board.plan is not None
+                                and {
+                                    item.check_id
+                                    for item in state.submission_board.accepted_results
+                                }
+                                == enabled_check_ids
+                                and state.submission_board.latest_review is None
+                            ):
+                                # A skipped review is not a successful empty review.
+                                break
                             if self._business_complete(state, minimum_review_version):
                                 completed_event = TeamRuntimeEvent(
                                     event_type="team.completed",
@@ -277,8 +302,10 @@ class AgentTeamsInvestigatorTeam:
                         if close is not None:
                             await close()
                     self._check_budget(state)
-                    if self._business_complete(state, minimum_review_version) or (
-                        state.assignment_board.plan is None
+                    if (
+                        self._business_complete(state, minimum_review_version)
+                        or (state.assignment_board.plan is None)
+                        or self._demo_partial_enabled
                     ):
                         break
                     if {item.check_id for item in state.submission_board.accepted_results} != set(
@@ -291,26 +318,8 @@ class AgentTeamsInvestigatorTeam:
         except TimeoutError as error:
             accepted = state.submission_board.accepted_results
             enabled_check_ids = {item.check_id for item in CHECK_CATALOG.checks if item.enabled}
-            if (
-                not budget_ledger.budget.enforce_token_budget
-                and state.assignment_board.plan is not None
-                and {item.check_id for item in accepted} == enabled_check_ids
-                and state.submission_board.latest_review is None
-            ):
-                # Demo fast-path: all specialist decisions are committed, but
-                # the optional Reviewer turn exceeded the wall clock. Persist
-                # an explicit empty review so report generation can proceed.
-                await state.submission_board.submit_review(
-                    reviewer_agent_id=self.reviewer_agent_id,
-                    review=ReviewSubmission(
-                        snapshot_id=state.snapshot.snapshot_id,
-                        snapshot_sha256=state.snapshot.snapshot_sha256,
-                        subject_id=state.snapshot.subject.subject_id,
-                        check_catalog_version=state.check_catalog.catalog_version,
-                        prompt_version=self._prompt_bundle.investigation("reviewer").prompt_version,
-                        review_version=1,
-                    ),
-                )
+            if self._demo_partial_enabled and state.assignment_board.plan is not None:
+                check_cancellation(cancellation_token)
             else:
                 raise AgentExecutionError(
                     "AgentTeams investigation deadline exceeded",
@@ -338,21 +347,32 @@ class AgentTeamsInvestigatorTeam:
         check_results = state.submission_board.accepted_results
         submitted = {item.check_id for item in check_results}
         missing = set(CHECK_CATALOG.check_ids) - submitted
-        if missing:
+        if missing and not self._demo_partial_enabled:
             raise AgentExecutionError(
                 "AgentTeams specialists did not finish every fixed check",
                 details={"missing_check_ids": sorted(missing)},
             )
         reviews = state.submission_board.reviews
-        if not reviews or reviews[-1].review_version < minimum_review_version:
+        partial = bool(missing) or not self._business_complete(state, minimum_review_version)
+        if not self._demo_partial_enabled and (
+            not reviews or reviews[-1].review_version < minimum_review_version
+        ):
             raise AgentExecutionError("AgentTeams Reviewer did not submit a review")
-        if reviews[-1].repair_tasks:
+        if reviews and reviews[-1].repair_tasks and not self._demo_partial_enabled:
             raise AgentExecutionError("AgentTeams review ended with unresolved repair tasks")
         agent_results = self._agent_results(
             assignments=assignments,
             checks=check_results,
             reviews=reviews,
         )
+        if partial:
+            agent_results = tuple(
+                item.model_copy(update={"status": AgentStatus.CANCELLED})
+                if item.role == "reviewer"
+                or any(task.removeprefix("check:") in missing for task in item.task_ids)
+                else item
+                for item in agent_results
+            )
         return AgentTeamsInvestigatorRun(
             assignments=assignments,
             check_results=check_results,
@@ -361,8 +381,15 @@ class AgentTeamsInvestigatorTeam:
             events=tuple(events),
             investigation_cost=budget_ledger.to_execution_cost(),
             termination=RunTermination(
-                reason=RunTerminationReason.COMPLETED,
-                completed_task_ids=tuple(item.task_id for item in assignments.assignments),
+                reason=RunTerminationReason.PARTIAL if partial else RunTerminationReason.COMPLETED,
+                completed_task_ids=tuple(item.task_id for item in check_results),
+                incomplete_task_ids=tuple(f"check:{identity}" for identity in sorted(missing)),
+                detail=(
+                    "演示降级：调查提前收尾；审核未完成，需人工复核。未完成核查："
+                    + (", ".join(sorted(missing)) or "无")
+                    if partial
+                    else None
+                ),
             ),
         )
 

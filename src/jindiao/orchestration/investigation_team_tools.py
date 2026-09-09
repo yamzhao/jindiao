@@ -150,6 +150,7 @@ class InvestigationTeamState:
         )
 
     def tools_for(self, member_name: str) -> list[Any]:
+        evidence_aliases = self._evidence_aliases()
         if member_name == self.assignment_board.leader_agent_id:
             return [
                 self.assignment_board.build_submit_canonical_assignments_tool(
@@ -159,12 +160,15 @@ class InvestigationTeamState:
                 self._build_read_progress_tool(member_name),
             ]
         if member_name in self.snapshot_readers:
-            assigned_context_tool = self.snapshot_readers[member_name].build_tools()[0]
+            assigned_context_tool = self.snapshot_readers[member_name].build_tools(
+                evidence_aliases=evidence_aliases
+            )[0]
             return [
                 assigned_context_tool,
                 self.submission_board.build_submit_bound_check_result_tool(
                     agent_id=member_name,
                     prompt_version=self.prompt_versions_by_member[member_name],
+                    evidence_aliases=evidence_aliases,
                 ),
             ]
         if member_name == self.reviewer_agent_id:
@@ -178,6 +182,18 @@ class InvestigationTeamState:
         raise ValueError(
             f"member {member_name!r} is not authorized for investigation runtime tools"
         )
+
+    def _evidence_aliases(self) -> dict[str, str]:
+        """Expose compact citation IDs consistently to every specialist tool."""
+
+        evidence_ids = {item.evidence_id for item in self.snapshot.evidence}
+        prefix = "e"
+        while any(f"{prefix}{index}" in evidence_ids for index in range(len(evidence_ids))):
+            prefix = "_" + prefix
+        return {
+            item.evidence_id: f"{prefix}{index}"
+            for index, item in enumerate(self.snapshot.evidence)
+        }
 
     def _build_read_progress_tool(self, member_name: str) -> Any:
         @tool(  # type: ignore[untyped-decorator]

@@ -18,3 +18,4 @@ class ReviewedReportInputs(ContractModel):
     checks: tuple[CheckResult, ...] = ()
     coverage: CoverageSummary
     incomplete: bool
+    demo_partial_disclosure: str | None = None

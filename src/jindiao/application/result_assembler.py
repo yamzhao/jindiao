@@ -64,13 +64,14 @@ class ResultAssembler:
         agent_results: tuple[AgentInvestigationResult, ...] = (),
     ) -> ReviewedReportInputs:
         """Validate and score internal facts without constructing a legacy result."""
-        if not outcome.review_completed:
+        if not outcome.review_completed and not outcome.demo_partial_disclosure:
             raise ValueError("results cannot be assembled before review completes")
         checks = (
             validate_accepted_investigation_results(
                 snapshot=snapshot,
                 check_catalog=CHECK_CATALOG,
                 agent_results=agent_results,
+                allow_partial=bool(outcome.demo_partial_disclosure),
             )
             if snapshot is not None
             else ()
@@ -101,7 +102,9 @@ class ResultAssembler:
             evidence=evidence,
             checks=checks,
             coverage=outcome.coverage,
+            demo_partial_disclosure=outcome.demo_partial_disclosure,
             incomplete=bool(outcome.errors)
+            or bool(outcome.demo_partial_disclosure)
             or any(
                 item.status in {SourceStatus.CAPABILITY_ABSENT, SourceStatus.SOURCE_ERROR}
                 for item in outcome.coverage.items

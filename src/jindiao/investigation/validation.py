@@ -245,6 +245,7 @@ def validate_accepted_investigation_results(
     snapshot: EnterpriseContextSnapshot,
     check_catalog: DueDiligenceCheckCatalog,
     agent_results: tuple[AgentInvestigationResult, ...],
+    allow_partial: bool = False,
 ) -> tuple[CheckResult, ...]:
     """Return catalog-ordered checks only after the final common hard gate."""
 
@@ -256,7 +257,7 @@ def validate_accepted_investigation_results(
     for agent_result in agent_results:
         if agent_result.phase is not AgentResultPhase.INVESTIGATION:
             continue
-        if agent_result.status is not AgentStatus.COMPLETED:
+        if agent_result.status is not AgentStatus.COMPLETED and not allow_partial:
             raise ValueError(
                 f"investigation agent is not terminal-completed: {agent_result.agent_id}"
             )
@@ -294,11 +295,11 @@ def validate_accepted_investigation_results(
     enabled = tuple(item.check_id for item in check_catalog.checks if item.enabled)
     missing = set(enabled) - set(by_check)
     extra = set(by_check) - set(enabled)
-    if missing:
+    if missing and not allow_partial:
         raise ValueError(f"missing terminal checks: {sorted(missing)}")
     if extra:
         raise ValueError(f"disabled checks cannot be adjudicated: {sorted(extra)}")
-    return tuple(by_check[check_id] for check_id in enabled)
+    return tuple(by_check[check_id] for check_id in enabled if check_id in by_check)
 
 
 __all__ = [

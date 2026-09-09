@@ -14,3 +14,6 @@ services:
       JINDIAO_STORAGE_BACKEND: local
       JINDIAO_DETACHED_PROBE_PASSED: "false"
       JINDIAO_REPORTING_DEMO_ENABLED: "true"
+      # Local demo only: stop multi investigation after 180s, disclose missing
+      # checks/review and reserve remaining wall time for a partial report.
+      JINDIAO_MULTI_DEMO_PARTIAL_ENABLED: "true"

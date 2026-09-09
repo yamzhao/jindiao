@@ -222,7 +222,7 @@ def build_due_diligence_team_spec(
         model_router = None
     agents = {
         "leader": _agent_template(
-            "jindiao-leader-template",
+            f"{team_name}-leader-template",
             "Due diligence leader",
             tools=runtime_tools,
         ),

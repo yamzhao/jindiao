@@ -129,6 +129,12 @@ class Settings(BaseSettings):
         ge=1,
         validation_alias=AliasChoices("max_concurrency", "JINDIAO_MAX_CONCURRENCY"),
     )
+    multi_demo_partial_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "multi_demo_partial_enabled", "JINDIAO_MULTI_DEMO_PARTIAL_ENABLED"
+        ),
+    )
     request_timeout_seconds: int = Field(
         default=300,
         ge=1,

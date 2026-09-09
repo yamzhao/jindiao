@@ -30,6 +30,76 @@ from jindiao.prompts import load_prompt_bundle
 SCRIPTED_PROVIDER = "jindiao_agent_teams_scripted"
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("demo_enabled", [False, True])
+async def test_demo_deadline_returns_only_real_submissions_without_fake_review(
+    demo_enabled,
+) -> None:
+    class StalledRuntime:
+        closed = False
+
+        async def stream(self, spec, inputs, **kwargs):
+            state = get_investigation_team_state(
+                str(spec.model_pool[0].metadata["client"]["runtime_key"])
+            )
+            await state.assignment_board.submit(plan=plan(), leader_agent_id="leader")
+            await state.submission_board.submit_check_result(
+                agent_id="corporate-agent", result=check_result("registration-status-normal")
+            )
+            try:
+                yield TeamRuntimeEvent(event_type="agent.output", member_name="leader")
+                await asyncio.Event().wait()
+            finally:
+                self.closed = True
+
+    runtime = StalledRuntime()
+    ledger = _ledger()
+    team = AgentTeamsInvestigatorTeam(
+        prompt_bundle=load_prompt_bundle(),
+        runtime=runtime,
+        demo_partial_enabled=demo_enabled,
+        demo_investigation_seconds=0.05,
+    )
+    execution = team.run(
+        snapshot=snapshot(),
+        budget_ledger=ledger,
+        run_id="run-multi-formal",
+        model_name="test",
+        model_provider=SCRIPTED_PROVIDER,
+        model_api_key="test",
+        model_base_url="https://model.invalid",
+        timeout_seconds=0.1 if not demo_enabled else 5,
+    )
+    if not demo_enabled:
+        with pytest.raises(AgentExecutionError, match="deadline exceeded"):
+            await execution
+        assert runtime.closed
+        return
+    result = await execution
+    assert runtime.closed
+    assert result.termination.reason.value == "partial"
+    assert len(result.check_results) == 1
+    assert len(result.termination.incomplete_task_ids) == 18
+    assert result.reviews == ()
+    assert result.agent_results[-1].status.value == "cancelled"
+    assert ledger.snapshot().deadline_remaining_ms > 4000
+    from jindiao.investigation.validation import validate_accepted_investigation_results
+
+    with pytest.raises(ValueError):
+        validate_accepted_investigation_results(
+            snapshot=snapshot(),
+            check_catalog=CHECK_CATALOG,
+            agent_results=result.agent_results,
+        )
+    checks = validate_accepted_investigation_results(
+        snapshot=snapshot(),
+        check_catalog=CHECK_CATALOG,
+        agent_results=result.agent_results,
+        allow_partial=True,
+    )
+    assert checks == result.check_results
+
+
 def _pending_scheduler_tasks(session_id: str) -> list[asyncio.Task[Any]]:
     pending: list[asyncio.Task[Any]] = []
     current = asyncio.current_task()
