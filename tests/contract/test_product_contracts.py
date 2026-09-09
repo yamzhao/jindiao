@@ -136,7 +136,7 @@ def test_simulated_historical_case_does_not_mark_real_facts_as_mock() -> None:
     ("filename", "business_status", "bank_status"),
     (
         ("product-result-full-input.json", "complete", "partial"),
-        ("product-result-missing-input.json", "unavailable", "partial"),
+        ("product-result-missing-input.json", "partial", "partial"),
     ),
 )
 def test_documented_product_result_samples_are_exact_contract_outputs(

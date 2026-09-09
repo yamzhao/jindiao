@@ -18,7 +18,7 @@
 | POST | `/api/v1/due-diligence/result` | v1 兼容接口，同步返回结果或 SSE | `200 OK` |
 | POST | `/invocations` | AgentArts 适配入口，等价于创建 v2 Run | `202 Accepted` |
 | GET | `/ping` | 健康检查 | `200 OK` |
-| POST | `/api/v2/due-diligence/runs/{run_id}/feedback` | 本地 Demo 提交反馈并同步评测 | `201` / 重复 `200` |
+| POST | `/api/v2/due-diligence/runs/{run_id}/feedback` | 提交反馈并同步评测（需显式启用） | `201` / 重复 `200` |
 | GET | `/api/v2/skill-evolutions/{evolution_id}` | 本地 Demo 查询真实对比 | `200 OK` |
 
 推荐新客户端使用 v2 Run 生命周期；v1 仅用于兼容已有客户端。
@@ -29,7 +29,7 @@
 
 ### 本地模型与 token 预算开关
 
-模型由服务端 `MODEL_NAME` 决定，不由创建请求体指定。本地联调现在使用 `deepseek-v4-flash`，沿用原 `MODEL_PROVIDER`、`MODEL_BASE_URL` 和密钥，未修改 ECS。
+模型由服务端 `MODEL_NAME` 决定，不由创建请求体指定。本地联调现在使用 `deepseek-v4-flash-0731`，沿用原 `MODEL_PROVIDER`、`MODEL_BASE_URL` 和密钥，未修改 ECS。
 
 默认 `JINDIAO_ENFORCE_TOKEN_BUDGET=true`：输入最多 300000、输出最多 100000、合计最多 400000 tokens；下一次请求按 UTF-8 字节及协议余量保守估算，计入已用、并发预留和未知占用后判断能否派发。实际用量超过数值限额也会停止。估算值不等于供应商实际 token 数。
 
@@ -43,8 +43,8 @@
 
 | 字段 | 类型 | 必填 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `customerName` | string/null | 与 uscc 至少一个 | `null` | 客户名称，去除首尾空格 |
-| `uscc` | string/null | 与 customerName 至少一个 | `null` | 统一社会信用代码，去除首尾空格并转大写 |
+| `customerName` | string | 是 | — | 客户名称，去除首尾空格后必须非空；仅按此名称搜索并确认公司主体 |
+| `uscc` | string/null | 否 | `null` | 兼容表单提交，去除首尾空格并转大写；不参与主体搜索、匹配或幂等哈希 |
 | `product` | string/null | 否 | `null` | 业务品种，如“流动资金贷款”，不是“新增授信”等发生类型 |
 | `amount` | number/string/null | 否 | `null` | 拟申请金额，人民币万元；有限正数，兼容十进制数字字符串（如 `"2"`、`"1.0001"`、`"2e3"`）；不接受布尔值、NaN 或 Infinity |
 | `term` | integer/string/null | 否 | `null` | 期限，月；正整数，兼容整数字符串（如 `"12"`），不接受布尔值、小数或指数形式字符串 |
@@ -56,7 +56,9 @@
 | `session_id` | string/null | 否 | `null` | 运行所属会话，也可由请求头提供；浏览器 BFF 自行管理路由会话 |
 | `scenario_id` | string/null | 否 | `null` | 仅测试/演示时指定 Mock 场景；真实天眼查请求省略 |
 
-表单中的空白业务文本归一为 `null`；金额和期限推荐使用 JSON 数值，兼容普通文本输入框产生的数字字符串，转换前去除首尾空格。金额可带小数或十进制指数；期限只能是整数字面量（`"12.0"`、`"1.5"`、`"1e2"` 均拒绝）。两者都不接受千分位逗号、单位后缀、空字符串、纯空白、布尔值或非正数；未填写时请省略或传 `null`。内部及转发值归一为数值，非法输入仍返回 `422`，不会启动尽调。
+`customerName` 缺失、为 `null` 或去除首尾空格后为空时返回 `422`，即使提供了 `uscc` 也不启动尽调。同时提交两者时，仅按 `customerName` 确认公司主体，提交的 `uscc` 与查询结果不一致不会阻止匹配；报告中的统一社会信用代码使用已确认主体的资料，不使用表单值覆盖。名称无精确匹配或无法消歧时仍返回主体解析错误。
+
+表单中的可选空白业务文本归一为 `null`；金额和期限推荐使用 JSON 数值，兼容普通文本输入框产生的数字字符串，转换前去除首尾空格。金额可带小数或十进制指数；期限只能是整数字面量（`"12.0"`、`"1.5"`、`"1e2"` 均拒绝）。两者都不接受千分位逗号、单位后缀、空字符串、纯空白、布尔值或非正数；未填写时请省略或传 `null`。内部及转发值归一为数值，非法输入仍返回 `422`，不会启动尽调。
 
 例如 `{"customerName":"华为技术有限公司","amount":"2","term":"12","mode":"single"}` 与金额 `2`、期限 `12` 的数值请求等价；金额仍为 **2 万元**，前端无需先乘以 10000。
 
@@ -64,7 +66,7 @@
 
 内部统一将 `amount × 10000` 转为人民币元，BFF 原样转发万元值，不执行换算。报告输出仍采用原字段名：`product → report.business_plan.business_product`、`manager → customer_manager`、`branch → reporting_org`、`amount → application_amount`（元）、`term → application_term_months`（月）。申报字段保留调用方输入并标记 `user_input` 来源，不由 LLM 覆盖；企业身份仍由外部资料核验。
 
-全部规范化字段参与幂等哈希：省略与显式 `null` 等价，金额 5000、5000.0 与 `"5000.0"` 等价，期限 12 与 `"12"` 等价；相同 `Idempotency-Key` 修改金额、品种、客户经理、支行等有效内容返回 `409`。创建响应、查询、SSE、取消和最终结果路径不变。
+转换后的执行字段参与幂等哈希，兼容字段 `uscc` 除外：可选字段省略与显式 `null` 等价，金额 5000、5000.0 与 `"5000.0"` 等价，期限 12 与 `"12"` 等价；相同 `Idempotency-Key` 仅修改 `uscc` 会复用原 Run，修改客户名称、金额、品种、客户经理、支行等有效内容返回 `409`。创建响应、查询、SSE、取消和最终结果路径不变。
 
 ### 2.2 v1 兼容请求体
 
@@ -394,6 +396,22 @@ schema_version, meta, subject, summary, report, risk_findings, evidence, report_
 
 除 `risk_points` 外，每个模块直接返回固定业务字段，并统一包含 `status`、`analysis`、`evidence_ids`、`missing_fields`。`missing_fields` 元素为 `{field,reason,message}`。未知数值为 `null`，未知集合为 `[]`；它们不等于 0 或“已核验无记录”。已成功核验为空的集合保持 `[]` 且不为该字段生成缺口；能力不存在、来源失败、分页截断或期间不足分别使用 `capability_absent`、`source_error`、`pagination_truncated`、`missing_period`。金额统一为人民币元，期限为月，比例使用 0–100（例如 `38` 表示 38%）。
 
+业务申报方案按以下规则展示，前端不需要增加输入字段：
+
+| 内容 | 输入/结果映射与展示规则 |
+| --- | --- |
+| 企业名称、信用代码、行业 | 使用已确认主体的查询资料；表单 `uscc` 不覆盖查询结果 |
+| 业务品种、申请金额、期限 | `product → business_product`、`amount × 10000 → application_amount`、`term → application_term_months` |
+| 客户经理、所属支行 | `manager → customer_manager`、`branch → reporting_org`；页头和模块内的上报机构统一读取 `report.business_plan.reporting_org` |
+| 其他事实 | 未提供的申请类型、资金用途、用途详细说明、上报日期、还款来源、统一授信情况、调查地点保持 `null`，前端显示 `-`；不从报告基准日推测上报日期 |
+| 建议项 | 后端生成建议额度、利率、授信期限、贷款期限、担保方式和还款方式；前端按“建议”展示 |
+
+建议采用 `small-short-v1` 规则：自动生成的额度不超过 **10,000 元（1 万元）**，同时不超过已提供的申请金额；两类期限均为 **1～3 个月**，不超过申请期限，贷款期限不超过授信期限。模型结合已有事实、审核结论和风险给出候选条件与理由，服务端校验边界和证据引用。无模型、模型生成失败或遗漏建议项时，规则补全候选条件；有风险或需人工复核时规则默认 1 个月，其余情况默认不超过 3 个月。规则默认建议核验法定代表人保证、按月等额本金还款，不代表已有担保承诺或已验证偿付能力。
+
+本期未配置具体利率表，`suggested_interest_rate` 返回“建议按本行小额短期产品标准定价，最终以审批为准”，不生成虚构利率。审核结论为拒绝、申请金额为零（v1）或模型建议暂不新增授信时，建议额度为 `0`，利率返回“暂不建议新增授信，利率与期限不适用”，两类期限为 `null`，担保和还款方式为 `[]`，原因在 `analysis` 说明。这些不适用项不再标记为缺失资料。人工复核结论不会因小额短期建议而升级为自动通过；v1 已有人工建议值仍保留。
+
+`business_plan.analysis` 给出综合理由和执行前提，`generated_fields` 列出后端自动填入的建议字段；新增 `suggestion_source` 为 `model`（AI 建议）、`rules`（规则保守建议）或 `model_with_rules`（AI 建议及规则补全），没有自动建议时可为 `null`。模型失败时仍保留 `generation_failed` 缺口标记，规则补全不伪装成模型成功。建议生成后会移除对应的 `not_provided` 缺口，其他缺失事实继续保留。已有 Run 的持久化结果不会自动重新生成。
+
 `report.risk_points.finding_ids` 与 `risk_findings[].id` 同序，`summary.risk_count` 等于卡片数量。每张卡片固定返回 `risk_fact`、真实证据标签、核查项标签和可选的一句模拟案例。模拟案例以“模拟案例：”开头并设置 `historical_case_is_mock=true`，不会进入证据或全局 `meta.is_mock`。
 
 裁剪示例：
@@ -405,7 +423,7 @@ schema_version, meta, subject, summary, report, risk_findings, evidence, report_
   "subject": {"subject_id": "tyc:example", "company_name": "示例企业有限公司", "unified_social_credit_code": "91110000EXAMPLE001"},
   "summary": {"risk_count": 1, "ai_suggestion": "manual_review", "ai_suggestion_reason": "存在已审核风险且部分关键资料不足"},
   "report": {
-    "business_plan": {"status": "partial", "application_amount": 50000000, "application_term_months": 12, "missing_fields": [{"field": "suggested_interest_rate", "reason": "not_provided", "message": "未提供定价依据"}]},
+    "business_plan": {"status": "partial", "application_amount": 50000000, "application_term_months": 12, "suggested_amount": 10000, "suggested_interest_rate": "建议按本行小额短期产品标准定价，最终以审批为准", "suggested_credit_term_months": 1, "suggested_loan_term_months": 1, "guarantee_methods": ["legal_representative"], "repayment_methods": ["equal_principal"], "suggestion_source": "rules", "generated_fields": ["suggested_amount", "suggested_interest_rate", "suggested_credit_term_months", "suggested_loan_term_months", "guarantee_methods", "repayment_methods"], "missing_fields": [{"field": "fund_use", "reason": "not_provided", "message": "未提供调用方资料"}]},
     "company_profile": {"status": "complete", "company_name": "示例企业有限公司", "missing_fields": []},
     "ownership": {"status": "partial"}, "business_analysis": {"status": "partial"},
     "financial_analysis": {"status": "partial"}, "bank_flow_analysis": {"status": "unavailable"},
@@ -549,13 +567,29 @@ curl -sS -H 'Accept: application/json' \
 
 ## 8. 用户反馈报告 Demo（已实现，默认关闭）
 
-对应 [设计](../../openspec/changes/add-user-feedback-reporting-loop/design.md)、[任务状态](../../openspec/changes/add-user-feedback-reporting-loop/tasks.md) 和 [可重复演示](../reporting-feedback-demo.md)。仅支持显式开启的本地、单进程、单操作人比赛环境。
+对应 [设计](../../openspec/changes/add-user-feedback-reporting-loop/design.md)、[任务状态](../../openspec/changes/add-user-feedback-reporting-loop/tasks.md) 和 [可重复演示](../reporting-feedback-demo.md)。支持显式开启的本地 Demo，以及经回环反向代理访问的单进程 ECS 公网联调模式。
 
 ### 8.1 启用与生效范围
 
 设置 `JINDIAO_REPORTING_DEMO_ENABLED=true`；`JINDIAO_ENV` 必须是 `development` 或 `test`，`JINDIAO_STORAGE_BACKEND` 必须是 `memory` 或 `local`。不支持的组合在 Settings 初始化时拒绝启动；关闭时两个路由均返回 503。使用 `local` 可跨进程重启读取源 Run；`memory` 的 Run 归属和结果只在当前进程保留。
 
 以 `--host 127.0.0.1 --workers 1 --no-proxy-headers` 启动。接口检查实际回环对端和 Host（localhost/127.0.0.1/::1），拒绝转发头及浏览器跨源 Origin；这些拒绝返回 403。本地检查不等于用户认证，不支持代理、公共访问或 AgentArts 云端反馈 Demo。
+
+**ECS 公网联调**使用独立开关，保留上述本地 Demo 限制：
+
+```dotenv
+JINDIAO_ENV=integration
+JINDIAO_STORAGE_BACKEND=local
+JINDIAO_REPORTING_DEMO_ENABLED=false
+JINDIAO_REPORTING_PUBLIC_ENABLED=true
+JINDIAO_REPORTING_PUBLIC_ORIGIN=http://1.95.121.114
+```
+
+两个开关默认均关闭；任一受支持模式开启才初始化反馈存储。公网模式仅允许 `integration + local`，不支持 `production`。应用仍绑定回环、单 worker、`--no-proxy-headers`；Nginx 通过 `127.0.0.1:8080` 转发并保留原始 Host，不添加 `Forwarded` / `X-Forwarded-*`。请求 Host 必须精确匹配配置的 origin authority；浏览器 Origin（若携带）必须一致，`Sec-Fetch-Site: cross-site` 拒绝。
+
+前端创建 Run、提交反馈和查询候选时必须使用同一组非空 `X-Hw-Agentgateway-User-Id`、`X-Hw-Agentarts-Session-Id`，均不超过 128 字符；不接受 `anonymous` owner。POST 另需 `Idempotency-Key`。身份头缺失返回 401，源 Run / 候选身份不匹配返回 404。旧匿名 Run 不满足该联调接口条件，需以明确身份重新创建。前端与 API 同源访问，无需 CORS 通配放行。
+
+身份头继承现有 Run 隔离约定，**不是登录鉴权**；该模式用于受控联调，不是生产多用户认证方案。反馈仅创建待审候选，不执行反馈文本、不自动应用策略；HTTP activate/rollback 仍不存在。服务器原有模型和天眼查凭据不会发给前端。
 
 唯一变更是 `gap_placement: appendix_only → section_and_appendix`：在相关章节结论后重复原附录已披露的缺口，保留附录、事实、分数、证据和 Mock 提示。文字仅为反馈背景，不进入 Prompt、Skill 指令或可执行代码；回放不调用模型或外部数据源。
 
@@ -613,6 +647,7 @@ uv run python -m jindiao.reporting.demo_cli --demo --artifact-root "$DEMO_ROOT" 
 
 | HTTP | 场景 |
 | --- | --- |
+| 401 | 公网联调模式缺少有效的 owner/session 身份头 |
 | 403 | 非回环对端/Host、代理转发头、跨源 Origin |
 | 404 | 源 Run/候选不存在，或 owner/session 不匹配 |
 | 409 | 源报告未就绪/无有效快照、基线过期、幂等冲突 |

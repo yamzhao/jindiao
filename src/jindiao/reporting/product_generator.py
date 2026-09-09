@@ -12,8 +12,8 @@ from typing import Protocol, cast
 from pydantic import Field, JsonValue, ValidationError
 
 from jindiao.contracts.base import ContractModel
-from jindiao.contracts.business import GuaranteeMethod, RepaymentMethod
 from jindiao.contracts.product import (
+    BusinessPlan,
     MissingField,
     ProductEvidence,
     ProductReport,
@@ -22,26 +22,14 @@ from jindiao.contracts.product import (
 )
 from jindiao.contracts.reporting import Decision
 from jindiao.orchestration.base import CancellationToken, check_cancellation
+from jindiao.reporting.product_suggestions import (
+    SUGGESTION_FIELDS,
+    SuggestedValues,
+    SuggestionLimits,
+    complete_suggestions,
+)
 
 SECTION_IDS = tuple(ProductReport.model_fields)[:-1]
-SUGGESTION_FIELDS = frozenset(
-    {
-        "fund_use_detail",
-        "repayment_source",
-        "unified_credit",
-        "guarantee_methods",
-        "repayment_methods",
-    }
-)
-# No pricing/limit policy is part of this change. Such values require caller input.
-POLICY_FIELDS = frozenset(
-    {
-        "suggested_amount",
-        "suggested_interest_rate",
-        "suggested_credit_term_months",
-        "suggested_loan_term_months",
-    }
-)
 
 
 class CitedAnalysis(ContractModel):
@@ -57,17 +45,6 @@ class SectionAnalyses(ContractModel):
     financial_analysis: CitedAnalysis
     bank_flow_analysis: CitedAnalysis
     external_verification: CitedAnalysis
-
-
-class SuggestedValues(ContractModel):
-    """Only writable, evidence-backed narrative suggestions belong in model output."""
-
-    fund_use_detail: str | None = None
-    repayment_source: str | None = None
-    unified_credit: str | None = None
-    guarantee_methods: tuple[GuaranteeMethod, ...] = ()
-    repayment_methods: tuple[RepaymentMethod, ...] = Field(default=(), max_length=1)
-    evidence_ids: tuple[str, ...] = ()
 
 
 class RiskNarrative(ContractModel):
@@ -210,6 +187,9 @@ def _writing_context(
     ]
     source: dict[str, object] = {
         "report": compact_report,
+        "suggestion_limits": SuggestionLimits.for_report(
+            report.business_plan, decision, risks
+        ).model_dump(mode="json"),
         "reviewed_risks": _compact_model_value(
             [item.model_dump(mode="json") for item in risks], aliases
         ),
@@ -250,18 +230,37 @@ class ReportContentGenerator:
         cancellation_token: CancellationToken | None = None,
     ) -> GeneratedContent:
         check_cancellation(cancellation_token)
+        rule_plan = complete_suggestions(
+            report.business_plan,
+            decision=decision,
+            risks=risks,
+            evidence_ids=tuple(
+                tag.evidence_id
+                for risk in risks
+                for tag in risk.evidence_tags
+                if tag.evidence_id in {item.id for item in evidence}
+            ),
+        )
+        rule_report = report.model_copy(update={"business_plan": rule_plan})
         if self._model is None:
-            # Explicit deterministic harness: keep its recorded facts and reviewed text.
-            return GeneratedContent(report=report, risks=risks)
+            return GeneratedContent(report=rule_report, risks=risks)
         source, identities = _writing_context(report, risks, evidence, decision)
         prompt = (
             "根据以下冻结事实生成中文尽调报告的简短分析和建议, 仅返回符合 Schema 的 JSON。"
             "所有事实/数值已由服务端固定, 不要补造事实或改写结构化值。"
-            "analysis 引用本章节 evidence_ids; 完全没有章节证据时 text 留空。"
+            "analysis 引用本章节 evidence_ids; business_plan 可综合引用全部已提供证据及已审核风险。"
+            "完全没有可引用证据时 text 留空。"
             "partial 章节仍需依据已提供的事实生成分析, 不补造缺失字段。"
-            "suggestions 仅可填有证据支持的用途说明、还款来源、统一授信文字及保证/还款方式; "
-            "只返回 Schema 中的建议字段; 金额、利率、期限和原始申报字段不属于模型输出, "
-            "不要返回这些字段, 也不要以 null 占位。已有人工值由服务端保留。"
+            "suggestions 应完整给出建议额度、利率、授信期限、贷款期限、担保及还款方式，"
+            "并在 reason 中结合已审核风险、现有资料及缺口解释建议及其执行前提，引用 evidence_ids。"
+            "额度单位为元，必须遵守 suggestion_limits，不超过申请金额及10000元；"
+            "两类期限为1至3个月，不超过申请期限，贷款期限不得超过授信期限。"
+            "利率仅使用 suggestion_limits.pricing_guidance 原文，不臆造利率或加点数值。"
+            "reject 或建议不新增授信时额度为0，利率使用 stop_guidance 原文，期限为null，"
+            "担保和还款方式为空数组；manual_review 先复核后再决定执行，不表述为已批准。"
+            "担保方式为待核验的角色建议，不能声称担保人已经同意或具备代偿能力。"
+            "未知的用途、还款来源、统一授信情况等事实保持为空，不属于 suggestions 输出。"
+            "已有人工值由服务端保留。"
             "risks 必须完整保留每个 id 和其证据集合, explanation 只解释原风险影响, "
             "不得增加新事实或把已解除事项说成当前未解除。缺数和普通正常事实不是风险。"
             "historical_case 可为空或一句假设案例, 必须以 模拟案例 开头, 不得声称真实检索。"
@@ -285,7 +284,9 @@ class ReportContentGenerator:
                 draft = ReportDraft.model_validate(
                     _restore_evidence_ids(draft.model_dump(mode="json"), identities)
                 )
-                return self.apply(draft, report=report, risks=risks, evidence=evidence)
+                return self.apply(
+                    draft, report=report, risks=risks, evidence=evidence, decision=decision
+                )
             except (ValidationError, ValueError) as error:
                 last_error = str(error)[:2500]
             except Exception:
@@ -293,7 +294,7 @@ class ReportContentGenerator:
                 break
         modules: dict[str, object] = {}
         for name in SECTION_IDS:
-            section: ReportModule = getattr(report, name)
+            section: ReportModule = getattr(rule_report, name)
             modules[name] = section.model_copy(
                 update={
                     "status": "partial" if section.evidence_ids else "unavailable",
@@ -320,8 +321,12 @@ class ReportContentGenerator:
         report: ProductReport,
         risks: tuple[RiskFinding, ...],
         evidence: tuple[ProductEvidence, ...],
+        decision: Decision,
     ) -> GeneratedContent:
         by_id = {item.id: item for item in evidence}
+        limits = SuggestionLimits.for_report(report.business_plan, decision, risks)
+        limits.validate_suggestions(draft.suggestions)
+        suggestion_numbers = draft.suggestions.model_dump_json(exclude={"reason", "evidence_ids"})
         modules: dict[str, object] = {}
         analysis_errors: list[str] = []
         for name in SECTION_IDS:
@@ -333,60 +338,90 @@ class ReportContentGenerator:
                 modules[name] = section
                 continue
             allowed = section.model_dump_json() + _cited_source_values(analysis.evidence_ids, by_id)
+            known = set(section.evidence_ids)
+            if name == "business_plan":
+                known = set(by_id)
+                allowed = (
+                    report.model_dump_json()
+                    + json.dumps(
+                        [item.model_dump(mode="json") for item in risks], ensure_ascii=False
+                    )
+                    + SuggestionLimits.for_report(
+                        report.business_plan, decision, risks
+                    ).model_dump_json()
+                    + suggestion_numbers
+                    + _cited_source_values(analysis.evidence_ids, by_id)
+                )
             try:
                 _validate_text(
                     analysis.text,
                     allowed=allowed,
                     refs=analysis.evidence_ids,
-                    known=set(section.evidence_ids),
+                    known=known,
                 )
             except ValueError as error:
                 analysis_errors.append(f"analyses.{name}: {error}")
                 continue
             modules[name] = section.model_copy(
-                update={"analysis": analysis.text or section.analysis}
+                update={
+                    "analysis": analysis.text or section.analysis,
+                    "evidence_ids": tuple(
+                        dict.fromkeys((*section.evidence_ids, *analysis.evidence_ids))
+                    ),
+                }
             )
         if analysis_errors:
             raise ValueError("; ".join(analysis_errors))
-        plan = report.business_plan
-        changes: dict[str, object] = {}
-        generated: list[str] = []
-        for name, value in draft.suggestions.model_dump().items():
-            if name == "evidence_ids" or value is None or value == ():
-                continue
-            if name not in SUGGESTION_FIELDS or name in POLICY_FIELDS:
-                raise ValueError("model suggested unsupported application or pricing fields")
+        suggestions = draft.suggestions
+        plan_analysis = draft.analyses.business_plan
+        if not suggestions.reason.strip() and plan_analysis.text and plan_analysis.evidence_ids:
+            suggestions = suggestions.model_copy(
+                update={
+                    "reason": plan_analysis.text,
+                    "evidence_ids": tuple(
+                        dict.fromkeys((*suggestions.evidence_ids, *plan_analysis.evidence_ids))
+                    ),
+                }
+            )
+        supplied = any(getattr(suggestions, name) not in (None, ()) for name in SUGGESTION_FIELDS)
+        if supplied or suggestions.reason or suggestions.evidence_ids:
+            if not suggestions.reason.strip():
+                raise ValueError(
+                    "model suggestions require a reason based on reviewed facts and risks"
+                )
             _validate_text(
-                str(value),
+                suggestions.reason,
                 allowed=report.model_dump_json()
-                + _cited_source_values(draft.suggestions.evidence_ids, by_id),
-                refs=draft.suggestions.evidence_ids,
+                + json.dumps([item.model_dump(mode="json") for item in risks], ensure_ascii=False)
+                + SuggestionLimits.for_report(
+                    report.business_plan, decision, risks
+                ).model_dump_json()
+                + suggestion_numbers
+                + _cited_source_values(suggestions.evidence_ids, by_id),
+                refs=suggestions.evidence_ids,
                 known=set(by_id),
             )
-            if getattr(plan, name) in (None, ()):
-                changes[name] = value
-                generated.append(name)
-        repayment_methods = changes.get("repayment_methods", ())
-        if isinstance(repayment_methods, tuple) and len(repayment_methods) > 1:
-            raise ValueError("model repayment suggestions must not conflict")
         generated_plan = modules["business_plan"]
-        assert isinstance(generated_plan, ReportModule)
-        modules["business_plan"] = generated_plan.model_copy(
-            update={
-                **changes,
-                "generated_fields": tuple(generated),
-                "evidence_ids": tuple(
-                    dict.fromkeys(
-                        (
-                            *plan.evidence_ids,
-                            *(draft.suggestions.evidence_ids if generated else ()),
-                        )
-                    )
-                ),
-                "missing_fields": tuple(
-                    item for item in plan.missing_fields if item.field not in generated
-                ),
-            }
+        assert isinstance(generated_plan, BusinessPlan)
+        refs = tuple(
+            dict.fromkeys(
+                (
+                    *suggestions.evidence_ids,
+                    *(
+                        tag.evidence_id
+                        for risk in risks
+                        for tag in risk.evidence_tags
+                        if tag.evidence_id in by_id
+                    ),
+                )
+            )
+        )
+        modules["business_plan"] = complete_suggestions(
+            generated_plan,
+            decision=decision,
+            risks=risks,
+            evidence_ids=refs,
+            values=suggestions,
         )
         narratives = {item.id: item for item in draft.risks}
         if len(narratives) != len(draft.risks) or set(narratives) != {item.id for item in risks}:

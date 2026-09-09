@@ -314,6 +314,14 @@ class BudgetLedger:
             known = provider_usage and input_tokens is not None and output_tokens is not None
             observed_input = input_tokens or 0
             observed_output = output_tokens or 0
+            # Some compatible streaming providers omit usage on a successful
+            # terminal response. When token enforcement is explicitly off,
+            # settle conservatively against the reservation rather than
+            # deadlocking the next pipeline phase on an unknowable remainder.
+            if not known and succeeded and not self.budget.enforce_token_budget:
+                observed_input = reservation.input_tokens
+                observed_output = reservation.output_tokens
+                known = True
             self._successful_llm_requests += int(succeeded or known)
             self._provider_usage_requests += int(known)
             self._input_tokens += observed_input

@@ -382,7 +382,22 @@ def publish(config: Dict[str, Any], directory: Path, engine: Engine) -> Dict[str
     save_receipt(directory, receipt)
     old_may_be_stopped = False
     try:
-        engine.run(["build", "--platform", "linux/amd64", "-t", image, str(directory / "source")])
+        engine.run(
+            [
+                "build",
+                "--network",
+                "none",
+                "--platform",
+                "linux/amd64",
+                "--build-arg",
+                "JINDIAO_BASE_IMAGE=jindiao:deps-amd64",
+                "--build-arg",
+                "JINDIAO_INSTALL_DEPS=false",
+                "-t",
+                image,
+                str(directory / "source"),
+            ]
+        )
         if engine.run(["image", "inspect", "--format", "{{.Architecture}}", image]) != "amd64":
             raise ValueError("ECS image must be linux/amd64")
         receipt["image_id"] = engine.run(["image", "inspect", "--format", "{{.Id}}", image])

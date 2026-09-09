@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import json
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -244,10 +245,20 @@ class DeepSearchAgent:
             )
         )
         async def annual_report(
-            subject: dict[str, object],
+            subject: dict[str, object] | str,
             queried_at: datetime,
             report_as_of: date,
         ) -> dict[str, object]:
+            if isinstance(subject, str):
+                try:
+                    decoded_subject = json.loads(subject)
+                except (TypeError, json.JSONDecodeError) as error:
+                    raise AgentExecutionError(
+                        "annual-report Tool subject must be a JSON object"
+                    ) from error
+                if not isinstance(decoded_subject, dict):
+                    raise AgentExecutionError("annual-report Tool subject must be a JSON object")
+                subject = decoded_subject
             request = AnnualReportToolInput.model_validate(
                 {
                     "subject": subject,

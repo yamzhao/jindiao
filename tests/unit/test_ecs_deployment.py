@@ -188,6 +188,15 @@ def test_successful_switch_preserves_backup_volume_and_changes_only_new_service(
     assert not any(command[:2] == ["volume", "rm"] for command in docker.commands)
 
 
+def test_candidate_image_build_uses_host_network_for_ecs_dns(tmp_path: Path) -> None:
+    docker = FakeDocker()
+    publish(tmp_path, docker)
+    build = next(command for command in docker.commands if command[0] == "build")
+    assert build[:5] == ["build", "--network", "none", "--platform", "linux/amd64"]
+    assert "JINDIAO_BASE_IMAGE=jindiao:deps-amd64" in build
+    assert "JINDIAO_INSTALL_DEPS=false" in build
+
+
 @pytest.mark.parametrize("failure", ["preflight", "active", "copy", "switch"])
 def test_failed_publish_keeps_or_restores_original_service(tmp_path: Path, failure: str) -> None:
     docker = FakeDocker(failure)

@@ -12,6 +12,7 @@ from openjiuwen.core.runner import Runner
 
 from jindiao.acquisition.catalog import ACQUISITION_CATALOG
 from jindiao.agents import SingleInvestigatorAgent
+from jindiao.agents.single_investigator import _RequiredToolChoiceModel
 from jindiao.application.errors import AgentExecutionError
 from jindiao.contracts.acquisition import (
     EnterpriseContextSnapshot,
@@ -120,6 +121,26 @@ def message(
             total_tokens=7,
         ),
     )
+
+
+@pytest.mark.asyncio
+async def test_required_tool_choice_model_forces_named_submission_tool() -> None:
+    calls: list[dict[str, object]] = []
+
+    class RecordingModel:
+        async def stream(self, **kwargs: object) -> AsyncIterator[AssistantMessageChunk]:
+            calls.append(kwargs)
+            yield AssistantMessageChunk(content="ok", finish_reason="stop")
+
+    model = _RequiredToolChoiceModel(RecordingModel())
+    model.set_required_tool("submit_investigation_results")
+    async for _ in model.stream(model="m", messages=[], tools=[{"name": "submit"}]):
+        pass
+
+    assert calls[0]["tool_choice"] == {
+        "type": "function",
+        "function": {"name": "submit_investigation_results"},
+    }
 
 
 class ScriptedModel:
@@ -500,6 +521,97 @@ async def test_single_react_agent_reads_one_snapshot_submits_all_checks_and_self
     assert model.calls == 2
     assert budget.snapshot().tool_calls == 2
     assert all("system_prompt" not in event.payload for event in completed.events)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("finish_reason", ["stop", "length"])
+async def test_single_continues_once_after_read_without_submission(finish_reason: str) -> None:
+    responses = complete_responses()
+    early_answer = message("unfinished draft, not a submitted result").model_copy(
+        update={"finish_reason": finish_reason}
+    )
+    model = ScriptedModel([responses[0], early_answer, responses[1]])
+    budget = ledger()
+    await Runner.start()
+    try:
+        completed = await SingleInvestigatorAgent(prompt_bundle=load_prompt_bundle()).run(
+            snapshot=context_snapshot(),
+            runtime=OpenJiuwenAgentExecutionRuntime(clock=lambda: NOW),
+            budget_ledger=budget,
+            run_id=f"run-single-early-{finish_reason}",
+            model_name="single-scripted-model",
+            model_provider="scripted",
+            model=cast(Any, model),
+            timeout_seconds=20,
+            max_iterations=40,
+        )
+    finally:
+        await Runner.stop()
+
+    assert completed.self_check_completed is True
+    assert len(completed.agent_result.check_results) == len(CHECK_CATALOG.checks)
+    assert model.calls == budget.snapshot().llm_requests == 3
+    assert budget.snapshot().total_tokens == 21
+    assert budget.snapshot().snapshot_reads == 1
+    assert budget.snapshot().tool_calls == 2
+    assert budget.snapshot().schema_retries == 0
+
+
+@pytest.mark.asyncio
+async def test_single_continuation_cannot_exceed_existing_model_budget() -> None:
+    responses = complete_responses()
+    model = ScriptedModel([responses[0], message("ended without submitting"), responses[1]])
+    budget = BudgetLedger(ledger().budget.model_copy(update={"max_llm_requests": 2}))
+    await Runner.start()
+    try:
+        with pytest.raises(AgentExecutionError) as failure:
+            await SingleInvestigatorAgent(prompt_bundle=load_prompt_bundle()).run(
+                snapshot=context_snapshot(),
+                runtime=OpenJiuwenAgentExecutionRuntime(clock=lambda: NOW),
+                budget_ledger=budget,
+                run_id="run-single-continuation-budget",
+                model_name="single-scripted-model",
+                model_provider="scripted",
+                model=cast(Any, model),
+                timeout_seconds=20,
+                max_iterations=40,
+            )
+    finally:
+        await Runner.stop()
+
+    assert "request budget exhausted" in str(failure.value)
+    assert model.calls == 2
+    assert budget.snapshot().total_tokens == 14
+    assert budget.snapshot().snapshot_reads == 1
+
+
+@pytest.mark.asyncio
+async def test_single_formal_fallback_submits_missing_checks_as_inconclusive() -> None:
+    agent = SingleInvestigatorAgent(prompt_bundle=load_prompt_bundle())
+    model = ScriptedModel([message("finished too early")])
+
+    await Runner.start()
+    try:
+        completed = await agent.run(
+            snapshot=context_snapshot(),
+            runtime=OpenJiuwenAgentExecutionRuntime(clock=lambda: NOW),
+            budget_ledger=ledger(),
+            run_id="run-single-formal-fallback",
+            model_name="single-scripted-model",
+            model_provider="fallback-test",
+            model=cast(Any, model),
+            timeout_seconds=20,
+            max_iterations=40,
+        )
+    finally:
+        await Runner.stop()
+
+    assert len(completed.agent_result.check_results) == len(CHECK_CATALOG.checks)
+    assert all(
+        item.status is CheckStatus.INCONCLUSIVE for item in completed.agent_result.check_results
+    )
+    assert all(item.missing_evidence for item in completed.agent_result.check_results)
+    assert completed.self_check_completed is True
 
 
 @pytest.mark.asyncio

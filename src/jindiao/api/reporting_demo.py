@@ -1,9 +1,10 @@
-"""Two opt-in local demo routes; release operations are CLI-only."""
+"""Opt-in local or integration-proxy feedback; release operations are CLI-only."""
 
 from __future__ import annotations
 
 import ipaddress
 from typing import Literal
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
@@ -20,20 +21,69 @@ router = APIRouter()
 
 
 def _store(request: Request) -> ReportingDemoStore:
-    store: ReportingDemoStore | None = request.app.state.due_diligence_service.reporting_demo_store
+    service = request.app.state.due_diligence_service
+    store: ReportingDemoStore | None = service.reporting_demo_store
     if store is None:
         raise HTTPException(503, detail="reporting_demo_disabled")
+    service_settings = service.settings
     try:
-        local = bool(request.client and ipaddress.ip_address(request.client.host).is_loopback)
+        peer = ipaddress.ip_address(request.client.host) if request.client else None
+        local = bool(peer and peer.is_loopback)
+        # In the development Docker compose setup, the host browser reaches
+        # the container through Docker's private bridge (typically 172.16/12),
+        # so the peer is not literally loopback. The service is still bound to
+        # host loopback; accept private bridge peers only for this dev-only demo.
+        if not local and service_settings.environment == "development":
+            local = bool(peer and peer.is_private)
     except ValueError:
         local = False
-    if not local or request.url.hostname not in {"localhost", "127.0.0.1", "::1"}:
+    if not local:
         raise HTTPException(403, detail="reporting_demo_local_only")
     if any(name.lower().startswith(("x-forwarded-", "forwarded")) for name in request.headers):
         raise HTTPException(403, detail="reporting_demo_proxy_not_supported")
+    settings = service_settings
+    if settings.reporting_public_enabled:
+        # The integration ingress preserves Host and terminates at the real loopback peer.
+        # Identity headers retain the existing Run isolation contract; they are NOT login auth.
+        origin = settings.reporting_public_origin
+        expected = urlsplit(origin)
+        if request.headers.get("host", "").lower() != expected.netloc.lower():
+            raise HTTPException(403, detail="reporting_public_invalid_host")
+        if (
+            request.headers.get("origin", origin) != origin
+            or request.headers.get("sec-fetch-site") == "cross-site"
+        ):
+            raise HTTPException(403, detail="reporting_demo_same_origin_only")
+        owner, session = _principal(request)
+        if (
+            not owner.strip()
+            or owner == "anonymous"
+            or not session
+            or not session.strip()
+            or len(owner) > 128
+            or len(session) > 128
+        ):
+            raise HTTPException(401, detail="reporting_identity_required")
+        return store
+    if request.url.hostname not in {"localhost", "127.0.0.1", "::1"}:
+        raise HTTPException(403, detail="reporting_demo_local_only")
     origin = request.headers.get("origin")
-    if origin is not None and origin != str(request.base_url).rstrip("/"):
-        raise HTTPException(403, detail="reporting_demo_same_origin_only")
+    if origin is not None:
+        allowed_origins = {str(request.base_url).rstrip("/")}
+        # The local xingyao UI runs on Vite (5173) and proxies /api to the
+        # loopback backend (8080). Both peers are local, so this is still a
+        # same-user development flow rather than a public cross-origin API.
+        parsed_origin = urlsplit(origin)
+        if parsed_origin.scheme == "http" and parsed_origin.hostname in {
+            "localhost",
+            "127.0.0.1",
+            "::1",
+        }:
+            allowed_origins.update(
+                f"http://{host}:5173" for host in ("localhost", "127.0.0.1", "[::1]")
+            )
+        if origin.rstrip("/") not in allowed_origins:
+            raise HTTPException(403, detail="reporting_demo_same_origin_only")
     return store
 
 

@@ -37,11 +37,24 @@ def _first_text(record: Mapping[str, object], *keys: str) -> str | None:
 
 def _find_items(value: object) -> list[Mapping[str, object]] | None:
     if isinstance(value, Mapping):
-        items = value.get("items")
-        if isinstance(items, list):
-            return [item for item in items if isinstance(item, Mapping)]
-        for key in ("result", "data"):
+        # MCP providers have used several equivalent envelopes over time.  Keep
+        # the extraction permissive at this transport boundary, while the
+        # candidate validator below remains strict about id + company name.
+        for key in ("items", "companies", "company_list", "companyList", "records", "results"):
+            items = value.get(key)
+            if isinstance(items, list):
+                records = [item for item in items if isinstance(item, Mapping)]
+                if records:
+                    return records
+        for key in ("result", "data", "payload", "response"):
             nested = value.get(key)
+            found = _find_items(nested)
+            if found is not None:
+                return found
+        # Some gateways wrap the list under a provider-specific key. Search
+        # nested objects as a final, bounded fallback instead of discarding a
+        # valid response merely because its envelope name changed.
+        for nested in value.values():
             found = _find_items(nested)
             if found is not None:
                 return found

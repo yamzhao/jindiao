@@ -136,8 +136,10 @@ class RunExecutionRequest(DueDiligenceRequest):
 class RunCreateRequest(ContractModel):
     """Flat prototype form for v2 and AgentArts; amount is in CNY ten-thousands."""
 
-    customerName: str | None = Field(default=None, description="客户名称")
-    uscc: str | None = Field(default=None, description="统一社会信用代码")
+    customerName: str = Field(min_length=1, description="客户名称, 唯一主体确认入参")
+    uscc: str | None = Field(
+        default=None, description="统一社会信用代码, 兼容表单提交, 不参与主体确认"
+    )
     product: str | None = Field(default=None, description="业务品种")
     amount: float | None = Field(
         default=None,
@@ -193,19 +195,12 @@ class RunCreateRequest(ContractModel):
             raise ValueError("amount exceeds the supported CNY range")
         return value
 
-    @model_validator(mode="after")
-    def require_identifier(self) -> RunCreateRequest:
-        if self.customerName is None and self.uscc is None:
-            raise ValueError("customerName or uscc is required")
-        return self
-
     def to_execution_request(self) -> RunExecutionRequest:
         """Translate once at the boundary; existing report amounts remain CNY yuan."""
         amount_yuan = float(Decimal(str(self.amount)) * 10000) if self.amount is not None else None
         return RunExecutionRequest(
-            enterprise=EnterpriseInput(
-                company_name=self.customerName, unified_social_credit_code=self.uscc
-            ),
+            # Form USCC is compatibility-only; resolve and report provider-owned identity.
+            enterprise=EnterpriseInput(company_name=self.customerName),
             business_context=BusinessContext(
                 business_product=self.product,
                 application_amount=amount_yuan,

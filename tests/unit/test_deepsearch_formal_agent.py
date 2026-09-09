@@ -104,7 +104,10 @@ def message(
 
 
 @pytest.mark.asyncio
-async def test_formal_deepsearch_agent_calls_member_tool_and_submits_typed_outcome() -> None:
+@pytest.mark.parametrize("string_subject", [False, True], ids=["object", "json-string"])
+async def test_formal_deepsearch_agent_calls_member_tool_and_submits_typed_outcome(
+    string_subject: bool,
+) -> None:
     annual_tool = FakeAnnualReportTool()
     model = ScriptedModel(
         [
@@ -116,7 +119,11 @@ async def test_formal_deepsearch_agent_calls_member_tool_and_submits_typed_outco
                         name="tianyancha_annual_report_social_security",
                         arguments=json.dumps(
                             {
-                                "subject": subject().model_dump(mode="json"),
+                                "subject": (
+                                    subject().model_dump_json()
+                                    if string_subject
+                                    else subject().model_dump(mode="json")
+                                ),
                                 "queried_at": NOW.isoformat(),
                                 "report_as_of": REPORT_AS_OF.isoformat(),
                             },
@@ -196,6 +203,54 @@ def test_formal_deepsearch_agent_rejects_unconfigured_gap_tool() -> None:
             model_name="not-invoked",
             model_provider="scripted",
         )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "subject_value",
+    [
+        "not-json",
+        "null",
+        "[]",
+        "42",
+        json.dumps(subject().model_dump_json()),
+        json.dumps({}),
+        json.dumps({**subject().model_dump(mode="json"), "unexpected": True}),
+        json.dumps({**subject().model_dump(mode="json"), "subject_id": "tyc:other"}),
+        json.dumps({**subject().model_dump(mode="json"), "company_name": "另一家公司"}),
+    ],
+    ids=["malformed", "null", "array", "number", "double-encoded", "missing-fields",
+         "unknown-field", "wrong-subject", "wrong-company"],
+)
+async def test_invalid_subject_cannot_fetch_or_submit_an_outcome(subject_value: str) -> None:
+    annual_tool = FakeAnnualReportTool()
+    model = ScriptedModel([
+        message(tool_calls=[ToolCall(
+            id="invalid-annual", type="function",
+            name="tianyancha_annual_report_social_security",
+            arguments=json.dumps({"subject": subject_value, "queried_at": NOW.isoformat(),
+                                  "report_as_of": REPORT_AS_OF.isoformat()}),
+        )]),
+        message(tool_calls=[ToolCall(
+            id="unexecuted-submit", type="function", name="submit_supplement_outcome",
+            arguments=json.dumps({"task_id": task().task_id}),
+        )]),
+        message("done"),
+    ])
+    agent = DeepSearchAgent(prompt_bundle=load_prompt_bundle(), annual_report_tool=annual_tool)
+    await Runner.start()
+    try:
+        with pytest.raises(AgentExecutionError, match="without submitting") as caught:
+            await agent.run(
+                tasks=(task(),), subject=subject(), queried_at=NOW,
+                runtime=OpenJiuwenAgentExecutionRuntime(clock=lambda: NOW),
+                run_id="run-invalid-subject", model_name="scripted", model_provider="scripted",
+                model=cast(Any, model), timeout_seconds=10,
+            )
+        assert caught.value.details["missing_task_ids"] == [task().task_id]
+        assert annual_tool.calls == []
+    finally:
+        await Runner.stop()
 
 
 def test_deepsearch_builder_configures_the_real_model_client() -> None:

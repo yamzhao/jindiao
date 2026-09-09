@@ -154,9 +154,24 @@ def test_local_start_defaults_to_real_without_overwriting_config(
     assert call["bind"] == "127.0.0.1" and call["mount"] == "local-artifacts"
     assert "--wait" in call["args"]
     assert str(project / "deploy/local/compose.live.yaml") in call["args"]
+    assert str(project / "deploy/local/compose.local-deps.yaml") in call["args"]
     (project / ".env").write_text("custom-config")
     assert invoke(project, env, "bin", "start").returncode == 0
     assert (project / ".env").read_text() == "custom-config"
+
+
+def test_local_start_uses_existing_dependency_image_offline() -> None:
+    overlay = ROOT / "deploy/local/compose.local-deps.yaml"
+    dockerfile = ROOT / "deploy/local/Dockerfile.local"
+    assert overlay.is_file()
+    assert dockerfile.is_file()
+    overlay_text = overlay.read_text()
+    dockerfile_text = dockerfile.read_text()
+    assert "jindiao:local-source" in overlay_text
+    assert "network: none" in overlay_text
+    assert "FROM jindiao:local" in dockerfile_text
+    assert "pip install" not in dockerfile_text
+    assert "uv " not in dockerfile_text
 
 
 def test_local_real_refuses_missing_env_and_mock_is_explicit(

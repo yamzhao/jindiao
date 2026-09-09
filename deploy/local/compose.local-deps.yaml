@@ -1,0 +1,8 @@
+services:
+  jindiao:
+    build:
+      context: .
+      dockerfile: deploy/local/Dockerfile.local
+      network: none
+    image: jindiao:local-source
+    pull_policy: never

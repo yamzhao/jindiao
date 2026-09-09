@@ -67,8 +67,10 @@ if [[ "$action" == start ]]; then
   done < <(compgen -e)
   export JINDIAO_BIND_HOST=127.0.0.1 JINDIAO_PORT="$port"
   export JINDIAO_ARTIFACT_MOUNT=local-artifacts JINDIAO_ENV_FILE="$env_file"
+  docker_call image inspect jindiao:local >/dev/null
   compose_args=(compose --project-name jindiao-local --project-directory "$root" --env-file "$env_file" \
-    -f "$root/compose.yaml" -f "$root/deploy/local/compose.$profile.yaml")
+    -f "$root/compose.yaml" -f "$root/deploy/local/compose.$profile.yaml" \
+    -f "$root/deploy/local/compose.local-deps.yaml")
   "${docker_cmd[@]}" "${compose_args[@]}" config --quiet >/dev/null 2>&1 || \
     fail "Invalid configuration: real mode requires MODEL_PROVIDER, MODEL_NAME, MODEL_BASE_URL, MODEL_API_KEY and TIANYANCHA_MCP_AUTHORIZATION. No Mock fallback."
   docker_call "${compose_args[@]}" up -d --build --wait --wait-timeout "$wait_timeout" >/dev/null

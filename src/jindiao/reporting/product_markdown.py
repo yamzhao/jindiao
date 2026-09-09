@@ -35,7 +35,8 @@ LABELS = dict(
         "application_amount:申请金额|application_term_months:申请期限（月）|fund_use:资金用途|"
         "suggested_amount:建议额度|suggested_interest_rate:建议利率|"
         "suggested_credit_term_months:建议授信期限（月）|suggested_loan_term_months:建议贷款期限（月）|"
-        "fund_use_detail:资金用途详细说明|guarantee_methods:建议保证方式|repayment_methods:建议还款方式|"
+        "fund_use_detail:资金用途详细说明|guarantee_methods:建议担保方式|repayment_methods:建议还款方式|"
+        "suggestion_source:建议来源|"
         "repayment_source:还款来源|unified_credit:统一授信情况|investigation_location:调查地点|"
         "established_date:成立日期|registration_status:登记状态|registered_address:注册地址|"
         "registered_capital:注册资本|paid_in_capital:实缴资本|capital_currency:资本币种|"
@@ -81,6 +82,9 @@ LABELS = dict(
     ).split("|")
 )
 ENUM_LABELS = {
+    "model": "AI 建议",
+    "rules": "规则保守建议",
+    "model_with_rules": "AI 建议及规则补全",
     "legal_representative": "追加法定代表人保证",
     "actual_controller": "追加实控人保证",
     "legal_representative_spouse": "追加法代配偶保证",

@@ -4,7 +4,7 @@
 
 本地后端本次成功生成并返回新报告，HTTP 200；不是旧报告重放。Run `e6352988490d4d95a5f8da15f8585cc3`，固定幂等键 `local-real-huawei-20260908-uv3Wsg-deepseek-observe-10`，仅创建一次。
 
-测试主体为华为技术有限公司，测试流动资金贷款 12 万元、12 个月。保留原 OpenAI-compatible 接入地址与凭据；模型为 `deepseek-v4-flash`，数据源 Tianyancha，未启用 Mock。未修改 ECS。
+测试主体为华为技术有限公司，测试流动资金贷款 12 万元、12 个月。保留原 OpenAI-compatible 接入地址与凭据；模型为 `deepseek-v4-flash-0731`，数据源 Tianyancha，未启用 Mock。未修改 ECS。
 
 - 创建 202，SSE 200，最终结果 200，`result_available=true`、`error=null`。
 - 19 项核查、七步完成，进度 7/7（100%）。
@@ -19,7 +19,7 @@
 按用户明确要求，本地 `.env` 现为：
 
 ```dotenv
-MODEL_NAME=deepseek-v4-flash
+MODEL_NAME=deepseek-v4-flash-0731
 JINDIAO_ENFORCE_TOKEN_BUDGET=false
 ```
 
@@ -27,7 +27,7 @@ JINDIAO_ENFORCE_TOKEN_BUDGET=false
 
 仍保留：300 秒共享超时、64 次模型调用限制、现有工具次数限制、单次默认有界输出 10000、禁止隐式 HTTP 重试、证据/Schema 校验、计量完整性检查。供应商自己的上下文窗口与限额未被绕过。
 
-配置通过 `bin/start.sh` 加载，实际容器已核对 `model_name=deepseek-v4-flash`、`enforce_token_budget=false`，6 个改动模块的安装包与构建源码逐字节一致。`bin/restart.sh` 不会加载新 `.env`，仅用于后续持久化验证。
+配置通过 `bin/start.sh` 加载，实际容器已核对 `model_name=deepseek-v4-flash-0731`、`enforce_token_budget=false`，6 个改动模块的安装包与构建源码逐字节一致。`bin/restart.sh` 不会加载新 `.env`，仅用于后续持久化验证。
 
 ## 真实用量
 

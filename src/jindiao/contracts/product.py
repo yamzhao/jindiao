@@ -60,6 +60,7 @@ class BusinessPlan(ApplicationFields, ReportModule):
     unified_social_credit_code: str | None = None
     industry: str | None = None
     generated_fields: tuple[str, ...] = ()
+    suggestion_source: Literal["model", "rules", "model_with_rules"] | None = None
 
 
 class Shareholder(ContractModel):

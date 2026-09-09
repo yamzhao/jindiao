@@ -1,0 +1,26 @@
+FROM python:3.11-slim-bookworm
+ARG DEBIAN_MIRROR=deb.debian.org
+ARG PYPI_INDEX_URL=https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+RUN sed -i "s|http://deb.debian.org|https://${DEBIAN_MIRROR}|g" /etc/apt/sources.list.d/debian.sources \
+    && apt-get -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update \
+    && apt-get install --yes --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system jindiao \
+    && useradd --system --gid jindiao --create-home jindiao
+
+WORKDIR /app
+COPY requirements.txt pyproject.toml uv.lock README.md ./
+RUN python -m pip install --no-cache-dir --index-url "$PYPI_INDEX_URL" uv==0.12.10 \
+    && uv export --frozen --extra agentarts --group dev --no-emit-project \
+        --output-file /tmp/jindiao-requirements.txt --quiet \
+    && uv pip install --system --no-deps --default-index "$PYPI_INDEX_URL" \
+        -r /tmp/jindiao-requirements.txt \
+    && mkdir -p /app/artifacts \
+    && chown -R jindiao:jindiao /app
+
+USER jindiao

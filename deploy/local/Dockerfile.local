@@ -1,0 +1,20 @@
+FROM jindiao:local
+
+USER root
+WORKDIR /app
+
+# Reuse the dependency-complete local image and replace only project assets.
+# No package manager or network access is needed for this layer.
+COPY src /tmp/jindiao-src
+RUN rm -rf /usr/local/lib/python3.11/site-packages/jindiao \
+    && cp -a /tmp/jindiao-src/jindiao /usr/local/lib/python3.11/site-packages/jindiao \
+    && rm -rf /tmp/jindiao-src
+COPY config ./config
+COPY mock_data ./mock_data
+COPY skills ./skills
+RUN chown -R jindiao:jindiao /app
+
+USER jindiao
+EXPOSE 8080
+
+CMD ["python", "-m", "uvicorn", "jindiao.api.app:app", "--host", "0.0.0.0", "--port", "8080"]

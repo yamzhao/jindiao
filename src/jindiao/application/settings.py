@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlsplit
 
 from pydantic import AliasChoices, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -217,6 +218,16 @@ class Settings(BaseSettings):
         default=False,
         validation_alias=AliasChoices("reporting_demo_enabled", "JINDIAO_REPORTING_DEMO_ENABLED"),
     )
+    reporting_public_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "reporting_public_enabled", "JINDIAO_REPORTING_PUBLIC_ENABLED"
+        ),
+    )
+    reporting_public_origin: str = Field(
+        default="",
+        validation_alias=AliasChoices("reporting_public_origin", "JINDIAO_REPORTING_PUBLIC_ORIGIN"),
+    )
     detached_probe_passed: bool = Field(
         default=False,
         validation_alias=AliasChoices("detached_probe_passed", "JINDIAO_DETACHED_PROBE_PASSED"),
@@ -239,6 +250,29 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def require_authorization_for_live_mode(self) -> Settings:
+        if self.reporting_public_enabled:
+            if self.environment != "integration" or self.shared_storage_backend != "local":
+                raise ValueError("public reporting requires integration and local storage")
+            origin = self.reporting_public_origin
+            try:
+                parsed = urlsplit(origin)
+                valid = (
+                    parsed.scheme in {"http", "https"}
+                    and parsed.hostname
+                    and not parsed.username
+                    and not parsed.password
+                    and parsed.path in {"", "/"}
+                    and not parsed.query
+                    and not parsed.fragment
+                    and not any(char.isspace() for char in origin)
+                    and "\\" not in origin
+                )
+                _ = parsed.port
+            except ValueError:
+                valid = False
+            if not valid:
+                raise ValueError("public reporting requires one valid frontend origin")
+            self.reporting_public_origin = origin.rstrip("/")
         if self.reporting_demo_enabled and (
             self.shared_storage_backend not in {"memory", "local"}
             or self.environment not in {"development", "test"}

@@ -118,7 +118,7 @@ class DueDiligenceService:
         self._formal_pipeline_factory = formal_pipeline_factory
         self.reporting_demo_store = (
             ReportingDemoStore(settings.artifact_root / "reporting-demo")
-            if settings.reporting_demo_enabled
+            if settings.reporting_demo_enabled or settings.reporting_public_enabled
             else None
         )
         self._result_assembler = ResultAssembler(

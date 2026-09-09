@@ -57,7 +57,14 @@ def _missing(value: object, prefix: str = "") -> list[str]:
             path
             for key, child in value.items()
             if key
-            not in {"status", "analysis", "evidence_ids", "missing_fields", "generated_fields"}
+            not in {
+                "status",
+                "analysis",
+                "evidence_ids",
+                "missing_fields",
+                "generated_fields",
+                "suggestion_source",
+            }
             for path in _missing(child, f"{prefix}.{key}" if prefix else key)
         ]
     return []
@@ -181,7 +188,7 @@ class ProductReportAssembler:
                     )
                 )
             ),
-            analysis="申报信息由调用方提供; 未提供授信定价政策的建议金额、利率和期限留空",
+            analysis="申报信息由调用方提供; 建议条件将结合已审核风险和小额短期规则生成",
         )
         financial = calculate_financials(report.financial_analysis.periods)
         financial = financial.model_copy(
@@ -374,6 +381,7 @@ class ProductReportAssembler:
             if (
                 reviewed.incomplete
                 or report_incomplete
+                or report.business_plan.suggested_amount == 0
                 or reviewed.decision.band.value == "manual_review"
             )
             else "proceed"

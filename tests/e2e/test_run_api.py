@@ -130,7 +130,6 @@ async def test_v2_run_lifecycle_supports_create_status_events_result_and_idempot
         {"product": "固定资产贷款"},
         {"manager": "另一经理"},
         {"branch": "另一支行"},
-        {"uscc": "91110000EXAMPLE001"},
         {"customerName": "另一企业"},
     ],
 )
@@ -161,6 +160,25 @@ async def test_v2_idempotency_hash_includes_flat_business_fields(
 
     assert first.status_code == 202
     assert conflict.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_v2_idempotency_ignores_submitted_uscc(tmp_path: Path) -> None:
+    application = app(tmp_path)
+    headers = {"Idempotency-Key": "name-only"}
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as client:
+        first = await client.post("/api/v2/due-diligence/runs", json=body(), headers=headers)
+        assert first.status_code == 202
+        for uscc in (None, "", "91110000EXAMPLE001", "91110108MA01JD001A"):
+            repeated = await client.post(
+                "/api/v2/due-diligence/runs",
+                json={**body(), "uscc": uscc},
+                headers=headers,
+            )
+            assert repeated.status_code == 202
+            assert repeated.json()["run_id"] == first.json()["run_id"]
 
 
 @pytest.mark.asyncio
@@ -212,6 +230,7 @@ async def test_flat_form_reaches_report_and_persisted_result(
     application = app(tmp_path)
     payload = {
         **body(),
+        "uscc": "91110000EXAMPLE001",
         "product": "流动资金贷款",
         "amount": "1.0001" if numeric_text else 1.0001,
         "term": "12" if numeric_text else 12,
@@ -228,12 +247,33 @@ async def test_flat_form_reaches_report_and_persisted_result(
         response = await client.get(f"/api/v2/due-diligence/runs/{run_id}/result")
         assert response.status_code == 200, response.text
         product = response.json()
+        profile = product["report"]["company_profile"]
+        assert profile["company_name"] == payload["customerName"]
+        assert profile["unified_social_credit_code"] == "91110108MA01JD001A"
         plan = product["report"]["business_plan"]
         assert plan["business_product"] == "流动资金贷款"
         assert plan["customer_manager"] == "王某某"
         assert plan["reporting_org"] == "城东支行"
         assert plan["application_amount"] == 10001 and plan["application_term_months"] == 12
         assert plan["application_type"] is None
+        assert plan["suggested_amount"] == 10000
+        assert 1 <= plan["suggested_loan_term_months"] <= plan["suggested_credit_term_months"] <= 3
+        assert plan["suggested_interest_rate"]
+        assert plan["guarantee_methods"] and plan["repayment_methods"]
+        assert plan["suggestion_source"] == "rules"
+        assert len(plan["generated_fields"]) == 6
+        assert not set(plan["generated_fields"]) & {gap["field"] for gap in plan["missing_fields"]}
+        for field in (
+            "fund_use",
+            "reporting_date",
+            "repayment_source",
+            "unified_credit",
+            "investigation_location",
+        ):
+            assert plan[field] is None
+        assert "城东支行" in product["report_markdown"]
+        assert "规则保守建议" in product["report_markdown"]
+        assert "建议担保方式" in product["report_markdown"]
         for name, value in (("business_product", "流动资金贷款"), ("customer_manager", "王某某")):
             assert value in product["report_markdown"]
             assert any(
@@ -247,6 +287,27 @@ async def test_flat_form_reaches_report_and_persisted_result(
         )
         stored = await application.state.run_coordinator.repository.get_result(run_id)
         assert stored.model_dump(mode="json") == product
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "endpoint,wrapped",
+    [("/api/v2/due-diligence/runs", False), ("/invocations", False), ("/invocations", True)],
+)
+@pytest.mark.parametrize(
+    "name_fields", [{}, {"customerName": None}, {"customerName": ""}, {"customerName": "  "}]
+)
+async def test_flat_form_requires_customer_name_even_with_uscc(
+    tmp_path: Path, endpoint: str, wrapped: bool, name_fields: dict[str, object]
+) -> None:
+    application = app(tmp_path)
+    payload = {"uscc": "91110108MA01JD001A", **name_fields}
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as client:
+        response = await client.post(endpoint, json={"input": payload} if wrapped else payload)
+        assert response.status_code == 422
+        assert application.state.run_coordinator.active_runs() == 0
 
 
 @pytest.mark.asyncio

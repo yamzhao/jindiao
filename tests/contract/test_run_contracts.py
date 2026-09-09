@@ -50,7 +50,7 @@ def test_flat_form_maps_units_and_preserves_business_meaning() -> None:
     assert request.customerName == "示例科技有限公司" and request.uscc == "ABC123"
     internal = request.to_execution_request()
     assert internal.enterprise.company_name == request.customerName
-    assert internal.enterprise.unified_social_credit_code == "ABC123"
+    assert internal.enterprise.unified_social_credit_code is None
     assert internal.enterprise.region is None
     plan = internal.business_context
     assert plan.application_amount == 10001
@@ -66,11 +66,13 @@ def test_flat_form_maps_units_and_preserves_business_meaning() -> None:
     assert forwarded.to_execution_request().business_context.application_amount == 10001
 
 
-def test_empty_optional_fields_and_either_identifier() -> None:
-    by_code = RunCreateRequest(uscc=" abC ", customerName="  ", product="", manager=" ", branch="")
-    assert by_code.uscc == "ABC" and by_code.customerName is None
-    assert by_code.product is None and by_code.manager is None and by_code.branch is None
-    assert by_code.to_execution_request().business_context.application_amount is None
+def test_empty_optional_fields_with_required_customer_name() -> None:
+    request = RunCreateRequest(
+        customerName=" 企业 ", uscc=" abC ", product="", manager=" ", branch=""
+    )
+    assert request.uscc == "ABC" and request.customerName == "企业"
+    assert request.product is None and request.manager is None and request.branch is None
+    assert request.to_execution_request().business_context.application_amount is None
     omitted = RunCreateRequest(customerName="企业")
     explicit = RunCreateRequest(
         customerName="企业",
@@ -82,6 +84,14 @@ def test_empty_optional_fields_and_either_identifier() -> None:
         uscc=None,
     )
     assert omitted == explicit
+
+
+@pytest.mark.parametrize(
+    "name_fields", [{}, {"customerName": None}, {"customerName": ""}, {"customerName": "  "}]
+)
+def test_uscc_cannot_replace_customer_name(name_fields: dict[str, Any]) -> None:
+    with pytest.raises(ValidationError, match="customerName"):
+        RunCreateRequest.model_validate({"uscc": "ABC123", **name_fields})
 
 
 @pytest.mark.parametrize(
@@ -201,6 +211,8 @@ def test_flat_run_schema_contains_only_form_and_necessary_control_fields() -> No
         "scenario_id",
     }
     assert schema["additionalProperties"] is False
+    assert schema["required"] == ["customerName"]
+    assert schema["properties"]["customerName"]["type"] == "string"
     assert "万元" in schema["properties"]["amount"]["description"]
 
 

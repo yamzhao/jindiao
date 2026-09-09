@@ -324,6 +324,113 @@ def test_demo_rejects_production() -> None:
 
 
 @pytest.mark.asyncio
+async def test_public_feedback_submit_and_detail_through_loopback_proxy(tmp_path: Path) -> None:
+    settings = Settings(  # type: ignore[call-arg]
+        _env_file=None,
+        environment="integration",
+        model_provider="offline_mock",
+        model_name="deterministic-mock",
+        data_source_mode="mock",
+        artifact_root=tmp_path,
+        shared_storage_backend="local",
+        reporting_public_enabled=True,
+        reporting_public_origin="http://feedback.example.test",
+    )
+    service = DueDiligenceService(
+        settings=settings,
+        scenarios=ScenarioRepository(Path("mock_data/scenarios")),
+        clock=lambda: datetime(2026, 9, 6, tzinfo=UTC),
+        toolset_factory=lambda: ScenarioToolset(
+            clock=lambda: datetime(2026, 9, 6, tzinfo=UTC),
+            source_status_overrides={"judicial": SourceStatus.SOURCE_ERROR},
+        ),
+    )
+    app = create_app(service=service)
+    run_id, old = await completed_run(app)
+    url = f"/api/v2/due-diligence/runs/{run_id}/feedback"
+    transport = httpx.ASGITransport(app=app, client=("127.0.0.1", 1234))
+    async with httpx.AsyncClient(
+        transport=transport, base_url="http://feedback.example.test", headers=HEADERS
+    ) as client:
+        key = {"Idempotency-Key": "public-feedback"}
+        first = await client.post(url, json=FEEDBACK, headers=key)
+        assert first.status_code == 201, first.text
+        candidate = first.json()
+        assert candidate["status"] == "awaiting_approval"
+        assert candidate["evaluation"]["passed"]
+        assert len(candidate["evaluation"]["cases"]) == 9
+        repeated = await client.post(url, json=FEEDBACK, headers=key)
+        assert repeated.status_code == 200
+        assert repeated.json()["evolution_id"] == candidate["evolution_id"]
+        detail = await client.get(candidate["detail_url"] + "?include=reports")
+        assert detail.status_code == 200
+        source = detail.json()["evaluation"]["cases"][0]
+        assert source["before"] == old.report_markdown
+        assert source["improved"]
+        assert not detail.json()["is_active"]
+        assert (
+            await client.post(url, json={**FEEDBACK, "text": "changed"}, headers=key)
+        ).status_code == 409
+        assert (
+            await client.get(candidate["detail_url"], headers={"x-hw-agentgateway-user-id": "bob"})
+        ).status_code == 404
+        assert (
+            await client.get(
+                candidate["detail_url"], headers={"x-hw-agentarts-session-id": "wrong"}
+            )
+        ).status_code == 404
+        for extra in (
+            {"Origin": "http://foreign.example.test"},
+            {"Host": "foreign.example.test"},
+            {"Sec-Fetch-Site": "cross-site"},
+            {"X-Forwarded-Host": "feedback.example.test"},
+        ):
+            assert (await client.get(candidate["detail_url"], headers=extra)).status_code == 403
+        for extra in (
+            {"x-hw-agentgateway-user-id": ""},
+            {"x-hw-agentgateway-user-id": "anonymous"},
+            {"x-hw-agentarts-session-id": ""},
+        ):
+            assert (await client.get(candidate["detail_url"], headers=extra)).status_code == 401
+        assert (
+            await client.post(candidate["detail_url"] + "/activate", json={})
+        ).status_code == 404
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app, client=("192.0.2.10", 1234)),
+        base_url="http://feedback.example.test",
+        headers=HEADERS,
+    ) as direct:
+        assert (await direct.get(candidate["detail_url"])).status_code == 403
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"environment": "production"},
+        {"shared_storage_backend": "memory"},
+        {"reporting_public_origin": ""},
+        {"reporting_public_origin": "http://user:password@example.test"},
+        {"reporting_public_origin": "http://example.test/path"},
+        {"reporting_public_origin": "http://example.test?query=1"},
+        {"reporting_public_origin": "http://example.test:bad"},
+        {"reporting_public_origin": "http://example.test#fragment"},
+        {"reporting_public_origin": "ftp://example.test"},
+    ],
+)
+def test_public_feedback_rejects_unsupported_configuration(changes: dict[str, str]) -> None:
+    with pytest.raises(ValueError, match="public reporting"):
+        Settings.model_validate(
+            {
+                "environment": "integration",
+                "shared_storage_backend": "local",
+                "reporting_public_enabled": True,
+                "reporting_public_origin": "http://feedback.example.test",
+                **changes,
+            }
+        )
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "endpoint", ["/api/v1/due-diligence/result", "/api/v2/due-diligence/runs", "/invocations"]
 )

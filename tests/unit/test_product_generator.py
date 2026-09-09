@@ -14,6 +14,7 @@ from jindiao.contracts.product import (
 )
 from jindiao.contracts.reporting import Decision, DecisionBand
 from jindiao.reporting.product_generator import SECTION_IDS, ReportContentGenerator, ReportDraft
+from jindiao.reporting.product_suggestions import PRICING_GUIDANCE, SUGGESTION_FIELDS
 
 
 class Model:
@@ -47,14 +48,11 @@ def draft() -> dict[str, object]:
     }
 
 
-def test_model_suggestion_schema_only_advertises_supported_non_pricing_fields() -> None:
+def test_model_suggestion_schema_advertises_bounded_recommendations() -> None:
     schema = ReportDraft.model_json_schema()["$defs"]["SuggestedValues"]
     assert set(schema["properties"]) == {
-        "fund_use_detail",
-        "repayment_source",
-        "unified_credit",
-        "guarantee_methods",
-        "repayment_methods",
+        *SUGGESTION_FIELDS,
+        "reason",
         "evidence_ids",
     }
     assert schema["additionalProperties"] is False
@@ -79,13 +77,14 @@ def test_model_repayment_schema_disallows_conflicting_methods() -> None:
         "business_product",
         "reporting_org",
         "customer_manager",
-        "suggested_amount",
-        "suggested_interest_rate",
-        "suggested_credit_term_months",
-        "suggested_loan_term_months",
+        "fund_use",
+        "fund_use_detail",
+        "repayment_source",
+        "unified_credit",
+        "investigation_location",
     ],
 )
-def test_model_cannot_return_original_or_pricing_fields_even_as_null(field: str) -> None:
+def test_model_cannot_return_unprovided_facts_even_as_null(field: str) -> None:
     payload = draft()
     payload["suggestions"] = {field: None}
     with pytest.raises(ValidationError, match="Extra inputs"):
@@ -266,7 +265,11 @@ async def test_short_citations_restore_for_suggestions_and_risks_but_unknown_ids
     )
     response = draft()
     alias = "e999999" if unknown else "e0"
-    response["suggestions"] = {"fund_use_detail": "采购原料", "evidence_ids": [alias]}
+    response["suggestions"] = {
+        "suggested_amount": 10000,
+        "reason": "采购原料需核验, 建议小额短期",
+        "evidence_ids": [alias],
+    }
     response["risks"] = [
         {"id": risk.id, "explanation": "采购原料", "historical_case": "", "evidence_ids": [alias]}
     ]
@@ -276,7 +279,8 @@ async def test_short_citations_restore_for_suggestions_and_risks_but_unknown_ids
     assert generated.generation_failed is unknown
     assert generated.risks[0].evidence_tags[0].evidence_id == identity
     if not unknown:
-        assert generated.report.business_plan.fund_use_detail == "采购原料"
+        assert generated.report.business_plan.suggested_amount == 10000
+        assert generated.report.business_plan.fund_use_detail is None
         assert generated.report.business_plan.evidence_ids == (identity,)
 
 
@@ -319,7 +323,8 @@ async def test_unavailable_section_discards_uncited_model_text_without_losing_va
         report=report, risks=(), evidence=(evidence,), decision=decision()
     )
     assert not result.generation_failed and model.calls == 1
-    assert result.report.business_plan == report.business_plan
+    assert result.report.business_plan.application_amount is None
+    assert result.report.business_plan.suggestion_source == "rules"
     assert result.report.company_profile.analysis == "企业处于存续状态"
     assert "没有证据却生成的申报建议" not in result.model_dump_json()
 
@@ -331,6 +336,7 @@ async def test_manual_values_win_and_model_cannot_invent_amounts() -> None:
             status="partial",
             application_amount=500,
             fund_use_detail="人工说明",
+            suggested_amount=200,
             evidence_ids=("e",),
         )
     )
@@ -343,9 +349,9 @@ async def test_manual_values_win_and_model_cannot_invent_amounts() -> None:
         queried_at=datetime.now(UTC),
     )
     bad = draft()
-    bad["suggestions"] = {"suggested_amount": 400, "evidence_ids": ["e"]}
+    bad["suggestions"] = {"suggested_amount": 600, "reason": "采购原料", "evidence_ids": ["e"]}
     good = draft()
-    good["suggestions"] = {"fund_use_detail": "采购原料", "evidence_ids": ["e"]}
+    good["suggestions"] = {"suggested_amount": 400, "reason": "采购原料", "evidence_ids": ["e"]}
     model = Model([json.dumps(bad), json.dumps(good)])
     result = await ReportContentGenerator(model).generate(
         report=report,
@@ -355,9 +361,10 @@ async def test_manual_values_win_and_model_cannot_invent_amounts() -> None:
     )
     assert model.calls == 2
     assert not result.generation_failed
-    assert result.report.business_plan.suggested_amount is None
+    assert result.report.business_plan.suggested_amount == 200
     assert result.report.business_plan.fund_use_detail == "人工说明"
-    assert result.report.business_plan.generated_fields == ()
+    assert "suggested_amount" not in result.report.business_plan.generated_fields
+    assert "fund_use_detail" not in result.report.business_plan.generated_fields
 
 
 @pytest.mark.asyncio
@@ -430,3 +437,190 @@ async def test_transport_failure_does_not_retry_and_cancellation_propagates() ->
             evidence=(),
             decision=decision(),
         )
+
+
+@pytest.mark.asyncio
+async def test_model_generates_all_suggestions_with_cross_section_risk_evidence() -> None:
+    from jindiao.contracts.product import CompanyProfile, MissingField
+
+    evidence = ProductEvidence(
+        id="governance",
+        source_type="tianyancha",
+        source_label="工商变更",
+        summary="管理人员频繁变更",
+        source_ref="mcp://changes",
+        queried_at=datetime.now(UTC),
+    )
+    report = ProductReport(
+        business_plan=BusinessPlan(
+            application_amount=120000,
+            application_term_months=12,
+            customer_manager="王某某",
+            reporting_org="城东支行",
+            missing_fields=tuple(
+                MissingField(field=name, reason="not_provided", message="缺失")
+                for name in (*SUGGESTION_FIELDS, "fund_use", "unified_credit")
+            ),
+        ),
+        company_profile=CompanyProfile(evidence_ids=(evidence.id,)),
+    )
+    response = draft()
+    response["analyses"]["business_plan"] = {  # type: ignore[index]
+        "text": "管理人员频繁变更, 建议额度5000元",
+        "evidence_ids": ["e0"],
+    }
+    response["suggestions"] = {
+        "suggested_amount": 5000,
+        "suggested_interest_rate": PRICING_GUIDANCE,
+        "suggested_credit_term_months": 3,
+        "suggested_loan_term_months": 2,
+        "guarantee_methods": ["legal_representative"],
+        "repayment_methods": ["equal_principal"],
+        "reason": "管理人员频繁变更, 建议额度5000元, 先核实还款能力后再执行",
+        "evidence_ids": ["e0"],
+    }
+    model = Model([json.dumps(response)])
+    result = await ReportContentGenerator(model).generate(
+        report=report,
+        risks=(),
+        evidence=(evidence,),
+        decision=decision(),
+    )
+    assert not result.generation_failed and model.calls == 1
+    plan = result.report.business_plan
+    assert plan.suggested_amount == 5000 and plan.application_amount == 120000
+    assert plan.suggested_credit_term_months == 3 and plan.suggested_loan_term_months == 2
+    assert plan.suggested_interest_rate == PRICING_GUIDANCE
+    assert plan.suggestion_source == "model"
+    assert set(plan.generated_fields) == set(SUGGESTION_FIELDS)
+    assert plan.evidence_ids == ("governance",)
+    assert "管理人员频繁变更" in plan.analysis
+    assert plan.customer_manager == "王某某" and plan.reporting_org == "城东支行"
+    assert plan.fund_use is None and plan.unified_credit is None and plan.reporting_date is None
+    assert {gap.field for gap in plan.missing_fields} == {"fund_use", "unified_credit"}
+    assert report.business_plan.suggested_amount is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("use_model", [False, True])
+@pytest.mark.parametrize(
+    "band", [DecisionBand.PASS, DecisionBand.MANUAL_REVIEW, DecisionBand.REJECT]
+)
+async def test_missing_model_or_generation_failure_still_produces_honest_rule_suggestions(
+    use_model: bool,
+    band: DecisionBand,
+) -> None:
+    selected = decision().model_copy(update={"band": band})
+    result = await ReportContentGenerator(Model(["invalid"]) if use_model else None).generate(
+        report=ProductReport(
+            business_plan=BusinessPlan(application_amount=8000, application_term_months=2)
+        ),
+        risks=(),
+        evidence=(),
+        decision=selected,
+    )
+    plan = result.report.business_plan
+    assert result.generation_failed is use_model
+    assert plan.suggestion_source == "rules"
+    assert set(plan.generated_fields) == set(SUGGESTION_FIELDS)
+    assert plan.application_amount == 8000 and plan.application_term_months == 2
+    assert plan.fund_use is None and plan.repayment_source is None
+    assert plan.unified_credit is None and plan.investigation_location is None
+    if band is DecisionBand.REJECT:
+        assert plan.suggested_amount == 0
+        assert plan.suggested_credit_term_months is None and plan.suggested_loan_term_months is None
+        assert not plan.guarantee_methods and not plan.repayment_methods
+        assert "暂不新增授信" in plan.analysis
+    else:
+        assert plan.suggested_amount == 8000
+        assert plan.suggested_credit_term_months == (2 if band is DecisionBand.PASS else 1)
+        assert plan.suggested_loan_term_months == plan.suggested_credit_term_months
+        assert plan.guarantee_methods and plan.repayment_methods
+        assert plan.suggested_interest_rate == PRICING_GUIDANCE
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"suggested_amount": 10001},
+        {"suggested_amount": 9000},
+        {"suggested_amount": -1},
+        {"suggested_amount": True},
+        {"suggested_credit_term_months": 4},
+        {"suggested_credit_term_months": 3},
+        {"suggested_loan_term_months": True},
+        {"suggested_credit_term_months": 1, "suggested_loan_term_months": 2},
+        {"suggested_interest_rate": "年利率3%"},
+        {"suggested_amount": 5000, "evidence_ids": ["unknown"]},
+    ],
+)
+async def test_invalid_suggestions_repair_once_then_fall_back_within_limits(
+    fields: dict[str, object],
+) -> None:
+    evidence = ProductEvidence(
+        id="e",
+        source_type="user_input",
+        source_label="申报",
+        summary="申请贷款",
+        source_ref="request://application",
+        queried_at=datetime.now(UTC),
+    )
+    response = draft()
+    response["suggestions"] = {"reason": "建议核实后推进", "evidence_ids": ["e"], **fields}
+    model = Model([json.dumps(response)])
+    result = await ReportContentGenerator(model).generate(
+        report=ProductReport(
+            business_plan=BusinessPlan(application_amount=8000, application_term_months=2)
+        ),
+        risks=(),
+        evidence=(evidence,),
+        decision=decision(),
+    )
+    assert model.calls == 2 and result.generation_failed
+    plan = result.report.business_plan
+    assert plan.suggestion_source == "rules" and plan.suggested_amount == 8000
+    assert plan.suggested_credit_term_months == plan.suggested_loan_term_months == 1
+
+
+@pytest.mark.asyncio
+async def test_manual_zero_amount_prevents_automatic_loan_terms_and_methods() -> None:
+    result = await ReportContentGenerator(None).generate(
+        report=ProductReport(
+            business_plan=BusinessPlan(application_amount=50000, suggested_amount=0)
+        ),
+        risks=(),
+        evidence=(),
+        decision=decision(),
+    )
+    plan = result.report.business_plan
+    assert plan.suggested_amount == 0
+    assert "suggested_amount" not in plan.generated_fields
+    assert plan.suggested_credit_term_months is None and plan.suggested_loan_term_months is None
+    assert not plan.guarantee_methods and not plan.repayment_methods
+    assert "暂不新增授信" in plan.analysis
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"suggested_amount": 10000},
+        {"suggested_amount": 0, "suggested_credit_term_months": 1},
+        {"suggested_amount": 0, "repayment_methods": ["equal_principal"]},
+    ],
+)
+async def test_reject_decision_cannot_be_overridden_by_model_suggestions(
+    fields: dict[str, object],
+) -> None:
+    response = draft()
+    response["suggestions"] = {"reason": "建议推进", "evidence_ids": ["e"], **fields}
+    result = await ReportContentGenerator(Model([json.dumps(response)])).generate(
+        report=ProductReport(business_plan=BusinessPlan(application_amount=50000)),
+        risks=(),
+        evidence=(),
+        decision=decision().model_copy(update={"band": DecisionBand.REJECT}),
+    )
+    assert result.generation_failed
+    assert result.report.business_plan.suggested_amount == 0
+    assert not result.report.business_plan.repayment_methods

@@ -113,7 +113,7 @@ FULL_BUSINESS_CONTEXT: dict[str, object] = {
 
 
 async def generate() -> None:
-    cases = (
+    cases: tuple[tuple[str, str, str, dict[str, object]], ...] = (
         (
             "product-result-full-input.json",
             "sample-complete-request",
@@ -130,9 +130,11 @@ async def generate() -> None:
     with TemporaryDirectory(prefix="jindiao-product-samples-") as temporary:
         for filename, request_id, run_id, business_context in cases:
             service = DueDiligenceService(
-                settings=Settings(
+                settings=Settings(  # type: ignore[call-arg]
+                    _env_file=None,
                     model_provider="offline_mock",
                     model_name="deterministic-sample",
+                    agent_runtime_mode="deterministic_harness",
                     data_source_mode="mock",
                     artifact_root=Path(temporary) / run_id,
                 ),

@@ -50,7 +50,7 @@ def settings(*, model_name: str = "", enforce_token_budget: bool = True) -> Sett
 
 
 def test_token_enforcement_setting_is_frozen_in_policy_and_budget() -> None:
-    configured = settings(model_name="deepseek-v4-flash", enforce_token_budget=False)
+    configured = settings(model_name="deepseek-v4-flash-0731", enforce_token_budget=False)
     original = context()
     frozen = RunContext.from_settings(
         request_id="test",
@@ -59,7 +59,7 @@ def test_token_enforcement_setting_is_frozen_in_policy_and_budget() -> None:
         settings=configured,
         skill_versions={},
     )
-    assert frozen.policy.model_name == "deepseek-v4-flash"
+    assert frozen.policy.model_name == "deepseek-v4-flash-0731"
     assert frozen.policy.enforce_token_budget is False
     assert RunBudget.from_policy(frozen.policy).enforce_token_budget is False
     assert budget(enabled=True).enforce_token_budget is True
@@ -90,12 +90,12 @@ def test_environment_switch_parses_false_without_affecting_model_route(
     configured = Settings(
         model_api_key=None,
         model_base_url=None,
-        model_name="deepseek-v4-flash",
+        model_name="deepseek-v4-flash-0731",
         agent_runtime_mode="deterministic_harness",
         data_source_mode="mock",
     )
     assert configured.enforce_token_budget is False
-    assert configured.model_name == "deepseek-v4-flash"
+    assert configured.model_name == "deepseek-v4-flash-0731"
 
 
 @pytest.mark.asyncio

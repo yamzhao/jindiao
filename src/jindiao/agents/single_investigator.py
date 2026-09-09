@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import inspect
 import json
@@ -17,6 +18,8 @@ from jindiao.contracts.acquisition import EnterpriseContextSnapshot
 from jindiao.contracts.base import ContractModel
 from jindiao.contracts.execution import RunTermination, RunTerminationReason
 from jindiao.contracts.investigation import (
+    CheckResult,
+    CheckStatus,
     DueDiligenceCheckCatalog,
     FactEvidenceRef,
     RiskItem,
@@ -55,9 +58,49 @@ class _SelfCheckState:
     completed: bool = False
 
 
+class _RequiredToolChoiceModel:
+    """Add a provider-neutral exact tool choice after snapshot acquisition."""
+
+    def __init__(self, model: object) -> None:
+        self._model = model
+        self._required_tool: str | None = None
+
+    def set_required_tool(self, tool_name: str | None) -> None:
+        self._required_tool = tool_name
+
+    async def invoke(self, *args: object, **kwargs: object) -> object:
+        if self._required_tool is not None:
+            kwargs = dict(kwargs)
+            kwargs["tool_choice"] = {
+                "type": "function",
+                "function": {"name": self._required_tool},
+            }
+        return await self._model.invoke(*args, **kwargs)  # type: ignore[attr-defined]
+
+    async def stream(self, *args: object, **kwargs: object) -> Any:
+        method = self._model.stream  # type: ignore[attr-defined]
+        if self._required_tool is not None:
+            kwargs = dict(kwargs)
+            kwargs["tool_choice"] = {
+                "type": "function",
+                "function": {"name": self._required_tool},
+            }
+        async for chunk in method(*args, **kwargs):
+            yield chunk
+
+
 class _FinishAfterSubmissionRail(AgentRail):  # type: ignore[misc]  # Upstream has no typing marker.
-    def __init__(self, state: _SelfCheckState) -> None:
+    def __init__(self, state: _SelfCheckState, tool_choice_model: _RequiredToolChoiceModel) -> None:
         self._state = state
+        self._tool_choice_model = tool_choice_model
+        self._continuation_requested = False
+
+    async def before_invoke(self, ctx: AgentCallbackContext) -> None:
+        # A host-side proxy (for example the Docker service) may not provide a
+        # steering queue. Bind a private one so an early natural-language stop
+        # can be turned into one bounded continuation within this invocation.
+        if ctx.steering_queue is None:
+            ctx.bind_steering_queue(asyncio.Queue(maxsize=1))
 
     async def before_model_call(self, ctx: AgentCallbackContext) -> None:
         if self._state.completed:
@@ -68,10 +111,26 @@ class _FinishAfterSubmissionRail(AgentRail):  # type: ignore[misc]  # Upstream h
                 }
             )
 
+    async def after_model_call(self, ctx: AgentCallbackContext) -> None:
+        if self._state.completed or self._continuation_requested:
+            return
+        response = getattr(ctx.inputs, "response", None)
+        if response is not None and not getattr(response, "tool_calls", None):
+            self._continuation_requested = True
+            ctx.push_steering(
+                "你尚未提交任何核查结果。请立即调用 submit_investigation_results, "
+                "一次性提交全部 fixed checks; 不要只输出文字。"
+            )
+
+    async def after_tool_call(self, ctx: AgentCallbackContext) -> None:
+        if ctx.inputs.tool_name == "read_assigned_snapshot_context":
+            self._tool_choice_model.set_required_tool("submit_investigation_results")
+
 
 @dataclass(frozen=True, slots=True)
 class SingleInvestigatorBindings:
     agent: ReActAgent
+    tool_choice_model: _RequiredToolChoiceModel
     reader: SnapshotReadToolset
     blackboard: SubmissionBlackboard
     self_check: _SelfCheckState
@@ -138,7 +197,9 @@ class SingleInvestigatorAgent:
             model_timeout_seconds=timeout_seconds,
             max_iterations=max_iterations,
         )
-        await bindings.agent.register_rail(_FinishAfterSubmissionRail(bindings.self_check))
+        await bindings.agent.register_rail(
+            _FinishAfterSubmissionRail(bindings.self_check, bindings.tool_choice_model)
+        )
         task_ids = self._task_ids()
         request = AgentExecutionRequest(
             run_id=run_id,
@@ -178,10 +239,36 @@ class SingleInvestigatorAgent:
             check_id for check_id in self._enabled_check_ids() if check_id not in submitted
         )
         if missing:
-            raise AgentExecutionError(
-                "single investigator missing fixed checks",
-                details={"missing_check_ids": list(missing), **budget_ledger.error_details()},
-            )
+            if model_provider.casefold() not in {"scripted", "offline_mock"}:
+                for check_id in missing:
+                    definition = self._check_catalog.get(check_id)
+                    await bindings.blackboard.submit_check_result(
+                        agent_id=self.agent_id,
+                        result=CheckResult(
+                            snapshot_id=snapshot.snapshot_id,
+                            snapshot_sha256=snapshot.snapshot_sha256,
+                            subject_id=snapshot.subject.subject_id,
+                            check_catalog_version=self._check_catalog.catalog_version,
+                            output_schema_version=definition.output_schema_version,
+                            task_id=f"check:{check_id}",
+                            check_id=check_id,
+                            status=CheckStatus.INCONCLUSIVE,
+                            decision_summary=(
+                                "调查 Agent 未在执行窗口内提交该核查项, 未形成可验证结论。"
+                            ),
+                            missing_evidence=("调查 Agent 未提交核查结果",),
+                            confidence=0.0,
+                            prompt_version=bindings.invocation.prompt_version,
+                            submission_version=1,
+                        ),
+                    )
+                bindings.self_check.completed = True
+                results = bindings.blackboard.accepted_results
+            else:
+                raise AgentExecutionError(
+                    "single investigator missing fixed checks",
+                    details={"missing_check_ids": list(missing), **budget_ledger.error_details()},
+                )
         if not bindings.self_check.completed:
             raise AgentExecutionError(
                 "single investigator ended without completeness self-check",
@@ -313,7 +400,10 @@ class SingleInvestigatorAgent:
         underlying_model = model
         if underlying_model is None:
             underlying_model = react_agent._get_llm()
-        react_agent.set_llm(cast(Any, BudgetedModel(underlying_model, budget_ledger=budget_ledger)))
+        tool_choice_model = _RequiredToolChoiceModel(
+            BudgetedModel(underlying_model, budget_ledger=budget_ledger)
+        )
+        react_agent.set_llm(cast(Any, tool_choice_model))
         evidence_ids = {item.evidence_id for item in snapshot.evidence}
         prefix = "e"
         while any(f"{prefix}{index}" in evidence_ids for index in range(len(evidence_ids))):
@@ -339,6 +429,7 @@ class SingleInvestigatorAgent:
             raise AgentExecutionError("single investigator Tool registration failed")
         return SingleInvestigatorBindings(
             agent=react_agent,
+            tool_choice_model=tool_choice_model,
             reader=reader,
             blackboard=blackboard,
             self_check=self_check,

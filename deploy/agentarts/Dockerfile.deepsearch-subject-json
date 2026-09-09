@@ -1,0 +1,14 @@
+ARG BASE_IMAGE=jindiao:ecs-20260908-public-feedback-03
+FROM ${BASE_IMAGE}
+USER root
+RUN python - <<'PY'
+from pathlib import Path
+import hashlib
+expected = '3b2d3e68986c2d8c2f60930629fb191e15524c86dc46124274a33b60e1db6cad'
+for root in ('/app/src/jindiao', '/usr/local/lib/python3.11/site-packages/jindiao'):
+    path = Path(root) / 'agents/deepsearch_runtime.py'
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == expected, path
+PY
+COPY src/jindiao/agents/deepsearch_runtime.py /app/src/jindiao/agents/deepsearch_runtime.py
+COPY src/jindiao/agents/deepsearch_runtime.py /usr/local/lib/python3.11/site-packages/jindiao/agents/deepsearch_runtime.py
+USER jindiao
