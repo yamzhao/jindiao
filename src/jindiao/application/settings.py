@@ -135,6 +135,12 @@ class Settings(BaseSettings):
             "multi_demo_partial_enabled", "JINDIAO_MULTI_DEMO_PARTIAL_ENABLED"
         ),
     )
+    single_demo_partial_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "single_demo_partial_enabled", "JINDIAO_SINGLE_DEMO_PARTIAL_ENABLED"
+        ),
+    )
     request_timeout_seconds: int = Field(
         default=300,
         ge=1,

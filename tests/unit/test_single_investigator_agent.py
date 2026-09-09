@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime
@@ -13,7 +14,7 @@ from openjiuwen.core.runner import Runner
 from jindiao.acquisition.catalog import ACQUISITION_CATALOG
 from jindiao.agents import SingleInvestigatorAgent
 from jindiao.agents.single_investigator import _RequiredToolChoiceModel
-from jindiao.application.errors import AgentExecutionError
+from jindiao.application.errors import AgentExecutionError, AgentTimeoutError
 from jindiao.contracts.acquisition import (
     EnterpriseContextSnapshot,
     SubmoduleAvailability,
@@ -40,6 +41,34 @@ from jindiao.prompts import load_prompt_bundle
 
 NOW = datetime(2026, 9, 5, 17, 0, tzinfo=UTC)
 REPORT_AS_OF = date(2026, 8, 31)
+
+
+@pytest.mark.asyncio
+async def test_single_stream_cleanup_tracks_changing_chunk_consumer_tasks():
+    class Model:
+        closed = False
+
+        async def stream(self):
+            try:
+                yield "first"
+                await asyncio.Event().wait()
+            finally:
+                self.closed = True
+
+    model = Model()
+    wrapped = _RequiredToolChoiceModel(model)
+    source = wrapped.stream()
+    assert await asyncio.create_task(anext(source)) == "first"
+    pending = asyncio.create_task(anext(source))
+    await asyncio.sleep(0)
+    try:
+        await wrapped.cancel_pending()
+        assert pending.done()
+        assert model.closed
+    finally:
+        pending.cancel()
+        await asyncio.gather(pending, return_exceptions=True)
+        await source.aclose()
 
 
 def context_snapshot() -> EnterpriseContextSnapshot:
@@ -438,6 +467,58 @@ def ledger() -> BudgetLedger:
             max_snapshot_reads=40,
         )
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("demo_enabled", [False, True])
+async def test_single_demo_deadline_keeps_real_state_and_reserves_report_time(demo_enabled):
+    class StalledModel(ScriptedModel):
+        closed = False
+
+        async def stream(self, **kwargs):
+            if self.calls == 0:
+                async for chunk in super().stream(**kwargs):
+                    yield chunk
+                return
+            self.calls += 1
+            try:
+                await asyncio.Event().wait()
+            finally:
+                self.closed = True
+
+    model = StalledModel(complete_responses())
+    budget = ledger()
+    await Runner.start()
+    try:
+        execution = SingleInvestigatorAgent(
+            prompt_bundle=load_prompt_bundle(),
+            demo_partial_enabled=demo_enabled,
+            demo_investigation_seconds=0.2,
+        ).run(
+            snapshot=context_snapshot(),
+            runtime=OpenJiuwenAgentExecutionRuntime(clock=lambda: NOW),
+            budget_ledger=budget,
+            run_id="run-single-demo-timeout",
+            model_name="scripted",
+            model_provider="scripted",
+            model=model,
+            timeout_seconds=5 if demo_enabled else 0.3,
+        )
+        if not demo_enabled:
+            with pytest.raises(AgentTimeoutError):
+                await execution
+            return
+        result = await execution
+        assert model.closed
+        assert result.termination.reason.value == "partial"
+        assert result.agent_result.status.value == "cancelled"
+        assert result.agent_result.check_results == ()
+        assert len(result.termination.incomplete_task_ids) == len(CHECK_CATALOG.checks)
+        assert result.self_check_completed is False
+        assert budget.snapshot().deadline_remaining_ms > 25000
+        assert budget.error_details()["provider_usage_complete"] is False
+    finally:
+        await Runner.stop()
 
 
 @pytest.mark.asyncio

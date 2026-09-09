@@ -561,6 +561,7 @@ class OrchestrationOutcome(ContractModel):
     review_issues: tuple[ReviewIssue, ...]
     review_completed: bool
     demo_partial_disclosure: str | None = None
+    report_model_allowed: bool = True
     section_data: dict[str, dict[str, JsonValue]]
     agent_trace: tuple[AgentTrace, ...]
     collaboration: CollaborationSummary

@@ -621,6 +621,8 @@ Run 首次 accepted 持久化 `reporting_policy`，包含 `version/revision/poli
 
 ### 8.3 查询真实前后对比
 
+前端接入详见 [Skill Evolution 详情接口：返回结构与前端接入](skill-evolution-detail.md)，包含完整字段、TypeScript 类型、按需加载示例、状态展示及错误处理。
+
 `GET /api/v2/skill-evolutions/{evolution_id}` 继承源 Run 的 owner/session 校验，错配与未知资源均为 404。
 
 默认省略全文。`?include=reports` 返回每例 before/after/diff；`?case_id=single-gap` 返回该例和全文，可选 ID 为 `source/normal/single-gap/multiple-gaps/absent/empty/mock/risk-review/global`。未知 ID 返回 422，不解释为文件路径。

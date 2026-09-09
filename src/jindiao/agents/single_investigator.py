@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, cast
 from openjiuwen.core.single_agent import AgentCard, ReActAgent
 from openjiuwen.core.single_agent.rail import AgentCallbackContext, AgentRail
 
-from jindiao.application.errors import AgentExecutionError
+from jindiao.application.errors import AgentExecutionError, AgentTimeoutError
 from jindiao.contracts.acquisition import EnterpriseContextSnapshot
 from jindiao.contracts.base import ContractModel
 from jindiao.contracts.execution import RunTermination, RunTerminationReason
@@ -64,6 +64,7 @@ class _RequiredToolChoiceModel:
     def __init__(self, model: object) -> None:
         self._model = model
         self._required_tool: str | None = None
+        self._active_calls: set[asyncio.Task[Any]] = set()
 
     def set_required_tool(self, tool_name: str | None) -> None:
         self._required_tool = tool_name
@@ -85,8 +86,35 @@ class _RequiredToolChoiceModel:
                 "type": "function",
                 "function": {"name": self._required_tool},
             }
-        async for chunk in method(*args, **kwargs):
-            yield chunk
+        source = method(*args, **kwargs)
+        try:
+            while True:
+                task = asyncio.current_task()
+                if task is not None:
+                    self._active_calls.add(task)
+                try:
+                    chunk = await anext(source)
+                except StopAsyncIteration:
+                    break
+                finally:
+                    if task is not None:
+                        self._active_calls.discard(task)
+                yield chunk
+        finally:
+            await source.aclose()
+
+    async def cancel_pending(self) -> None:
+        # Runner may consume model streams in child tasks. Cancel only this
+        # invocation's streams, and let BudgetedModel settle their unknown usage.
+        pending = tuple(
+            task
+            for task in self._active_calls
+            if task is not asyncio.current_task() and not task.done()
+        )
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
 
 
 class _FinishAfterSubmissionRail(AgentRail):  # type: ignore[misc]  # Upstream has no typing marker.
@@ -158,9 +186,13 @@ class SingleInvestigatorAgent:
         *,
         prompt_bundle: PromptBundle,
         check_catalog: DueDiligenceCheckCatalog = CHECK_CATALOG,
+        demo_partial_enabled: bool = False,
+        demo_investigation_seconds: float = 180,
     ) -> None:
         self._prompt_bundle = prompt_bundle
         self._check_catalog = check_catalog
+        self._demo_partial_enabled = demo_partial_enabled
+        self._demo_investigation_seconds = demo_investigation_seconds
 
     async def run(
         self,
@@ -184,6 +216,12 @@ class SingleInvestigatorAgent:
 
         check_cancellation(cancellation_token)
 
+        investigation_timeout = (
+            min(self._demo_investigation_seconds, timeout_seconds / 2)
+            if self._demo_partial_enabled
+            else timeout_seconds
+        )
+
         bindings = self.build_react_agent(
             snapshot=snapshot,
             budget_ledger=budget_ledger,
@@ -194,7 +232,7 @@ class SingleInvestigatorAgent:
             model_api_key=model_api_key,
             model_base_url=model_base_url,
             model_temperature=model_temperature,
-            model_timeout_seconds=timeout_seconds,
+            model_timeout_seconds=investigation_timeout,
             max_iterations=max_iterations,
         )
         await bindings.agent.register_rail(
@@ -211,17 +249,26 @@ class SingleInvestigatorAgent:
             task_ids=task_ids,
             prompt_version=bindings.invocation.prompt_version,
             prompt_sha256=bindings.invocation.prompt_sha256,
-            timeout_seconds=timeout_seconds,
+            timeout_seconds=investigation_timeout,
         )
         collected_events: list[AgentExecutionEvent] = []
         stream_kwargs: dict[str, object] = {}
         if "cancellation_token" in inspect.signature(runtime.stream).parameters:
             stream_kwargs["cancellation_token"] = cancellation_token
-        async for event in runtime.stream(bindings.agent, request, **stream_kwargs):  # type: ignore[arg-type]
+        timed_out = False
+        try:
+            async for event in runtime.stream(bindings.agent, request, **stream_kwargs):  # type: ignore[arg-type]
+                check_cancellation(cancellation_token)
+                collected_events.append(event)
+                if event_sink is not None:
+                    await event_sink(event)
+        except (AgentTimeoutError, TimeoutError):
+            if not self._demo_partial_enabled:
+                raise
             check_cancellation(cancellation_token)
-            collected_events.append(event)
-            if event_sink is not None:
-                await event_sink(event)
+            timed_out = True
+        finally:
+            await bindings.tool_choice_model.cancel_pending()
         events = tuple(collected_events)
         budget_usage = budget_ledger.snapshot()
         if budget_usage.exhausted_reason is not None:
@@ -238,7 +285,7 @@ class SingleInvestigatorAgent:
         missing = tuple(
             check_id for check_id in self._enabled_check_ids() if check_id not in submitted
         )
-        if missing:
+        if missing and not self._demo_partial_enabled:
             if model_provider.casefold() not in {"scripted", "offline_mock"}:
                 for check_id in missing:
                     definition = self._check_catalog.get(check_id)
@@ -269,12 +316,15 @@ class SingleInvestigatorAgent:
                     "single investigator missing fixed checks",
                     details={"missing_check_ids": list(missing), **budget_ledger.error_details()},
                 )
-        if not bindings.self_check.completed:
+        if not bindings.self_check.completed and not self._demo_partial_enabled:
             raise AgentExecutionError(
                 "single investigator ended without completeness self-check",
                 details=budget_ledger.error_details(),
             )
 
+        partial = self._demo_partial_enabled and (
+            timed_out or bool(missing) or not bindings.self_check.completed
+        )
         risk_items = self._unique_risks(
             tuple(risk for result in results for risk in result.risk_items)
         )
@@ -285,7 +335,7 @@ class SingleInvestigatorAgent:
             agent_id=self.agent_id,
             role=self.role,
             phase=AgentResultPhase.INVESTIGATION,
-            status=AgentStatus.COMPLETED,
+            status=AgentStatus.CANCELLED if partial else AgentStatus.COMPLETED,
             task_ids=task_ids,
             check_results=results,
             risk_items=risk_items,
@@ -295,12 +345,21 @@ class SingleInvestigatorAgent:
         return SingleInvestigatorRun(
             agent_result=agent_result,
             events=events,
-            self_check_completed=True,
+            self_check_completed=bindings.self_check.completed,
             snapshot_reads=bindings.reader.audit_records,
             investigation_cost=budget_ledger.to_execution_cost(),
             termination=RunTermination(
-                reason=RunTerminationReason.COMPLETED,
-                completed_task_ids=task_ids,
+                reason=RunTerminationReason.PARTIAL if partial else RunTerminationReason.COMPLETED,
+                completed_task_ids=tuple(item.task_id for item in results),
+                incomplete_task_ids=tuple(f"check:{identity}" for identity in missing)
+                if partial
+                else (),
+                detail=(
+                    "演示降级: 单智能体调查提前收尾, 完整性自检未完成, 需人工复核。"
+                    "未完成核查: " + (", ".join(missing) or "无")
+                    if partial
+                    else None
+                ),
             ),
         )
 

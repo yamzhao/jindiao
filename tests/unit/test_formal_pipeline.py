@@ -727,6 +727,142 @@ async def test_formal_pipeline_multi_mode_selects_team_and_shares_one_ledger() -
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "mode,partial_result,known_usage",
+    [
+        (OrchestrationMode.SINGLE, False, False),
+        (OrchestrationMode.SINGLE, True, False),
+        (OrchestrationMode.MULTI, False, False),
+        (OrchestrationMode.MULTI, True, False),
+        (OrchestrationMode.SINGLE, True, True),
+    ],
+)
+async def test_demo_partial_unknown_usage_disables_further_models(
+    tmp_path, monkeypatch, partial_result, mode, known_usage
+) -> None:
+    from test_multi_investigator_team import plan
+
+    from jindiao.agents.agent_teams_investigator import AgentTeamsInvestigatorRun
+    from jindiao.agents.single_investigator import SingleInvestigatorRun
+
+    class DemoUnknownUsage(RecordingMultiInvestigator):
+        async def run(self, *, snapshot, budget_ledger, **kwargs):
+            reservation = await budget_ledger.reserve_llm_request(
+                "cancelled-review", input_tokens=100, output_tokens=100
+            )
+            await budget_ledger.complete_llm_request(
+                reservation,
+                input_tokens=10 if known_usage else None,
+                output_tokens=10 if known_usage else None,
+                provider_usage=known_usage,
+                succeeded=known_usage,
+            )
+            reply = await super().run(snapshot=snapshot, budget_ledger=budget_ledger, **kwargs)
+            result = AgentTeamsInvestigatorRun(
+                assignments=plan(),
+                check_results=tuple(c for a in reply.agent_results for c in a.check_results),
+                agent_results=reply.agent_results,
+                reviews=(),
+                events=(),
+                investigation_cost=budget_ledger.to_execution_cost(),
+                termination=RunTermination(
+                    reason=(
+                        RunTerminationReason.PARTIAL
+                        if partial_result
+                        else RunTerminationReason.COMPLETED
+                    ),
+                    detail="演示降级: 审核未完成" if partial_result else None,
+                ),
+            )
+            if mode is OrchestrationMode.SINGLE:
+                checks = result.check_results
+                return SingleInvestigatorRun(
+                    agent_result=AgentInvestigationResult(
+                        agent_id="single-investigator",
+                        role="single-investigator",
+                        phase=AgentResultPhase.INVESTIGATION,
+                        status=AgentStatus.CANCELLED if partial_result else AgentStatus.COMPLETED,
+                        task_ids=tuple(c.task_id for c in checks),
+                        check_results=checks,
+                        risk_items=tuple(r for c in checks for r in c.risk_items),
+                        fact_evidence_refs=tuple(f for c in checks for f in c.fact_evidence_refs),
+                        prompt_version="fixed-check-v1",
+                    ),
+                    events=(),
+                    self_check_completed=not partial_result,
+                    snapshot_reads=(),
+                    investigation_cost=result.investigation_cost,
+                    termination=result.termination,
+                )
+            return result
+
+    pipeline = pipeline_with_test_doubles(
+        context_agent=RecordingContextAgent([]),
+        supplement_policy=RecordingPolicy([]),
+        deepsearch_agent=None,
+        context_freezer=RecordingFreezer([]),
+        single_investigator=DemoUnknownUsage([]),
+        multi_investigator=DemoUnknownUsage([]),
+        agent_runtime=SimpleNamespace(),
+        gateway=FakeGateway(),
+        model_name="scripted",
+        model_provider="scripted",
+        model_api_key="test-only",
+        model_base_url="http://model.test/v1",
+    )
+    execution = pipeline.investigate(
+        base_context(),
+        snapshot=base_snapshot(),
+        mode=mode,
+        budget=RunBudget.from_policy(base_context().policy).model_copy(
+            update={"enforce_token_budget": True}
+        ),
+    )
+    if not partial_result:
+        with pytest.raises(AgentExecutionError, match="usage is incomplete"):
+            await execution
+        return
+    run = await execution
+    assert run.outcome.report_model_allowed is False
+    assert ("用量不完整" in run.outcome.demo_partial_disclosure) is (not known_usage)
+    assert run.investigation_cost.llm_requests == 1
+    assert run.investigation_cost.provider_usage_requests == (1 if known_usage else 0)
+
+    def forbidden_model(**kwargs):
+        raise AssertionError("must not allocate a report model after unknown usage")
+
+    monkeypatch.setattr("jindiao.application.service.OpenJiuwenReportModel", forbidden_model)
+    service = DueDiligenceService(
+        settings=Settings(
+            agent_runtime_mode="formal",
+            model_name="scripted",
+            model_provider="scripted",
+            model_api_key=SecretStr("test-only"),
+            model_base_url="http://model.test/v1",
+            artifact_root=tmp_path,
+            max_tool_calls=100,
+            enforce_token_budget=True,
+        ),
+        scenarios=ScenarioRepository(Path("mock_data/scenarios")),
+        clock=lambda: NOW,
+        formal_pipeline_factory=lambda _: pipeline,
+    )
+    result = await service.run(
+        request=DueDiligenceRequest(
+            enterprise=EnterpriseInput(company_name="乐视网信息技术（北京）股份有限公司"),
+            scenario_id="normal-enterprise",
+        ),
+        mode=mode,
+        request_id="req-demo-unknown",
+        run_id="run-demo-unknown",
+    )
+    assert result.meta.status.value == "partial"
+    assert ("用量不完整" in result.report_markdown) is (not known_usage)
+    assert "未追加" in result.report_markdown
+    assert len(result.report_markdown) > 100
+
+
+@pytest.mark.asyncio
 async def test_formal_service_stream_orders_and_correlates_pipeline_events(
     tmp_path: Path,
 ) -> None:

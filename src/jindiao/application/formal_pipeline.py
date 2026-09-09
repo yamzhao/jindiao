@@ -21,6 +21,8 @@ from jindiao.agents import (
     EnterpriseContextAgent,
     SingleInvestigatorAgent,
 )
+from jindiao.agents.agent_teams_investigator import AgentTeamsInvestigatorRun
+from jindiao.agents.single_investigator import SingleInvestigatorRun
 from jindiao.contracts.acquisition import (
     EnterpriseContextSnapshot,
     SubmoduleAvailability,
@@ -423,13 +425,29 @@ class FormalDueDiligencePipeline:
                 },
             )
         ledger = BudgetLedger(budget.model_copy(update=limits))
+        report_model_allowed = True
 
         async def invoke_accounted(method: Any, **kwargs: Any) -> Any:
+            nonlocal report_model_allowed
             try:
                 reply = await method(**kwargs)
                 if (
+                    isinstance(reply, (AgentTeamsInvestigatorRun, SingleInvestigatorRun))
+                    and reply.termination.reason.value == "partial"
+                    and (
+                        isinstance(reply, SingleInvestigatorRun)
+                        or not ledger.error_details()["provider_usage_complete"]
+                    )
+                ):
+                    # Demo cancellation may leave unknown usage. Do not allocate
+                    # another model budget; only deterministic reporting may follow.
+                    # Incomplete single investigations also skip model polishing
+                    # to avoid spending the saved time on another empty response.
+                    report_model_allowed = False
+                if (
                     not ledger.error_details()["provider_usage_complete"]
                     and ledger.budget.enforce_token_budget
+                    and report_model_allowed
                 ):
                     raise AgentExecutionError(
                         "Investigation usage is incomplete; refusing another budget allocation"
@@ -480,6 +498,8 @@ class FormalDueDiligencePipeline:
                 **single_kwargs,
             )
             investigation_agent_results = (single_run.agent_result,)
+            if single_run.termination.reason.value == "partial":
+                demo_partial_disclosure = single_run.termination.detail
             investigation_cost = single_run.investigation_cost
             review_issues = ()
             repairs_requested = 0
@@ -515,6 +535,15 @@ class FormalDueDiligencePipeline:
             )
         # Agent runtimes stream directly into ``publish``.  The tuple remains in
         # the return value for deterministic replay/benchmark compatibility.
+        if demo_partial_disclosure and not report_model_allowed:
+            reason = (
+                "模型用量不完整"
+                if not ledger.error_details()["provider_usage_complete"]
+                else "单智能体调查未完成"
+            )
+            demo_partial_disclosure += (
+                f" {reason}; 未追加报告模型请求, 报告仅保留已校验事实与规则建议。"
+            )
 
         outcome = OrchestrationOutcome(
             subject=snapshot.subject,
@@ -524,6 +553,7 @@ class FormalDueDiligencePipeline:
             review_issues=review_issues,
             review_completed=demo_partial_disclosure is None,
             demo_partial_disclosure=demo_partial_disclosure,
+            report_model_allowed=report_model_allowed,
             section_data={},
             agent_trace=self._agent_traces(investigation_agent_results),
             collaboration=CollaborationSummary(

@@ -17,3 +17,4 @@ services:
       # Local demo only: stop multi investigation after 180s, disclose missing
       # checks/review and reserve remaining wall time for a partial report.
       JINDIAO_MULTI_DEMO_PARTIAL_ENABLED: "true"
+      JINDIAO_SINGLE_DEMO_PARTIAL_ENABLED: "true"

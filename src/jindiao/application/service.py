@@ -490,7 +490,7 @@ class DueDiligenceService:
                     prior_cost=prior_cost,
                     elapsed_seconds=time.monotonic() - run_started_monotonic,
                 )
-                if formal_run is not None
+                if formal_run is not None and outcome.report_model_allowed
                 else None
             )
             generated = await ReportContentGenerator(report_model).generate(
@@ -727,7 +727,10 @@ class DueDiligenceService:
             ),
             deepsearch_agent=deepsearch,
             context_freezer=ContextFreezer(clock=self._clock),
-            single_investigator=SingleInvestigatorAgent(prompt_bundle=prompts),
+            single_investigator=SingleInvestigatorAgent(
+                prompt_bundle=prompts,
+                demo_partial_enabled=self._settings.single_demo_partial_enabled,
+            ),
             multi_investigator=AgentTeamsInvestigatorTeam(
                 prompt_bundle=prompts,
                 runtime=cast(OpenJiuwenTeamRuntime, self._team_runtime),
