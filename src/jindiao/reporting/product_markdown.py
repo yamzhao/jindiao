@@ -217,6 +217,7 @@ def _values(value: dict[str, object], *, depth: int = 3) -> list[str]:
 
 class ProductMarkdownRenderer:
     def render(self, view: ProductReportView, *, policy: ReportPolicy | None = None) -> str:
+        view.validate_references()
         policy = policy or ReportPolicy()
         advice = {"proceed": "正常推进", "manual_review": "建议补充尽调", "stop": "暂不推进"}
         lines = [

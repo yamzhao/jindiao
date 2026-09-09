@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any
 from openjiuwen.core.foundation.tool import ToolCard, tool
 from openjiuwen.harness.schema.build_context import BuildContext
 from openjiuwen.harness.schema.deep_agent_spec import register_tool_provider
-from pydantic import ValidationError
 
 from jindiao.contracts.acquisition import EnterpriseContextSnapshot
 from jindiao.contracts.base import ContractModel
@@ -20,7 +19,6 @@ from jindiao.investigation import (
     SubmissionBlackboard,
     SubmissionGrant,
 )
-from jindiao.investigation.blackboard import ReviewSubmission, SubmitReviewInput
 from jindiao.security import redact_json
 
 if TYPE_CHECKING:
@@ -275,35 +273,9 @@ class InvestigationTeamState:
         return read_check_submissions
 
     def _build_submit_review_tool(self, member_name: str) -> Any:
-        @tool(  # type: ignore[untyped-decorator]
-            card=ToolCard(
-                id=f"jindiao.{self.run_id}.{member_name}.submit-review",
-                name="submit_review",
-                description=("Submit structured ReviewIssue and targeted RepairTask records."),
-                input_params=SubmitReviewInput.model_json_schema(),
-                stateless=False,
-                idempotent=True,
-                parallel_safe=False,
-            )
+        return self.submission_board.build_submit_review_tool(
+            reviewer_agent_id=member_name, charge_repair_round=True
         )
-        async def submit_review(review: dict[str, object]) -> dict[str, object]:
-            await self.budget_ledger.claim_tool_call("submit_review")
-            try:
-                parsed = ReviewSubmission.model_validate(review)
-            except ValidationError:
-                await self.budget_ledger.claim_schema_retry("submit_review")
-                raise
-            latest = self.submission_board.latest_review
-            is_new_version = latest is None or parsed.review_version > latest.review_version
-            if parsed.repair_tasks and is_new_version:
-                await self.budget_ledger.claim_repair_round("agent_team.reviewer.repair")
-            receipt = await self.submission_board.submit_review(
-                reviewer_agent_id=member_name,
-                review=parsed,
-            )
-            return receipt.model_dump(mode="json")
-
-        return submit_review
 
 
 _RUNTIME_STATES: dict[str, InvestigationTeamState] = {}

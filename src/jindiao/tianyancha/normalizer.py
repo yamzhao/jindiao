@@ -140,7 +140,6 @@ def _markdown_records(text: str) -> list[dict[str, object]]:
             index + 1 < len(rows)
             and bool(rows[index])
             and all(rows[index])
-            and len(set(rows[index])) == len(rows[index])
             and len(rows[index]) == len(rows[index + 1])
             and all(re.fullmatch(r":?-{3,}:?", cell) for cell in rows[index + 1])
         )
@@ -156,7 +155,15 @@ def _markdown_records(text: str) -> list[dict[str, object]]:
         while index < len(rows):
             if header_at(index) or len(rows[index]) != len(headers):
                 break
-            records.append(dict(zip(headers, rows[index], strict=True)))
+            # Some live tables repeat 人员ID. Keep agreeing values, but do not
+            # arbitrarily choose between conflicting disclosures of one field.
+            record: dict[str, object] = {}
+            conflicts: set[str] = set()
+            for key, value in zip(headers, rows[index], strict=True):
+                if key in record and record[key] != value:
+                    conflicts.add(key)
+                record[key] = value
+            records.append({key: value for key, value in record.items() if key not in conflicts})
             index += 1
     return records
 

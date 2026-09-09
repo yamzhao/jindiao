@@ -1,0 +1,33 @@
+# Full application refresh over the previously verified ARM64 dependency image.
+# Build only after checking ALL current platform requirements against this base.
+ARG JINDIAO_DEPENDENCY_IMAGE=jindiao:agentarts-20260906-multi-recovery-arm64
+FROM ${JINDIAO_DEPENDENCY_IMAGE}
+USER root
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app/src
+
+# Remove stale application files from this image layer, never host files.
+RUN python - <<'PY'
+from pathlib import Path
+import shutil
+for location in ('/app/src', '/app/config', '/app/mock_data', '/app/skills'):
+    path = Path(location)
+    assert path.is_dir() and not path.is_symlink(), location
+    shutil.rmtree(path)
+PY
+COPY requirements.txt pyproject.toml uv.lock README.md ./
+COPY src ./src
+COPY config ./config
+COPY mock_data ./mock_data
+COPY skills ./skills
+COPY release-manifest.json /app/release-manifest.json
+
+RUN uv pip install --system --no-deps --no-build-isolation --offline . \
+    && python -m pip check \
+    && mkdir -p /app/artifacts /app/logs \
+    && chown -R jindiao:jindiao /app
+USER jindiao
+EXPOSE 8080
+HEALTHCHECK --interval=5s --timeout=3s --start-period=15s --retries=3 \
+  CMD ["python", "-c", "import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8080/ping', timeout=2); raise SystemExit(0 if r.status == 200 else 1)"]
+CMD ["python", "-m", "uvicorn", "jindiao.api.app:app", "--host", "0.0.0.0", "--port", "8080"]

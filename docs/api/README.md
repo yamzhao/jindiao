@@ -1,5 +1,7 @@
 # Jindiao 尽调 API
 
+> **AgentArts 最新发布状态（2026-09-09）**：Latest 为 `demo-multi-0909`，按用户授权开启本地 Demo 同款 `JINDIAO_MULTI_DEMO_PARTIAL_ENABLED=true`。本次真实 multi 的 Run 创建 202、Result 200、118 条连续 SSE 与重放通过；结果为无 Mock 的 partial，实际提交 18/19 项核查，完整审核未闭环，摘要和正文均披露“审核未完成”。这不是完整尽调通过。状态投影的 `review.status=completed` 仍不准确，前端不得据此判定审核通过。详见[Demo 策略验收记录](../diagnostics/agentarts-demo-multi-2026-09-09.md)。此前严格版本失败记录保留，不应与本次 Demo 验收混淆。
+
 本文档对应 `jindiao/src/jindiao/api/app.py` 中实际注册的 HTTP 接口。接口返回 JSON 时使用 `application/json`；需要实时进度时使用 `text/event-stream`（SSE）。所有时间为 ISO 8601 UTC 字符串，日期为 `YYYY-MM-DD`。
 
 > 当前版本没有注册 `/api/agent/components/export`。第 8 节记录已注册、默认关闭的两个本地反馈 Demo 接口；应用和恢复仅通过本地 CLI 执行。
@@ -413,6 +415,10 @@ schema_version, meta, subject, summary, report, risk_findings, evidence, report_
 `business_plan.analysis` 给出综合理由和执行前提，`generated_fields` 列出后端自动填入的建议字段；新增 `suggestion_source` 为 `model`（AI 建议）、`rules`（规则保守建议）或 `model_with_rules`（AI 建议及规则补全），没有自动建议时可为 `null`。模型失败时仍保留 `generation_failed` 缺口标记，规则补全不伪装成模型成功。建议生成后会移除对应的 `not_provided` 缺口，其他缺失事实继续保留。已有 Run 的持久化结果不会自动重新生成。
 
 `report.risk_points.finding_ids` 与 `risk_findings[].id` 同序，`summary.risk_count` 等于卡片数量。每张卡片固定返回 `risk_fact`、真实证据标签、核查项标签和可选的一句模拟案例。模拟案例以“模拟案例：”开头并设置 `historical_case_is_mock=true`，不会进入证据或全局 `meta.is_mock`。
+
+`summary.ai_suggestion_reason` 是面向客户经理的 1–2 句中文：概括该客户已审核风险或资料限制，并给出进一步核查及信贷策略建议。零条已审核风险但资料不完整时，不表述为整体无风险；建议不代表批准授信。调查提前结束、模型用量、英文核查编号等诊断保留在内部调查产物，不拼接到建议说明。
+
+`ai_suggestion` 保留机器枚举兼容性，页面应映射为中文：`proceed → 正常推进`、`manual_review → 建议补充尽调`、`stop → 暂不推进`，不要直接展示英文枚举。风险数量读取同一最终结果的 `summary.risk_count`，风险卡片读取顶层 `risk_findings`；`report.risk_points` 只含 `finding_ids`，不是风险卡片数组。结果、Markdown 和版本对比必须对应同一 `meta.run_id`，不能混用此前运行的报告。后端渲染前校验计数及卡片引用，结果契约拒绝 Markdown 摘要风险数与 `summary.risk_count` 冲突的载荷；版本对比只调整资料缺口位置，不修改风险数量或建议。
 
 裁剪示例：
 

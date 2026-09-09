@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from typing import Literal
 
@@ -487,6 +488,11 @@ class ProductResult(ContractModel):
             raise ValueError("risk ids must be unique")
         if self.summary.risk_count != len(ids):
             raise ValueError("risk count must match cards")
+        # Machine-readable summary and generated Markdown must describe the same
+        # final result, including when a persisted/API payload is loaded again.
+        markdown_counts = re.findall(r"^风险点[\uff1a:]\s*(\d+)\s*个", self.report_markdown, re.M)
+        if any(int(count) != self.summary.risk_count for count in markdown_counts):
+            raise ValueError("Markdown risk count must match summary risk count")
         if tuple(ids) != self.report.risk_points.finding_ids:
             raise ValueError("section 7 must reference risk cards in order")
         known = {item.id for item in self.evidence}

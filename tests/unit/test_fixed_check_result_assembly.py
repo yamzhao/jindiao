@@ -89,8 +89,9 @@ def test_result_assembler_prepares_reviewed_inputs_without_legacy_public_result(
     )
     assert product.meta.status.value == "partial"
     assert product.summary.ai_suggestion == "manual_review"
-    assert "审核未完成" in product.summary.ai_suggestion_reason
-    assert "审核未完成" in product.report_markdown
+    assert "资料仍不完整" in product.summary.ai_suggestion_reason
+    assert "暂缓新增授信" in product.report_markdown
+    assert "演示降级" not in product.summary.ai_suggestion_reason
     with pytest.raises(ValueError, match="before review"):
         assembler.prepare(
             context=context(),

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import AsyncIterator, Callable
 from contextlib import suppress
 from dataclasses import replace
@@ -857,8 +858,14 @@ async def test_demo_partial_unknown_usage_disables_further_models(
         run_id="run-demo-unknown",
     )
     assert result.meta.status.value == "partial"
-    assert ("用量不完整" in result.report_markdown) is (not known_usage)
-    assert "未追加" in result.report_markdown
+    assert "用量不完整" not in result.summary.ai_suggestion_reason
+    assert "未追加" not in result.summary.ai_suggestion_reason
+    assert "不代表整体无风险" in result.summary.ai_suggestion_reason
+    assert "暂缓新增授信" in result.summary.ai_suggestion_reason
+    internal = json.loads((tmp_path / "run-demo-unknown" / "investigation.json").read_text())
+    disclosure = internal["reviewed"]["demo_partial_disclosure"]
+    assert ("用量不完整" in disclosure) is (not known_usage)
+    assert "未追加" in disclosure
     assert len(result.report_markdown) > 100
 
 

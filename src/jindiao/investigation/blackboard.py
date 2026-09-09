@@ -283,6 +283,7 @@ class SubmissionBlackboard:
         *,
         reviewer_agent_id: str,
         review: ReviewSubmission,
+        charge_repair_round: bool = False,
     ) -> ReviewSubmissionReceipt:
         validated = ReviewSubmission.model_validate(review.model_dump(mode="json"))
         self._validate_review(reviewer_agent_id=reviewer_agent_id, review=validated)
@@ -303,13 +304,22 @@ class SubmissionBlackboard:
                 raise ValueError(
                     f"review version must advance exactly once; expected {expected_version}"
                 )
-            self._reviews[validated.review_version] = validated
-            return self._review_receipt(
+            receipt = self._review_receipt(
                 reviewer_agent_id=reviewer_agent_id,
                 review=validated,
                 digest=digest,
                 replay=False,
             )
+            # Validate scope, version and replay before accounting. The board lock
+            # serializes charging with commit, so concurrent retries cannot charge
+            # twice. A rejected charge leaves the authoritative board unchanged.
+            # Legacy orchestrators may account for repairs themselves (default).
+            if charge_repair_round and validated.repair_tasks and self._budget_ledger is not None:
+                claim_repair = getattr(self._budget_ledger, "claim_repair_round", None)
+                if claim_repair is not None:
+                    await claim_repair("agent_team.reviewer.repair")
+            self._reviews[validated.review_version] = validated
+            return receipt
 
     def build_submit_check_result_tool(self, *, agent_id: str) -> Any:
         @tool(  # type: ignore[untyped-decorator]
@@ -411,7 +421,9 @@ class SubmissionBlackboard:
 
         return submit_check_result
 
-    def build_submit_review_tool(self, *, reviewer_agent_id: str) -> Any:
+    def build_submit_review_tool(
+        self, *, reviewer_agent_id: str, charge_repair_round: bool = False
+    ) -> Any:
         @tool(  # type: ignore[untyped-decorator]
             card=ToolCard(
                 id=f"jindiao.{self.run_id}.{reviewer_agent_id}.submit-review",
@@ -428,14 +440,15 @@ class SubmissionBlackboard:
                 await self._budget_ledger.claim_tool_call("submit_review")
             try:
                 parsed = ReviewSubmission.model_validate(review)
-            except ValidationError:
+                receipt = await self.submit_review(
+                    reviewer_agent_id=reviewer_agent_id,
+                    review=parsed,
+                    charge_repair_round=charge_repair_round,
+                )
+            except ValueError:
                 if self._budget_ledger is not None:
                     await self._budget_ledger.claim_schema_retry("submit_review")
                 raise
-            receipt = await self.submit_review(
-                reviewer_agent_id=reviewer_agent_id,
-                review=parsed,
-            )
             return receipt.model_dump(mode="json")
 
         return submit_review
@@ -474,20 +487,15 @@ class SubmissionBlackboard:
                     prompt_version=prompt_version,
                     draft=draft,
                 )
-            except ValidationError:
+                receipt = await self.submit_review(
+                    reviewer_agent_id=reviewer_agent_id,
+                    review=parsed,
+                    charge_repair_round=True,
+                )
+            except ValueError:
                 if self._budget_ledger is not None:
                     await self._budget_ledger.claim_schema_retry("submit_review")
                 raise
-            latest = self.latest_review
-            is_new_version = latest is None or parsed.review_version > latest.review_version
-            if parsed.repair_tasks and is_new_version and self._budget_ledger is not None:
-                claim_repair = getattr(self._budget_ledger, "claim_repair_round", None)
-                if claim_repair is not None:
-                    await claim_repair("agent_team.reviewer.repair")
-            receipt = await self.submit_review(
-                reviewer_agent_id=reviewer_agent_id,
-                review=parsed,
-            )
             return receipt.model_dump(mode="json")
 
         return submit_review

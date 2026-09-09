@@ -1,11 +1,10 @@
 """Combine normalized source facts, caller input and deterministic metrics."""
-# ruff: noqa: RUF001 -- user-facing Chinese demo disclosure
 
 from __future__ import annotations
 
 import hashlib
 from datetime import datetime
-from typing import cast
+from typing import Literal, cast
 
 from jindiao.acquisition.business_input import business_input_evidence
 from jindiao.application.context import RunContext
@@ -33,6 +32,7 @@ from jindiao.contracts.results import OrchestrationMode, RunStatus
 from jindiao.reporting.product_markdown import ProductMarkdownRenderer, ProductReportView
 from jindiao.reporting.product_metrics import calculate_bank_flow, calculate_financials
 from jindiao.reporting.product_risks import evidence_label
+from jindiao.reporting.product_summary import customer_risk_advice
 
 
 def _referenced(value: object) -> set[str]:
@@ -375,7 +375,7 @@ class ProductReportAssembler:
             getattr(report, key).status != "complete"
             for key in tuple(ProductReport.model_fields)[:-1]
         )
-        suggestion = (
+        suggestion: Literal["proceed", "manual_review", "stop"] = (
             "stop"
             if reviewed.decision.band.value == "reject"
             else "manual_review"
@@ -387,22 +387,15 @@ class ProductReportAssembler:
             )
             else "proceed"
         )
-        reason = {
-            "proceed": "依据本次已审核核查结果正常推进",
-            "manual_review": "存在需人工复核的风险或证据缺口",
-            "stop": "已审核风险达到暂不推进条件",
-        }[suggestion]
-        summary = ProductSummary.model_validate(
-            {
-                "risk_count": len(risks),
-                "ai_suggestion": suggestion,
-                "ai_suggestion_reason": reason
-                + (
-                    "；" + reviewed.demo_partial_disclosure
-                    if reviewed.demo_partial_disclosure
-                    else ""
-                ),
-            }
+        summary = ProductSummary(
+            risk_count=len(risks),
+            ai_suggestion=suggestion,
+            ai_suggestion_reason=customer_risk_advice(
+                risks=risks,
+                report=report,
+                suggestion=suggestion,
+                review_incomplete=reviewed.incomplete,
+            ),
         )
         by_id = {item.id: item for item in facts.evidence}
         refs = _referenced(report.model_dump(mode="json")) | _referenced(

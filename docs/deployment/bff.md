@@ -1,5 +1,7 @@
 # 后端安全代理（BFF）：本地联调
 
+> 2026-09-09 当前 AgentArts Latest 为 `demo-multi-0909`，已直接通过真实网关 Run/Events/Result 联调，允许审核未闭环时返回明确披露的 partial。此轮未重新做浏览器/BFF 全链路验收；见[当前 Demo 策略与状态投影注意事项](../diagnostics/agentarts-demo-multi-2026-09-09.md)。
+
 本方案仅交付后端，不要求前端源码，不开放公网明文端口。BFF 是独立 FastAPI 应用：`jindiao.bff.app:create_app`，不加载模型、天眼查或多 Agent 执行器。2026-09-06 本地 BFF → 真实 AgentArts → Qwen + 天眼查 multi 已通过 15 项核查、六角色审核、报告 GET、SSE 终态和断点重放，详见[真实 multi 验收记录](../agentarts-real-multi-2026-09-06.md)。约 149 秒返回无 Mock 的 `partial` 报告；这是流程打通，不是完整源覆盖或生产稳定性验收。
 
 ```text

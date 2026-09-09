@@ -256,6 +256,77 @@ def _single_record_source(source: Mapping[str, object]) -> Mapping[str, object]:
     return {**source, **records[0]}
 
 
+def _ownership_rows(
+    source: Mapping[str, object],
+    key: str,
+    *name_keys: str,
+) -> tuple[Mapping[str, object], ...]:
+    """Adapt provider field labels on copies, leaving frozen evidence untouched."""
+    aliases = {
+        "持股比例": "shareholding_ratio",
+        "认缴出资": "subscribed_capital",
+        "认缴出资额": "subscribed_capital",
+        "实缴出资": "paid_in_capital",
+        "实缴出资额": "paid_in_capital",
+        "被投资企业名称": "company_name",
+        "企业名称": "company_name",
+        "企业ID": "company_id",
+        "交易金额": "amount",
+        "交易类型": "transaction_type",
+        "公告日期": "period",
+        "decisionReason": "identification_basis",
+    }
+    result: list[Mapping[str, object]] = []
+    for item in _record_group(source, key):
+        name = _text(item, *name_keys)
+        if not name or name in {"-", "--", "暂无", "未披露", "null"}:
+            continue  # Metadata and control-path rows are not entities.
+        row = dict(item)
+        row["name"] = name
+        for label, canonical in aliases.items():
+            if label in item:
+                row.setdefault(canonical, item[label])
+        for field in ("subscribed_capital", "paid_in_capital"):
+            value = row.get(field)
+            if isinstance(value, str) and re.fullmatch(r"[\d,.]+(?:亿|万|千)?元人民币", value):
+                row[field] = value.removesuffix("人民币")
+                row.setdefault("capital_currency", "CNY")
+        if "实际控制人" in item and "比例" in item:
+            # The live bare value 1.0 does not state whether it is a fraction
+            # or percentage. Preserve it as context, never silently scale it.
+            row.setdefault(
+                "identification_basis",
+                f"来源披露的控制人字段; 比例原值: {item['比例']} (单位未明确)",
+            )
+        result.append(row)
+    return tuple(result)
+
+
+def _disclosed_control_depth(source: Mapping[str, object]) -> int | None:
+    depths = []
+    for row in _records(source.get("records")):
+        path = _text(row, "控制路径")
+        edges, nodes = _integer(row, "关系数"), _integer(row, "节点数")
+        if path and edges is not None and nodes == edges + 1 and edges > 0:
+            if len(path.split(" -> ")) == nodes:
+                depths.append(edges)
+    return max(depths) if depths else None
+
+
+def _disclosed_related_transactions(source: Mapping[str, object]) -> Mapping[str, object]:
+    if source.get("source_tool") != "get_suppliers_and_customers":
+        return source
+    # A trading counterparty is not necessarily a related party. Require an
+    # affirmative disclosure instead of treating every supplier as related.
+    rows = tuple(
+        row
+        for row in _record_group(source, "related_transactions")
+        if _text(row, "关联关系", "是否关联方", "is_related_party")
+        in {"是", "关联方", "存在关联关系", "True", "true"}
+    )
+    return {**source, "records": rows, "related_transactions": rows}
+
+
 def _registration_source(source: Mapping[str, object]) -> Mapping[str, object]:
     """Read the provider's vertical field table without rewriting frozen evidence."""
     result = dict(_single_record_source(source))
@@ -608,10 +679,12 @@ class ProductFactProjector:
         )
         shareholder_source = _mapping(source.get("shareholders", governance))
         controller_source = _mapping(source.get("actual_controller", governance))
-        owner_source = _mapping(source.get("beneficial_owners", controller_source))
+        owner_source = _mapping(source.get("beneficial_owners", {}))
         investment_source = _mapping(source.get("external_investments", governance))
         guarantee_source = _mapping(source.get("guarantees", governance))
-        transaction_source = _mapping(source.get("disclosed_transactions", governance))
+        transaction_source = _disclosed_related_transactions(
+            _mapping(source.get("disclosed_transactions", governance))
+        )
         employment_source = _single_record_source(
             _mapping(source.get("annual_reports", operations))
         )
@@ -659,15 +732,18 @@ class ProductFactProjector:
         guarantee_ids = _submodule_evidence_ids(snapshot, "guarantees", company_ids)
         transaction_ids = _submodule_evidence_ids(snapshot, "disclosed_transactions", company_ids)
 
-        shareholder_rows = _record_group(shareholder_source, "shareholders") or _record_group(
-            company, "shareholders"
-        )
+        shareholder_rows = _ownership_rows(
+            shareholder_source, "shareholders", "name", "shareholder_name", "股东名称"
+        ) or _ownership_rows(company, "shareholders", "name", "shareholder_name", "股东名称")
         shareholders = tuple(
             Shareholder(
                 name=_text(item, "name", "shareholder_name") or "未披露名称",
                 type=(
                     "company"
-                    if any(word in (_text(item, "name") or "") for word in ("公司", "集团"))
+                    if any(
+                        word in (_text(item, "name") or "").lower()
+                        for word in ("公司", "集团", "limited", "ltd")
+                    )
                     else "person"
                 ),
                 shareholding_ratio=_number(
@@ -685,7 +761,9 @@ class ProductFactProjector:
             )
             for item in shareholder_rows
         )
-        controller_rows = _record_group(controller_source, "actual_controllers")
+        controller_rows = _ownership_rows(
+            controller_source, "actual_controllers", "name", "controller_name", "实际控制人"
+        )
         controller = _text(
             controller_source, "name", "ultimate_controller", "actual_controller", "controller"
         )
@@ -709,23 +787,35 @@ class ProductFactProjector:
                     evidence_ids=controller_ids,
                 ),
             )
-        owner_rows = _record_group(owner_source, "beneficial_owners")
-        owners = (
-            tuple(
-                ControlPerson(
-                    name=_text(item, "name", "owner_name") or "未披露名称",
-                    shareholding_ratio=_number(item, "shareholding_ratio", "percent"),
-                    identification_basis=_text(item, "identification_basis", "basis")
-                    or "来源披露的受益所有人字段",
-                    is_suspected=bool(item.get("is_suspected", True)),
-                    evidence_ids=owner_ids,
-                )
-                for item in owner_rows
-            )
-            or actual
+        owner_rows = _ownership_rows(
+            owner_source, "beneficial_owners", "name", "owner_name", "名称"
         )
-        investments = _record_group(investment_source, "outbound_investments") or _record_group(
-            investment_source, "external_investments"
+        owners = tuple(
+            ControlPerson(
+                name=_text(item, "name", "owner_name") or "未披露名称",
+                type="person" if item.get("类型") == "human" else "other",
+                shareholding_ratio=_number(item, "shareholding_ratio", "percent"),
+                identification_basis=_text(item, "identification_basis", "basis")
+                or "来源披露的受益所有人字段",
+                is_suspected=bool(item.get("is_suspected", True)),
+                evidence_ids=owner_ids,
+            )
+            for item in owner_rows
+        )
+        investments = _ownership_rows(
+            investment_source,
+            "outbound_investments",
+            "company_name",
+            "name",
+            "被投资企业名称",
+            "企业名称",
+        ) or _ownership_rows(
+            investment_source,
+            "external_investments",
+            "company_name",
+            "name",
+            "被投资企业名称",
+            "企业名称",
         )
         related = tuple(
             RelatedCompany(
@@ -747,7 +837,15 @@ class ProductFactProjector:
                 pricing_disclosure=_text(item, "pricing_disclosure", "pricing_basis"),
                 evidence_ids=transaction_ids,
             )
-            for item in _record_group(transaction_source, "related_transactions")
+            for item in _ownership_rows(
+                transaction_source,
+                "related_transactions",
+                "counterparty",
+                "name",
+                "related_party",
+                "名称",
+                "供应商/客户名称",
+            )
         )
         guarantees = tuple(
             Guarantee(
@@ -918,6 +1016,7 @@ class ProductFactProjector:
                 shareholders=shareholders,
                 actual_controllers=actual,
                 beneficial_owners=owners,
+                control_depth=_disclosed_control_depth(controller_source),
                 related_companies=related,
                 related_transactions=transactions,
                 guarantees=guarantees,
